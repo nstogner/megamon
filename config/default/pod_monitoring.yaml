@@ -1,0 +1,12 @@
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: manager
+  namespace: system
+spec:
+  endpoints:
+  - interval: 15s
+    port: 8080
+  selector:
+    matchLabels:
+      control-plane: controller-manager
