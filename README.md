@@ -1,5 +1,6 @@
-# megamon
-// TODO(user): Add simple overview of use/purpose
+# MegaMon
+
+![MegaMon](./hack/megamon.png)
 
 ## Why MegaMon over Kube State Metrics
 
