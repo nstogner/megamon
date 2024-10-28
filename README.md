@@ -103,14 +103,3 @@ kubectl apply -f https://raw.githubusercontent.com/<org>/megamon/<tag or branch>
 **NOTE:** Run `make help` for more information on all potential `make` targets
 
 More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
-
-## Internal Google Development
-
-```bash
-export MEGAMON_IMG=us-central1-docker.pkg.dev/cool-machine-learning/default/megamon:v0.0.2
-make docker-build docker-push CONTAINER_TOOL=podman IMG=${MEGAMON_IMG}
-
-gcloud container clusters get-credentials --region us-east5 tpu-provisioner-e2e-us-east5
-
-make deploy IMG=${MEGAMON_IMG}
-```# megamon
