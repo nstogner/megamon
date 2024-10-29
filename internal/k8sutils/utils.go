@@ -69,33 +69,6 @@ func IsNodeReady(node *corev1.Node) bool {
 	return false
 }
 
-func GetJobsetRecords(js *jobset.JobSet) (records.EventRecords, error) {
-	var rec records.EventRecords
-	if js.GetAnnotations() == nil {
-		return rec, nil
-	}
-	val, ok := js.Annotations[records.JobSetRecordsAnnotationKey]
-	if !ok {
-		return rec, nil
-	}
-	if err := json.Unmarshal([]byte(val), &rec); err != nil {
-		return rec, err
-	}
-	return rec, nil
-}
-
-func SetJobsetRecords(js *jobset.JobSet, rec records.EventRecords) error {
-	data, err := json.Marshal(rec)
-	if err != nil {
-		return err
-	}
-	if js.Annotations == nil {
-		js.Annotations = map[string]string{}
-	}
-	js.Annotations[records.JobSetRecordsAnnotationKey] = string(data)
-	return nil
-}
-
 func GetEventRecordsFromConfigMap(cm *corev1.ConfigMap, key string) (records.EventRecords, error) {
 	var rec records.EventRecords
 	if cm.Data == nil {
@@ -122,25 +95,6 @@ func SetEventRecordsInConfigMap(cm *corev1.ConfigMap, key string, rec records.Ev
 	cm.Data[key] = string(data)
 	return nil
 }
-
-//func ObjectToConfigMapKey(obj client.Object) (string, error) {
-//	switch obj := obj.(type) {
-//	case *jobset.JobSet:
-//		return "jobset." + obj.Name, nil
-//	case *corev1.Node:
-//		lbls := obj.GetLabels()
-//		if lbls == nil {
-//			return "", fmt.Errorf("node %s has no labels", obj.GetName())
-//		}
-//		nodePool, ok := lbls["cloud.google.com/gke-nodepool"]
-//		if !ok {
-//			return "", fmt.Errorf("node %s has no nodepool label", obj.GetName())
-//		}
-//		return "nodepool." + nodePool, nil
-//	default:
-//		return "", fmt.Errorf("unsupported object type %T", obj)
-//	}
-//}
 
 func JobSetEventsKey(js *jobset.JobSet) string {
 	// NOTE: "." is not a valid JobSet name character, so this is safe.
