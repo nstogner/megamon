@@ -9,25 +9,25 @@ func NewReport() Report {
 }
 
 type Report struct {
-	JobSetsUp          map[string]JobSetUp
-	JobSetsUpSummaries map[string]EventSummaryWithAttrs
-	JobSetNodesUp      map[string]JobSetNodesUp
+	JobSetsUp          map[string]JobSetUp              `json:"jobSetsUp"`
+	JobSetsUpSummaries map[string]EventSummaryWithAttrs `json:"jobSetsUpSummaries"`
+	JobSetNodesUp      map[string]JobSetNodesUp         `json:"jobSetNodesUp"`
 }
 
 type JobSetUp struct {
-	Up bool
+	Up bool `json:"up"`
 	JobSetAttrs
 }
 
 type JobSetAttrs struct {
-	TPUTopology    string
-	TPUAccelerator string
-	Spot           bool
+	TPUTopology    string `json:"tpuTopology"`
+	TPUAccelerator string `json:"tpuAccelerator"`
+	Spot           bool   `json:"spot"`
 }
 
 type JobSetNodesUp struct {
-	ReadyCount    int
-	ExpectedCount int
+	ReadyCount    int `json:"readyCount"`
+	ExpectedCount int `json:"expectedCount"`
 	JobSetAttrs
 }
 

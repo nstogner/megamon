@@ -33,6 +33,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -64,7 +65,9 @@ func init() {
 }
 
 type config struct {
-	AggregationInterval time.Duration
+	AggregationInterval      time.Duration
+	ReportConfigMapRef       types.NamespacedName
+	JobSetEventsConfigMapRef types.NamespacedName
 }
 
 func main() {
@@ -93,6 +96,14 @@ func main() {
 	// TODO: Expose as configuration.
 	cfg := config{
 		AggregationInterval: 1 * time.Second,
+		ReportConfigMapRef: types.NamespacedName{
+			Namespace: "megamon-system",
+			Name:      "report",
+		},
+		JobSetEventsConfigMapRef: types.NamespacedName{
+			Namespace: "megamon-system",
+			Name:      "jobset-events",
+		},
 	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
@@ -166,8 +177,10 @@ func main() {
 	}
 
 	if err = (&controller.JobSetReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Disabled:                 false,
+		JobSetEventsConfigMapRef: cfg.JobSetEventsConfigMapRef,
+		Client:                   mgr.GetClient(),
+		Scheme:                   mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "JobSet")
 		os.Exit(1)
@@ -184,9 +197,15 @@ func main() {
 	ctx := ctrl.SetupSignalHandler()
 
 	agg := &aggregator.Aggregator{
-		Interval: cfg.AggregationInterval,
-		Client:   mgr.GetClient(),
+		JobSetEventsConfigMapRef: cfg.JobSetEventsConfigMapRef,
+		Interval:                 cfg.AggregationInterval,
+		Client:                   mgr.GetClient(),
 		Exporters: map[string]aggregator.Exporter{
+			"configmap": &aggregator.ConfigMapExporter{
+				Client: mgr.GetClient(),
+				Ref:    cfg.ReportConfigMapRef,
+				Key:    "report",
+			},
 			"stdout": &aggregator.StdoutExporter{},
 		},
 	}

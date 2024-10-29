@@ -21,16 +21,16 @@ type EventSummaryWithAttrs struct {
 }
 
 type EventSummary struct {
-	TTIUp time.Duration
+	TTIUp time.Duration `json:"ttiUp"`
 
-	InterruptionTime time.Duration
-	UpTime           time.Duration
+	InterruptionTime time.Duration `json:"interruptionTime"`
+	UpTime           time.Duration `json:"upTime"`
 
-	Interruptions int
-	Recoveries    int
+	Interruptions int `json:"interruptions"`
+	Recoveries    int `json:"recoveries"`
 
-	MTTR time.Duration
-	MTBI time.Duration
+	MTTR time.Duration `json:"mttr"`
+	MTBI time.Duration `json:"mtbi"`
 }
 
 func (r *EventRecords) Summarize(now time.Time) EventSummary {

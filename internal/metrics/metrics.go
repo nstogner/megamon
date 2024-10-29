@@ -44,6 +44,7 @@ func Init(r Reporter) func() {
 	AggregationDuration, err = meter.Float64Histogram("megamon.aggregation.duration",
 		metric.WithDescription("Duration of the aggregation loop."),
 		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30, 60),
 	)
 	if err != nil {
 		log.Fatalf("failed to create aggregation.duration histogram: %v", err)
