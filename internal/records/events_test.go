@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestJobSetUpSummary(t *testing.T) {
+func TestSummarize(t *testing.T) {
 	t0, err := time.Parse(time.RFC3339, "2021-01-01T00:00:00Z")
 	if err != nil {
 		t.Fatal(err)
