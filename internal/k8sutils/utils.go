@@ -68,8 +68,8 @@ func IsNodeReady(node *corev1.Node) bool {
 	return false
 }
 
-func GetJobsetRecords(js *jobset.JobSet) (records.JobSetMetadataRecords, error) {
-	var rec records.JobSetMetadataRecords
+func GetJobsetRecords(js *jobset.JobSet) (records.EventRecords, error) {
+	var rec records.EventRecords
 	if js.GetAnnotations() == nil {
 		return rec, nil
 	}
@@ -83,7 +83,7 @@ func GetJobsetRecords(js *jobset.JobSet) (records.JobSetMetadataRecords, error) 
 	return rec, nil
 }
 
-func SetJobsetRecords(js *jobset.JobSet, rec records.JobSetMetadataRecords) error {
+func SetJobsetRecords(js *jobset.JobSet, rec records.EventRecords) error {
 	data, err := json.Marshal(rec)
 	if err != nil {
 		return err

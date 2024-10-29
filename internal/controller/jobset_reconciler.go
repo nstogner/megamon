@@ -40,7 +40,7 @@ func (r *JobSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	var changed bool
 	isUp := k8sutils.IsJobSetUp(&js)
 	if len(rec.UpEvents) == 0 {
-		rec.UpEvents = append(rec.UpEvents, records.JobSetUpEvent{
+		rec.UpEvents = append(rec.UpEvents, records.UpEvent{
 			Up:        isUp,
 			Timestamp: time.Now(),
 		})
@@ -48,7 +48,7 @@ func (r *JobSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	} else {
 		last := rec.UpEvents[len(rec.UpEvents)-1]
 		if last.Up != isUp {
-			rec.UpEvents = append(rec.UpEvents, records.JobSetUpEvent{
+			rec.UpEvents = append(rec.UpEvents, records.UpEvent{
 				Up:        isUp,
 				Timestamp: time.Now(),
 			})

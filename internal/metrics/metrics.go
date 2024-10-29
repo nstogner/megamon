@@ -12,6 +12,10 @@ import (
 	metricsdk "go.opentelemetry.io/otel/sdk/metric"
 )
 
+var (
+	AggregationDuration metric.Float64Histogram
+)
+
 func initMeterProvider() *metricsdk.MeterProvider {
 	// Create a Prometheus exporter
 	exporter, err := prometheus.New()
@@ -36,6 +40,15 @@ func Init(r Reporter) func() {
 
 	meter := otel.Meter("megamon")
 
+	var err error
+	AggregationDuration, err = meter.Float64Histogram("megamon.aggregation.duration",
+		metric.WithDescription("Duration of the aggregation loop."),
+		metric.WithUnit("s"),
+	)
+	if err != nil {
+		log.Fatalf("failed to create aggregation.duration histogram: %v", err)
+	}
+
 	jobsetUp, err := meter.Int64ObservableGauge("megamon.jobset.up",
 		metric.WithDescription("Whether all JobSet Job replicas are ready."),
 	)
@@ -50,14 +63,14 @@ func Init(r Reporter) func() {
 		log.Fatalf("failed to create jobset.nodes.up gauge: %v", err)
 	}
 
-	jobsetUpTime, err := meter.Int64ObservableCounter("megamon.jobset.uptime",
+	jobsetUpTime, err := meter.Float64ObservableCounter("megamon.jobset.uptime",
 		metric.WithDescription("Total time JobSet has been up."),
 		metric.WithUnit("s"),
 	)
 	if err != nil {
 		log.Fatalf("failed to create jobset.uptime counter: %v", err)
 	}
-	jobsetInterruptionTime, err := meter.Int64ObservableCounter("megamon.jobset.intteruptiontime",
+	jobsetInterruptionTime, err := meter.Float64ObservableCounter("megamon.jobset.intteruptiontime",
 		metric.WithDescription("Total time JobSet has interrupted."),
 		metric.WithUnit("s"),
 	)
@@ -79,7 +92,7 @@ func Init(r Reporter) func() {
 		log.Fatalf("failed to create jobset.recoveries counter: %v", err)
 	}
 
-	jobsetMTTR, err := meter.Int64ObservableGauge("megamon.jobset.mttr",
+	jobsetMTTR, err := meter.Float64ObservableGauge("megamon.jobset.mttr",
 		metric.WithDescription("Mean Time To Recovery for a JobSet."),
 		metric.WithUnit("s"),
 	)
@@ -87,7 +100,7 @@ func Init(r Reporter) func() {
 		log.Fatalf("failed to create jobset.mttr gauge: %v", err)
 	}
 
-	jobsetMTBI, err := meter.Int64ObservableGauge("megamon.jobset.mtbi",
+	jobsetMTBI, err := meter.Float64ObservableGauge("megamon.jobset.mtbi",
 		metric.WithDescription("Mean Time Between Interruptions for a JobSet."),
 		metric.WithUnit("s"),
 	)
@@ -95,7 +108,7 @@ func Init(r Reporter) func() {
 		log.Fatalf("failed to create jobset.mtbi gauge: %v", err)
 	}
 
-	jobsetTTIUp, err := meter.Int64ObservableGauge("megamon.jobset.ttiup",
+	jobsetTTIUp, err := meter.Float64ObservableGauge("megamon.jobset.ttiup",
 		metric.WithDescription("Time-To-Initial-Up state for a JobSet."),
 		metric.WithUnit("s"),
 	)
@@ -128,23 +141,23 @@ func Init(r Reporter) func() {
 
 		for jobsetName, jobsetSummary := range report.JobSetsUpSummaries {
 			commonAttrs := jobsetOTELAttrs(jobsetName, jobsetSummary.JobSetAttrs)
-			o.ObserveInt64(jobsetUpTime, int64(jobsetSummary.UpTime.Seconds()), metric.WithAttributes(commonAttrs...))
-			o.ObserveInt64(jobsetInterruptionTime, int64(jobsetSummary.InterruptionTime.Seconds()), metric.WithAttributes(commonAttrs...))
 			o.ObserveInt64(jobsetInterruptions, int64(jobsetSummary.Interruptions), metric.WithAttributes(commonAttrs...))
 			o.ObserveInt64(jobsetRecoveries, int64(jobsetSummary.Recoveries), metric.WithAttributes(commonAttrs...))
-			o.ObserveInt64(jobsetMTTR, int64(jobsetSummary.MTTR.Seconds()), metric.WithAttributes(commonAttrs...))
-			o.ObserveInt64(jobsetMTBI, int64(jobsetSummary.MTBI.Seconds()), metric.WithAttributes(commonAttrs...))
-			o.ObserveInt64(jobsetTTIUp, int64(jobsetSummary.TTIUp.Seconds()), metric.WithAttributes(commonAttrs...))
+			o.ObserveFloat64(jobsetUpTime, jobsetSummary.UpTime.Seconds(), metric.WithAttributes(commonAttrs...))
+			o.ObserveFloat64(jobsetInterruptionTime, jobsetSummary.InterruptionTime.Seconds(), metric.WithAttributes(commonAttrs...))
+			o.ObserveFloat64(jobsetMTTR, jobsetSummary.MTTR.Seconds(), metric.WithAttributes(commonAttrs...))
+			o.ObserveFloat64(jobsetMTBI, jobsetSummary.MTBI.Seconds(), metric.WithAttributes(commonAttrs...))
+			o.ObserveFloat64(jobsetTTIUp, jobsetSummary.TTIUp.Seconds(), metric.WithAttributes(commonAttrs...))
 		}
 
 		return nil
 	},
 		jobsetUp,
 		jobsetNodesUp,
-		jobsetUpTime,
-		jobsetInterruptionTime,
 		jobsetInterruptions,
 		jobsetRecoveries,
+		jobsetUpTime,
+		jobsetInterruptionTime,
 		jobsetMTTR,
 		jobsetMTBI,
 		jobsetTTIUp,

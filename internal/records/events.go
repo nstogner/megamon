@@ -6,21 +6,21 @@ import (
 
 const JobSetRecordsAnnotationKey = "megamon.tbd/records"
 
-type JobSetMetadataRecords struct {
-	UpEvents []JobSetUpEvent `json:"upEvents"`
+type EventRecords struct {
+	UpEvents []UpEvent `json:"upEvents"`
 }
 
-type JobSetUpEvent struct {
+type UpEvent struct {
 	Up        bool      `json:"up"`
 	Timestamp time.Time `json:"timestamp"`
 }
 
-type JobSetUpSummaryWithAttrs struct {
+type EventSummaryWithAttrs struct {
 	JobSetAttrs
-	JobSetUpSummary
+	EventSummary
 }
 
-type JobSetUpSummary struct {
+type EventSummary struct {
 	TTIUp time.Duration
 
 	InterruptionTime time.Duration
@@ -33,8 +33,8 @@ type JobSetUpSummary struct {
 	MTBI time.Duration
 }
 
-func (r *JobSetMetadataRecords) Summarize(now time.Time) JobSetUpSummary {
-	var summary JobSetUpSummary
+func (r *EventRecords) Summarize(now time.Time) EventSummary {
+	var summary EventSummary
 
 	if len(r.UpEvents) < 2 {
 		return summary

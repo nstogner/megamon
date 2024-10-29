@@ -22,7 +22,7 @@ type NodeReconciler struct {
 func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	// TODO: implemented logic to reconcile node is needed
+	// TODO: implemented logic to reconcile node if needed.
 
 	return ctrl.Result{}, nil
 }

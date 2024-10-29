@@ -13,54 +13,54 @@ func TestJobSetUpSummary(t *testing.T) {
 		t.Fatal(err)
 	}
 	cases := map[string]struct {
-		records         JobSetMetadataRecords
+		records         EventRecords
 		now             time.Time
-		expectedSummary JobSetUpSummary
+		expectedSummary EventSummary
 	}{
 		"empty": {
-			records:         JobSetMetadataRecords{},
-			expectedSummary: JobSetUpSummary{},
+			records:         EventRecords{},
+			expectedSummary: EventSummary{},
 		},
 		"missing down0": {
-			records: JobSetMetadataRecords{
-				UpEvents: []JobSetUpEvent{
+			records: EventRecords{
+				UpEvents: []UpEvent{
 					{Up: true, Timestamp: t0},
 				},
 			},
-			expectedSummary: JobSetUpSummary{},
+			expectedSummary: EventSummary{},
 		},
 		"just up": {
-			records: JobSetMetadataRecords{
-				UpEvents: []JobSetUpEvent{
+			records: EventRecords{
+				UpEvents: []UpEvent{
 					{Up: false, Timestamp: t0},
 					{Up: true, Timestamp: t0.Add(time.Hour)},
 				},
 			},
 			now: t0.Add(time.Hour),
-			expectedSummary: JobSetUpSummary{
+			expectedSummary: EventSummary{
 				TTIUp: time.Hour,
 			},
 		},
 		"up for 3 hours": {
-			records: JobSetMetadataRecords{
-				UpEvents: []JobSetUpEvent{
+			records: EventRecords{
+				UpEvents: []UpEvent{
 					{Up: false, Timestamp: t0},
 					{Up: true, Timestamp: t0.Add(time.Hour)},
 				},
 			},
 			now: t0.Add(time.Hour + 3*time.Hour),
-			expectedSummary: JobSetUpSummary{
+			expectedSummary: EventSummary{
 				TTIUp:  time.Hour,
 				UpTime: 3 * time.Hour,
 			},
 		},
 		"single interruption": {
-			records: JobSetMetadataRecords{
+			records: EventRecords{
 				// up:         _____
 				// down:   ____|   |
 				// event:  0   1   2
 				// hrs:      1   1
-				UpEvents: []JobSetUpEvent{
+				UpEvents: []UpEvent{
 					{Up: false, Timestamp: t0},
 					// 1 hr to come up
 					{Up: true, Timestamp: t0.Add(time.Hour)},
@@ -69,7 +69,7 @@ func TestJobSetUpSummary(t *testing.T) {
 				},
 			},
 			now: t0.Add(2 * time.Hour),
-			expectedSummary: JobSetUpSummary{
+			expectedSummary: EventSummary{
 				TTIUp:         time.Hour,
 				UpTime:        time.Hour,
 				Interruptions: 1,
@@ -77,12 +77,12 @@ func TestJobSetUpSummary(t *testing.T) {
 			},
 		},
 		"single interruption then down for an hour": {
-			records: JobSetMetadataRecords{
+			records: EventRecords{
 				// up:         _____
 				// down:   ____|   |____
 				// event:  0   1   2
 				// hrs:      1   1   1
-				UpEvents: []JobSetUpEvent{
+				UpEvents: []UpEvent{
 					{Up: false, Timestamp: t0},
 					// 1 hr to come up
 					{Up: true, Timestamp: t0.Add(time.Hour)},
@@ -91,7 +91,7 @@ func TestJobSetUpSummary(t *testing.T) {
 				},
 			},
 			now: t0.Add(2*time.Hour + time.Hour),
-			expectedSummary: JobSetUpSummary{
+			expectedSummary: EventSummary{
 				TTIUp:            time.Hour,
 				UpTime:           time.Hour,
 				InterruptionTime: time.Hour,
@@ -104,8 +104,8 @@ func TestJobSetUpSummary(t *testing.T) {
 			// down:   ____|   |___|
 			// event:  0   1   2   3
 			// hrs:      1   1   1
-			records: JobSetMetadataRecords{
-				UpEvents: []JobSetUpEvent{
+			records: EventRecords{
+				UpEvents: []UpEvent{
 					{Up: false, Timestamp: t0},
 					// 1 hr to come up
 					{Up: true, Timestamp: t0.Add(time.Hour)},
@@ -116,7 +116,7 @@ func TestJobSetUpSummary(t *testing.T) {
 				},
 			},
 			now: t0.Add(3 * time.Hour),
-			expectedSummary: JobSetUpSummary{
+			expectedSummary: EventSummary{
 				TTIUp:            time.Hour,
 				UpTime:           time.Hour,
 				InterruptionTime: time.Hour,
@@ -131,8 +131,8 @@ func TestJobSetUpSummary(t *testing.T) {
 			// down:   ____|   |___|
 			// event:  0   1   2   3
 			// hrs:      1   1   1   1
-			records: JobSetMetadataRecords{
-				UpEvents: []JobSetUpEvent{
+			records: EventRecords{
+				UpEvents: []UpEvent{
 					{Up: false, Timestamp: t0},
 					// 1 hr to come up
 					{Up: true, Timestamp: t0.Add(time.Hour)},
@@ -143,7 +143,7 @@ func TestJobSetUpSummary(t *testing.T) {
 				},
 			},
 			now: t0.Add(3*time.Hour + time.Hour),
-			expectedSummary: JobSetUpSummary{
+			expectedSummary: EventSummary{
 				TTIUp:            time.Hour,
 				UpTime:           2 * time.Hour,
 				InterruptionTime: time.Hour,
@@ -158,8 +158,8 @@ func TestJobSetUpSummary(t *testing.T) {
 			// down:   ____|   |___|   |
 			// event:  0   1   2   3   4
 			// hrs:      1   1   1   2
-			records: JobSetMetadataRecords{
-				UpEvents: []JobSetUpEvent{
+			records: EventRecords{
+				UpEvents: []UpEvent{
 					{Up: false, Timestamp: t0},
 					// 1 hr to come up
 					{Up: true, Timestamp: t0.Add(time.Hour)},
@@ -172,7 +172,7 @@ func TestJobSetUpSummary(t *testing.T) {
 				},
 			},
 			now: t0.Add(3*time.Hour + 2*time.Hour),
-			expectedSummary: JobSetUpSummary{
+			expectedSummary: EventSummary{
 				TTIUp:            time.Hour,
 				UpTime:           time.Hour + 2*time.Hour,
 				InterruptionTime: time.Hour,
@@ -187,8 +187,8 @@ func TestJobSetUpSummary(t *testing.T) {
 			// down:   ____|   |___|   |___|
 			// event:  0   1   2   3   4   5
 			// hrs:      1   1   1   2   3
-			records: JobSetMetadataRecords{
-				UpEvents: []JobSetUpEvent{
+			records: EventRecords{
+				UpEvents: []UpEvent{
 					{Up: false, Timestamp: t0},
 					// 1 hr to come up
 					{Up: true, Timestamp: t0.Add(time.Hour)},
@@ -203,7 +203,7 @@ func TestJobSetUpSummary(t *testing.T) {
 				},
 			},
 			now: t0.Add(3*time.Hour + 2*time.Hour + 3*time.Hour),
-			expectedSummary: JobSetUpSummary{
+			expectedSummary: EventSummary{
 				TTIUp:            time.Hour,
 				UpTime:           time.Hour + 2*time.Hour,
 				InterruptionTime: time.Hour + 3*time.Hour,

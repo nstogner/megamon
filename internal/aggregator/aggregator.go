@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"example.com/megamon/internal/k8sutils"
+	"example.com/megamon/internal/metrics"
 	"example.com/megamon/internal/records"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -46,9 +47,14 @@ func (a *Aggregator) Start(ctx context.Context) error {
 		case <-t.C:
 			log.Println("aggregating")
 		}
+
+		t0 := time.Now()
 		if err := a.Aggregate(ctx); err != nil {
 			log.Printf("failed to aggregate: %v", err)
+			continue
 		}
+		metrics.AggregationDuration.Record(ctx, time.Since(t0).Seconds())
+
 		for name, exporter := range a.Exporters {
 			if err := exporter.Export(a.Report()); err != nil {
 				log.Printf("failed to export %s: %v", name, err)
@@ -87,9 +93,9 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 
 		metaRecords, err := k8sutils.GetJobsetRecords(&js)
 		if err == nil {
-			report.JobSetsUpSummaries[js.Name] = records.JobSetUpSummaryWithAttrs{
-				JobSetAttrs:     attrs,
-				JobSetUpSummary: metaRecords.Summarize(time.Now()),
+			report.JobSetsUpSummaries[js.Name] = records.EventSummaryWithAttrs{
+				JobSetAttrs:  attrs,
+				EventSummary: metaRecords.Summarize(time.Now()),
 			}
 		} else {
 			log.Printf("failed to get jobset records: %v", err)

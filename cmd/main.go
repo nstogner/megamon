@@ -190,6 +190,7 @@ func main() {
 			"stdout": &aggregator.StdoutExporter{},
 		},
 	}
+	shutdownMetrics := metrics.Init(agg)
 	mgr.Add(agg)
 
 	// Initial aggregation to populate the initial metrics report.
@@ -214,7 +215,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	shutdownMetrics := metrics.Init(agg)
 	defer shutdownMetrics()
 	metricsMux := http.NewServeMux()
 	metricsMux.Handle("/metrics", promhttp.Handler())

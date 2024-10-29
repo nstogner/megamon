@@ -4,13 +4,13 @@ func NewReport() Report {
 	return Report{
 		JobSetsUp:          make(map[string]JobSetUp),
 		JobSetNodesUp:      make(map[string]JobSetNodesUp),
-		JobSetsUpSummaries: make(map[string]JobSetUpSummaryWithAttrs),
+		JobSetsUpSummaries: make(map[string]EventSummaryWithAttrs),
 	}
 }
 
 type Report struct {
 	JobSetsUp          map[string]JobSetUp
-	JobSetsUpSummaries map[string]JobSetUpSummaryWithAttrs
+	JobSetsUpSummaries map[string]EventSummaryWithAttrs
 	JobSetNodesUp      map[string]JobSetNodesUp
 }
 

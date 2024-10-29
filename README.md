@@ -2,6 +2,11 @@
 
 ![MegaMon](./hack/megamon.png)
 
+## TODO
+
+* Take into account completion state of jobset when calculating event-based metrics
+* Add uptime percentage
+
 ## Why MegaMon over Kube State Metrics
 
 MegaMon was created to address shortcoming of using [kube-state-metrics](https://github.com/kubernetes/kube-state-metrics):
