@@ -139,14 +139,14 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 
 	for key, events := range jsEvents {
 		eventSummary := events.Summarize(now)
-		report.JobSetsUpSummaries[key] = records.EventSummaryWithAttrs{
+		report.JobSetsUpSummaries[key] = records.UpnessSummaryWithAttrs{
 			Attrs:        report.JobSetsUp[key].Attrs,
 			EventSummary: eventSummary,
 		}
 	}
 	for key, events := range jsNodeEvents {
 		eventSummary := events.Summarize(now)
-		report.JobSetNodesUpSummaries[key] = records.EventSummaryWithAttrs{
+		report.JobSetNodesUpSummaries[key] = records.UpnessSummaryWithAttrs{
 			Attrs:        report.JobSetNodesUp[key].Attrs,
 			EventSummary: eventSummary,
 		}

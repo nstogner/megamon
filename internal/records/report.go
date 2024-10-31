@@ -3,17 +3,18 @@ package records
 func NewReport() Report {
 	return Report{
 		JobSetsUp:              make(map[string]Upness),
-		JobSetsUpSummaries:     make(map[string]EventSummaryWithAttrs),
+		JobSetsUpSummaries:     make(map[string]UpnessSummaryWithAttrs),
 		JobSetNodesUp:          make(map[string]Upness),
-		JobSetNodesUpSummaries: make(map[string]EventSummaryWithAttrs),
+		JobSetNodesUpSummaries: make(map[string]UpnessSummaryWithAttrs),
 	}
 }
 
 type Report struct {
-	JobSetsUp              map[string]Upness                `json:"jobSetsUp"`
-	JobSetsUpSummaries     map[string]EventSummaryWithAttrs `json:"jobSetsUpSummaries"`
-	JobSetNodesUp          map[string]Upness                `json:"jobSetNodesUp"`
-	JobSetNodesUpSummaries map[string]EventSummaryWithAttrs `json:"jobSetNodesUpSummaries"`
+	JobSetsUp              map[string]Upness                 `json:"jobSetsUp"`
+	JobSetsUpSummaries     map[string]UpnessSummaryWithAttrs `json:"jobSetsUpSummaries"`
+	JobSetNodesUp          map[string]Upness                 `json:"jobSetNodesUp"`
+	JobSetNodesUpSummaries map[string]UpnessSummaryWithAttrs `json:"jobSetNodesUpSummaries"`
+	// TODO: NodePool based upness and summaries.
 }
 
 type Attrs struct {

@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 
-	"example.com/megamon/internal/eventrecorder"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -15,7 +14,7 @@ import (
 type JobSetReconciler struct {
 	Disabled bool
 
-	Recorder *eventrecorder.Recorder
+	//Recorder *eventrecorder.Recorder
 
 	client.Client
 	Scheme *runtime.Scheme

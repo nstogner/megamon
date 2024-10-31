@@ -15,7 +15,7 @@ type UpEvent struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-type EventSummaryWithAttrs struct {
+type UpnessSummaryWithAttrs struct {
 	Attrs
 	EventSummary
 }
