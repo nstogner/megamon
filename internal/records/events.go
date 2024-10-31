@@ -16,7 +16,7 @@ type UpEvent struct {
 }
 
 type EventSummaryWithAttrs struct {
-	JobSetAttrs
+	Attrs
 	EventSummary
 }
 
@@ -82,4 +82,65 @@ func (r *EventRecords) Summarize(now time.Time) EventSummary {
 	}
 
 	return summary
+}
+
+func AppendUpEvent(rec *EventRecords, isUp bool) bool {
+	var changed bool
+	if len(rec.UpEvents) == 0 {
+		rec.UpEvents = append(rec.UpEvents, UpEvent{
+			Up:        isUp,
+			Timestamp: time.Now(),
+		})
+		changed = true
+	} else {
+		last := rec.UpEvents[len(rec.UpEvents)-1]
+		if last.Up != isUp {
+			rec.UpEvents = append(rec.UpEvents, UpEvent{
+				Up:        isUp,
+				Timestamp: time.Now(),
+			})
+			changed = true
+		}
+	}
+	return changed
+}
+
+/*
+type Mode string
+
+const (
+	JobSetMode      Mode = "JobSet"
+	JobSetNodesMode Mode = "JobSetNodes"
+	NodePoolsMode   Mode = "NodePools"
+)
+*/
+
+func ReconcileEvents( /*mode Mode,*/ ups map[string]Upness, events map[string]EventRecords) (bool, error) {
+	var changed bool
+
+	for key, up := range ups {
+		/*
+			var key string
+			switch mode {
+			case JobSetNodesMode, JobSetMode:
+				key = jobsetEventKey(up.JobSetNamespace, up.JobSetName)
+			case NodePoolsMode:
+				key = up.NodePoolName
+			default:
+				panic("unsupported mode: " + mode)
+			}
+		*/
+
+		rec := events[key]
+		if AppendUpEvent(&rec, up.Up()) {
+			events[key] = rec
+			changed = true
+		}
+	}
+
+	return changed, nil
+}
+
+func jobsetEventKey(namespace, name string) string {
+	return namespace + "." + name
 }

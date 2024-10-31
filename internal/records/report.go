@@ -2,35 +2,37 @@ package records
 
 func NewReport() Report {
 	return Report{
-		JobSetsUp:          make(map[string]JobSetUp),
-		JobSetNodesUp:      make(map[string]JobSetNodesUp),
-		JobSetsUpSummaries: make(map[string]EventSummaryWithAttrs),
+		JobSetsUp:              make(map[string]Upness),
+		JobSetsUpSummaries:     make(map[string]EventSummaryWithAttrs),
+		JobSetNodesUp:          make(map[string]Upness),
+		JobSetNodesUpSummaries: make(map[string]EventSummaryWithAttrs),
 	}
 }
 
 type Report struct {
-	JobSetsUp          map[string]JobSetUp              `json:"jobSetsUp"`
-	JobSetsUpSummaries map[string]EventSummaryWithAttrs `json:"jobSetsUpSummaries"`
-	JobSetNodesUp      map[string]JobSetNodesUp         `json:"jobSetNodesUp"`
+	JobSetsUp              map[string]Upness                `json:"jobSetsUp"`
+	JobSetsUpSummaries     map[string]EventSummaryWithAttrs `json:"jobSetsUpSummaries"`
+	JobSetNodesUp          map[string]Upness                `json:"jobSetNodesUp"`
+	JobSetNodesUpSummaries map[string]EventSummaryWithAttrs `json:"jobSetNodesUpSummaries"`
 }
 
-type JobSetUp struct {
-	Up bool `json:"up"`
-	JobSetAttrs
-}
+type Attrs struct {
+	JobSetName      string `json:"jobsetName"`
+	JobSetNamespace string `json:"jobsetNamespace"`
 
-type JobSetAttrs struct {
 	TPUTopology    string `json:"tpuTopology"`
 	TPUAccelerator string `json:"tpuAccelerator"`
 	Spot           bool   `json:"spot"`
+
+	NodePoolName string `json:"nodePoolName"`
 }
 
-type JobSetNodesUp struct {
-	ReadyCount    int `json:"readyCount"`
-	ExpectedCount int `json:"expectedCount"`
-	JobSetAttrs
+type Upness struct {
+	ReadyCount    int32 `json:"readyCount"`
+	ExpectedCount int32 `json:"expectedCount"`
+	Attrs
 }
 
-func (up JobSetNodesUp) Up() bool {
+func (up Upness) Up() bool {
 	return up.ReadyCount == up.ExpectedCount
 }
