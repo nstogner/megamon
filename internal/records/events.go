@@ -29,6 +29,9 @@ type EventSummary struct {
 	Interruptions int `json:"interruptions"`
 	Recoveries    int `json:"recoveries"`
 
+	TTR time.Duration `json:"ttr"`
+	TBI time.Duration `json:"tbi"`
+
 	MTTR time.Duration `json:"mttr"`
 	MTBI time.Duration `json:"mtbi"`
 }
@@ -41,10 +44,10 @@ func (r *EventRecords) Summarize(now time.Time) EventSummary {
 	}
 
 	// Invalid or missing data:
-	if r.UpEvents[0].Up == true {
+	if r.UpEvents[0].Up {
 		return summary
 	}
-	if r.UpEvents[1].Up == false {
+	if !r.UpEvents[1].Up {
 		return summary
 	}
 
@@ -54,17 +57,22 @@ func (r *EventRecords) Summarize(now time.Time) EventSummary {
 		return summary
 	}
 
+	var lastTBI, lastTTR time.Duration
 	for i := 2; i < len(r.UpEvents); i++ {
 		if r.UpEvents[i].Up {
 			// Just transitioned down to up.
-			summary.InterruptionTime += r.UpEvents[i].Timestamp.Sub(r.UpEvents[i-1].Timestamp)
+			lastTTR = r.UpEvents[i].Timestamp.Sub(r.UpEvents[i-1].Timestamp)
+			summary.InterruptionTime += lastTTR
 			summary.Recoveries++
 		} else {
 			// Just transitioned up to down.
-			summary.UpTime += r.UpEvents[i].Timestamp.Sub(r.UpEvents[i-1].Timestamp)
+			lastTBI = r.UpEvents[i].Timestamp.Sub(r.UpEvents[i-1].Timestamp)
+			summary.UpTime += lastTBI
 			summary.Interruptions++
 		}
 	}
+	summary.TBI = lastTBI
+	summary.TTR = lastTTR
 
 	if summary.Interruptions > 0 {
 		summary.MTBI = summary.UpTime / time.Duration(summary.Interruptions)
@@ -138,9 +146,12 @@ func ReconcileEvents( /*mode Mode,*/ ups map[string]Upness, events map[string]Ev
 		}
 	}
 
-	return changed, nil
-}
+	for key := range events {
+		if _, ok := ups[key]; !ok {
+			delete(events, key)
+			changed = true
+		}
+	}
 
-func jobsetEventKey(namespace, name string) string {
-	return namespace + "." + name
+	return changed, nil
 }

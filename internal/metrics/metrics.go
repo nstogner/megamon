@@ -48,13 +48,10 @@ func Init(r Reporter) func() {
 	)
 	fatal(err)
 
+	// Jobset //
+
 	jobsetUp, err := meter.Int64ObservableGauge("megamon.jobset.up",
 		metric.WithDescription("Whether all JobSet Job replicas are ready."),
-	)
-	fatal(err)
-
-	jobsetNodesUp, err := meter.Int64ObservableGauge("megamon.jobset.nodes.up",
-		metric.WithDescription("Whether all Nodes for a JobSet are ready."),
 	)
 	fatal(err)
 
@@ -86,8 +83,20 @@ func Init(r Reporter) func() {
 	)
 	fatal(err)
 
+	jobsetTTR, err := meter.Float64ObservableGauge("megamon.jobset.ttr",
+		metric.WithDescription("Last Time To Recovery for a JobSet."),
+		metric.WithUnit("s"),
+	)
+	fatal(err)
+
 	jobsetMTBI, err := meter.Float64ObservableGauge("megamon.jobset.mtbi",
 		metric.WithDescription("Mean Time Between Interruptions for a JobSet."),
+		metric.WithUnit("s"),
+	)
+	fatal(err)
+
+	jobsetTBI, err := meter.Float64ObservableGauge("megamon.jobset.tbi",
+		metric.WithDescription("Last Time Between Interruption for a JobSet."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
@@ -98,37 +107,55 @@ func Init(r Reporter) func() {
 	)
 	fatal(err)
 
-	//
+	// Jobset Nodes //
+
+	jobsetNodesUp, err := meter.Int64ObservableGauge("megamon.jobset.nodes.up",
+		metric.WithDescription("Whether all Nodes for a JobSet are ready."),
+	)
+	fatal(err)
+
 	jobsetNodeUpTime, err := meter.Float64ObservableCounter("megamon.jobset.nodes.uptime",
-		metric.WithDescription("Total time JobSet Nodes have been up."),
+		metric.WithDescription("Total time a JobSets Nodes have been up."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
 	jobsetNodeInterruptionTime, err := meter.Float64ObservableCounter("megamon.jobset.nodes.intteruptiontime",
-		metric.WithDescription("Total time JobSet Nodes have been interrupted."),
+		metric.WithDescription("Total time a JobSets Nodes have been interrupted."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
 	jobsetNodeInterruptions, err := meter.Int64ObservableCounter("megamon.jobset.nodes.interruptions",
-		metric.WithDescription("Total number of interruptions for a JobSet Nodes."),
+		metric.WithDescription("Total number of interruptions for a JobSets Nodes."),
 	)
 	fatal(err)
 
 	jobsetNodeRecoveries, err := meter.Int64ObservableCounter("megamon.jobset.nodes.recoveries",
-		metric.WithDescription("Total number of recoveries for a JobSet Nodes."),
+		metric.WithDescription("Total number of recoveries for a JobSets Nodes."),
 	)
 	fatal(err)
 
 	jobsetNodeMTTR, err := meter.Float64ObservableGauge("megamon.jobset.nodes.mttr",
-		metric.WithDescription("Mean Time To Recovery for a JobSet Nodes."),
+		metric.WithDescription("Mean Time To Recovery for a JobSets Nodes."),
+		metric.WithUnit("s"),
+	)
+	fatal(err)
+
+	jobsetNodeTTR, err := meter.Float64ObservableGauge("megamon.jobset.nodes.ttr",
+		metric.WithDescription("Last Time To Recovery for a JobSets Nodes."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
 	jobsetNodeMTBI, err := meter.Float64ObservableGauge("megamon.jobset.nodes.mtbi",
-		metric.WithDescription("Mean Time Between Interruptions for a JobSet Nodes."),
+		metric.WithDescription("Mean Time Between Interruptions for a JobSets Nodes."),
+		metric.WithUnit("s"),
+	)
+	fatal(err)
+
+	jobsetNodeTBI, err := meter.Float64ObservableGauge("megamon.jobset.nodes.tbi",
+		metric.WithDescription("Last Time Between Interruptions for a JobSets Nodes."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
@@ -169,7 +196,9 @@ func Init(r Reporter) func() {
 			o.ObserveFloat64(jobsetUpTime, summary.UpTime.Seconds(), metric.WithAttributes(commonAttrs...))
 			o.ObserveFloat64(jobsetInterruptionTime, summary.InterruptionTime.Seconds(), metric.WithAttributes(commonAttrs...))
 			o.ObserveFloat64(jobsetMTTR, summary.MTTR.Seconds(), metric.WithAttributes(commonAttrs...))
+			o.ObserveFloat64(jobsetTTR, summary.TTR.Seconds(), metric.WithAttributes(commonAttrs...))
 			o.ObserveFloat64(jobsetMTBI, summary.MTBI.Seconds(), metric.WithAttributes(commonAttrs...))
+			o.ObserveFloat64(jobsetTBI, summary.TBI.Seconds(), metric.WithAttributes(commonAttrs...))
 			o.ObserveFloat64(jobsetTTIUp, summary.TTIUp.Seconds(), metric.WithAttributes(commonAttrs...))
 		}
 		for _, summary := range report.JobSetNodesUpSummaries {
@@ -179,7 +208,9 @@ func Init(r Reporter) func() {
 			o.ObserveFloat64(jobsetNodeUpTime, summary.UpTime.Seconds(), metric.WithAttributes(commonAttrs...))
 			o.ObserveFloat64(jobsetNodeInterruptionTime, summary.InterruptionTime.Seconds(), metric.WithAttributes(commonAttrs...))
 			o.ObserveFloat64(jobsetNodeMTTR, summary.MTTR.Seconds(), metric.WithAttributes(commonAttrs...))
+			o.ObserveFloat64(jobsetNodeTTR, summary.TTR.Seconds(), metric.WithAttributes(commonAttrs...))
 			o.ObserveFloat64(jobsetNodeMTBI, summary.MTBI.Seconds(), metric.WithAttributes(commonAttrs...))
+			o.ObserveFloat64(jobsetNodeTBI, summary.TBI.Seconds(), metric.WithAttributes(commonAttrs...))
 			o.ObserveFloat64(jobsetNodeTTIUp, summary.TTIUp.Seconds(), metric.WithAttributes(commonAttrs...))
 		}
 
@@ -192,14 +223,18 @@ func Init(r Reporter) func() {
 		jobsetUpTime,
 		jobsetInterruptionTime,
 		jobsetMTTR,
+		jobsetTTR,
 		jobsetMTBI,
+		jobsetTBI,
 		jobsetTTIUp,
 		jobsetNodeInterruptions,
 		jobsetNodeRecoveries,
 		jobsetNodeUpTime,
 		jobsetNodeInterruptionTime,
 		jobsetNodeMTTR,
+		jobsetNodeTTR,
 		jobsetNodeMTBI,
+		jobsetNodeTBI,
 		jobsetNodeTTIUp,
 	)
 	if err != nil {
