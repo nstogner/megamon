@@ -19,7 +19,8 @@ import (
 type Aggregator struct {
 	client.Client
 
-	JobSetEventsConfigMapRef types.NamespacedName
+	JobSetEventsConfigMapRef     types.NamespacedName
+	JobSetNodeEventsConfigMapRef types.NamespacedName
 
 	Interval time.Duration
 
@@ -80,7 +81,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 		return fmt.Errorf("listing jobsets: %w", err)
 	}
 
-	expectedCMEventKeys := make(map[string]struct{})
+	//	expectedCMEventKeys := make(map[string]struct{})
 
 	now := time.Now()
 
@@ -89,16 +90,19 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 			continue
 		}
 
-		expectedCMEventKeys[k8sutils.JobSetEventsKey(&js)] = struct{}{}
+		//expectedCMEventKeys[k8sutils.JobSetEventsKey(&js)] = struct{}{}
+		key := jobsetKey(js.Namespace, js.Name)
 
 		attrs := extractJobSetAttrs(&js)
-		report.JobSetsUp[js.Name] = records.JobSetUp{
-			Up:          k8sutils.IsJobSetUp(&js),
-			JobSetAttrs: attrs,
+		specReplicas, readyReplicas := k8sutils.GetJobSetReplicas(&js)
+		report.JobSetsUp[key] = records.Upness{
+			ExpectedCount: specReplicas,
+			ReadyCount:    readyReplicas,
+			Attrs:         attrs,
 		}
-		report.JobSetNodesUp[js.Name] = records.JobSetNodesUp{
+		report.JobSetNodesUp[key] = records.Upness{
 			ExpectedCount: k8sutils.GetExpectedNodeCount(&js),
-			JobSetAttrs:   attrs,
+			Attrs:         attrs,
 		}
 	}
 
@@ -108,11 +112,12 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	}
 
 	for _, node := range nodeList.Items {
-		jobsetName, ok := k8sutils.GetJobSetForNode(&node)
-		if !ok {
+		jsNS, jsName := k8sutils.GetJobSetForNode(&node)
+		if jsNS == "" || jsName == "" {
 			continue
 		}
-		up, ok := report.JobSetNodesUp[jobsetName]
+		key := jobsetKey(jsNS, jsName)
+		up, ok := report.JobSetNodesUp[key]
 		if !ok {
 			continue
 		}
@@ -120,39 +125,30 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 			continue
 		}
 		up.ReadyCount++
-
-		report.JobSetNodesUp[jobsetName] = up
+		report.JobSetNodesUp[key] = up
 	}
 
-	var jsEventsCM corev1.ConfigMap
-	var jsEventsCMChanged bool
-	if err := a.Get(ctx, a.JobSetEventsConfigMapRef, &jsEventsCM); err != nil {
-		return fmt.Errorf("getting events configmap: %w", err)
+	jsEvents, err := reconcileEvents(ctx, a.Client, a.JobSetEventsConfigMapRef, report.JobSetsUp)
+	if err != nil {
+		return fmt.Errorf("reconciling jobset events: %w", err)
 	}
-	for key := range jsEventsCM.Data {
-		if _, expected := expectedCMEventKeys[key]; !expected {
-			delete(jsEventsCM.Data, key)
-			jsEventsCMChanged = true
-			continue
-		}
-
-		rec, err := k8sutils.GetEventRecordsFromConfigMap(&jsEventsCM, key)
-		if err != nil {
-			return fmt.Errorf("getting event records from configmap: %w", err)
-		}
-
-		_, jsName := k8sutils.SplitJobSetEventsKey(key)
-		report.JobSetsUpSummaries[jsName] = records.EventSummaryWithAttrs{
-			JobSetAttrs:  report.JobSetsUp[jsName].JobSetAttrs,
-			EventSummary: rec.Summarize(now),
-		}
+	jsNodeEvents, err := reconcileEvents(ctx, a.Client, a.JobSetNodeEventsConfigMapRef, report.JobSetNodesUp)
+	if err != nil {
+		return fmt.Errorf("reconciling jobset events: %w", err)
 	}
 
-	if jsEventsCMChanged {
-		if err := a.Update(ctx, &jsEventsCM); err != nil {
-			// Garbage collect old keys.
-			// Do not fail the entire aggregation if this fails.
-			log.Printf("updating events configmap failed: %v", err)
+	for key, events := range jsEvents {
+		eventSummary := events.Summarize(now)
+		report.JobSetsUpSummaries[key] = records.UpnessSummaryWithAttrs{
+			Attrs:        report.JobSetsUp[key].Attrs,
+			EventSummary: eventSummary,
+		}
+	}
+	for key, events := range jsNodeEvents {
+		eventSummary := events.Summarize(now)
+		report.JobSetNodesUpSummaries[key] = records.UpnessSummaryWithAttrs{
+			Attrs:        report.JobSetNodesUp[key].Attrs,
+			EventSummary: eventSummary,
 		}
 	}
 
@@ -162,4 +158,37 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	a.reportMtx.Unlock()
 
 	return nil
+}
+
+func reconcileEvents(ctx context.Context, client client.Client, cmRef types.NamespacedName, ups map[string]records.Upness) (map[string]records.EventRecords, error) {
+	var cm corev1.ConfigMap
+	if err := client.Get(ctx, cmRef, &cm); err != nil {
+		return nil, fmt.Errorf("failed to get event records configmap: %w", err)
+	}
+
+	recs, err := k8sutils.GetEventRecordsFromConfigMap(&cm)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get event records from configmap: %w", err)
+	}
+
+	changed, err := records.ReconcileEvents( /*r.mode,*/ ups, recs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to reconcile events: %w", err)
+	}
+
+	if changed {
+		if err := k8sutils.SetEventRecordsInConfigMap(&cm, recs); err != nil {
+			return nil, fmt.Errorf("failed to set event records in configmap: %w", err)
+		}
+
+		if err := client.Update(ctx, &cm); err != nil {
+			return nil, fmt.Errorf("failed to update events configmap: %w", err)
+		}
+	}
+
+	return recs, nil
+}
+
+func jobsetKey(namespace, name string) string {
+	return namespace + "." + name
 }

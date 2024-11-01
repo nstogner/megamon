@@ -2,7 +2,6 @@ package k8sutils
 
 import (
 	"encoding/json"
-	"strings"
 
 	"example.com/megamon/internal/records"
 	corev1 "k8s.io/api/core/v1"
@@ -22,7 +21,7 @@ func IsJobSetActive(js *jobset.JobSet) bool {
 	return true
 }
 
-func IsJobSetUp(js *jobset.JobSet) bool {
+func GetJobSetReplicas(js *jobset.JobSet) (int32, int32) {
 	var specifiedReplicas int32
 	var readyReplicas int32
 
@@ -34,27 +33,28 @@ func IsJobSetUp(js *jobset.JobSet) bool {
 		readyReplicas += rjs.Ready
 	}
 
-	return specifiedReplicas == readyReplicas
+	return specifiedReplicas, readyReplicas
 }
 
-func GetJobSetForNode(node *corev1.Node) (string, bool) {
+func GetJobSetForNode(node *corev1.Node) (string, string) {
 	if node.Labels == nil {
-		return "", false
+		return "", ""
 	}
 
-	jsName, ok := node.Labels["google.com/tpu-provisioner-jobset-name"]
-	return jsName, ok
+	jsNS := node.Labels["google.com/tpu-provisioner-jobset-namespace"]
+	jsName := node.Labels["google.com/tpu-provisioner-jobset-name"]
+	return jsNS, jsName
 }
 
-func GetExpectedNodeCount(js *jobset.JobSet) int {
-	var count int
+func GetExpectedNodeCount(js *jobset.JobSet) int32 {
+	var count int32
 
 	for _, rj := range js.Spec.ReplicatedJobs {
 		parallelism := int32(1)
 		if rj.Template.Spec.Parallelism != nil {
 			parallelism = *rj.Template.Spec.Parallelism
 		}
-		count += int(rj.Replicas * parallelism)
+		count += rj.Replicas * parallelism
 	}
 
 	return count
@@ -69,31 +69,51 @@ func IsNodeReady(node *corev1.Node) bool {
 	return false
 }
 
-func GetEventRecordsFromConfigMap(cm *corev1.ConfigMap, key string) (records.EventRecords, error) {
-	var rec records.EventRecords
+func GetEventRecordsFromConfigMap(cm *corev1.ConfigMap) (map[string]records.EventRecords, error) {
+	recs := make(map[string]records.EventRecords)
 	if cm.Data == nil {
-		return rec, nil
+		return recs, nil
 	}
-	val, ok := cm.Data[key]
-	if !ok {
-		return rec, nil
+	for k, v := range cm.Data {
+		var rec records.EventRecords
+		if err := json.Unmarshal([]byte(v), &rec); err != nil {
+			return recs, err
+		}
+		recs[k] = rec
 	}
-	if err := json.Unmarshal([]byte(val), &rec); err != nil {
-		return rec, err
-	}
-	return rec, nil
+	return recs, nil
 }
 
-func SetEventRecordsInConfigMap(cm *corev1.ConfigMap, key string, rec records.EventRecords) error {
-	data, err := json.Marshal(rec)
-	if err != nil {
-		return err
+func SetEventRecordsInConfigMap(cm *corev1.ConfigMap, recs map[string]records.EventRecords) error {
+	cm.Data = make(map[string]string)
+	for k, rec := range recs {
+		data, err := json.Marshal(rec)
+		if err != nil {
+			return err
+		}
+		if cm.Data == nil {
+			cm.Data = map[string]string{}
+		}
+		cm.Data[k] = string(data)
 	}
-	if cm.Data == nil {
-		cm.Data = map[string]string{}
-	}
-	cm.Data[key] = string(data)
 	return nil
+}
+
+/*
+func NodePoolEventsKey(node *corev1.Node) (string, bool) {
+	if node.Labels == nil {
+		return "", false
+	}
+	val, ok := node.Labels["cloud.google.com/gke-nodepool"]
+	return val, ok
+}
+
+func JobSetNodesEventsKey(node *corev1.Node) (string, bool) {
+	if node.Labels == nil {
+		return "", false
+	}
+	val, ok := node.Labels["google.com/tpu-provisioner-jobset-name"]
+	return val, ok
 }
 
 func JobSetEventsKey(js *jobset.JobSet) string {
@@ -106,3 +126,5 @@ func SplitJobSetEventsKey(key string) (string, string) {
 	parts := strings.SplitN(key, ".", 2)
 	return parts[0], parts[1]
 }
+
+*/

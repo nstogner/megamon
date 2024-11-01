@@ -5,8 +5,8 @@ import (
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 )
 
-func extractJobSetAttrs(js *jobset.JobSet) records.JobSetAttrs {
-	var attrs records.JobSetAttrs
+func extractJobSetAttrs(js *jobset.JobSet) records.Attrs {
+	var attrs records.Attrs
 
 	for _, rj := range js.Spec.ReplicatedJobs {
 		// Example:
@@ -27,6 +27,9 @@ func extractJobSetAttrs(js *jobset.JobSet) records.JobSetAttrs {
 			}
 		}
 	}
+
+	attrs.JobSetName = js.Name
+	attrs.JobSetNamespace = js.Namespace
 
 	return attrs
 }
