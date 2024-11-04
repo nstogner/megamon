@@ -65,9 +65,10 @@ func init() {
 }
 
 type config struct {
-	AggregationInterval      time.Duration
-	ReportConfigMapRef       types.NamespacedName
-	JobSetEventsConfigMapRef types.NamespacedName
+	AggregationInterval          time.Duration
+	ReportConfigMapRef           types.NamespacedName
+	JobSetEventsConfigMapRef     types.NamespacedName
+	JobSetNodeEventsConfigMapRef types.NamespacedName
 }
 
 func main() {
@@ -99,6 +100,10 @@ func main() {
 		ReportConfigMapRef: types.NamespacedName{
 			Namespace: "megamon-system",
 			Name:      "report",
+		},
+		JobSetNodeEventsConfigMapRef: types.NamespacedName{
+			Namespace: "megamon-system",
+			Name:      "jobset-node-events",
 		},
 		JobSetEventsConfigMapRef: types.NamespacedName{
 			Namespace: "megamon-system",
@@ -177,10 +182,10 @@ func main() {
 	}
 
 	if err = (&controller.JobSetReconciler{
-		Disabled:                 false,
-		JobSetEventsConfigMapRef: cfg.JobSetEventsConfigMapRef,
-		Client:                   mgr.GetClient(),
-		Scheme:                   mgr.GetScheme(),
+		Disabled: false,
+		//JobSetEventsConfigMapRef: cfg.JobSetEventsConfigMapRef,
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "JobSet")
 		os.Exit(1)
@@ -197,9 +202,10 @@ func main() {
 	ctx := ctrl.SetupSignalHandler()
 
 	agg := &aggregator.Aggregator{
-		JobSetEventsConfigMapRef: cfg.JobSetEventsConfigMapRef,
-		Interval:                 cfg.AggregationInterval,
-		Client:                   mgr.GetClient(),
+		JobSetEventsConfigMapRef:     cfg.JobSetEventsConfigMapRef,
+		JobSetNodeEventsConfigMapRef: cfg.JobSetNodeEventsConfigMapRef,
+		Interval:                     cfg.AggregationInterval,
+		Client:                       mgr.GetClient(),
 		Exporters: map[string]aggregator.Exporter{
 			"configmap": &aggregator.ConfigMapExporter{
 				Client: mgr.GetClient(),
