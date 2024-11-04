@@ -195,11 +195,21 @@ func Init(r Reporter) func() {
 			o.ObserveInt64(jobsetRecoveries, int64(summary.Recoveries), metric.WithAttributes(commonAttrs...))
 			o.ObserveFloat64(jobsetUpTime, summary.UpTime.Seconds(), metric.WithAttributes(commonAttrs...))
 			o.ObserveFloat64(jobsetInterruptionTime, summary.InterruptionTime.Seconds(), metric.WithAttributes(commonAttrs...))
-			o.ObserveFloat64(jobsetMTTR, summary.MTTR.Seconds(), metric.WithAttributes(commonAttrs...))
-			o.ObserveFloat64(jobsetTTR, summary.TTR.Seconds(), metric.WithAttributes(commonAttrs...))
-			o.ObserveFloat64(jobsetMTBI, summary.MTBI.Seconds(), metric.WithAttributes(commonAttrs...))
-			o.ObserveFloat64(jobsetTBI, summary.TBI.Seconds(), metric.WithAttributes(commonAttrs...))
-			o.ObserveFloat64(jobsetTTIUp, summary.TTIUp.Seconds(), metric.WithAttributes(commonAttrs...))
+			if summary.MTTR != 0 {
+				o.ObserveFloat64(jobsetMTTR, summary.MTTR.Seconds(), metric.WithAttributes(commonAttrs...))
+			}
+			if summary.TTR != 0 {
+				o.ObserveFloat64(jobsetTTR, summary.TTR.Seconds(), metric.WithAttributes(commonAttrs...))
+			}
+			if summary.MTBI != 0 {
+				o.ObserveFloat64(jobsetMTBI, summary.MTBI.Seconds(), metric.WithAttributes(commonAttrs...))
+			}
+			if summary.TBI != 0 {
+				o.ObserveFloat64(jobsetTBI, summary.TBI.Seconds(), metric.WithAttributes(commonAttrs...))
+			}
+			if summary.TTIUp != 0 {
+				o.ObserveFloat64(jobsetTTIUp, summary.TTIUp.Seconds(), metric.WithAttributes(commonAttrs...))
+			}
 		}
 		for _, summary := range report.JobSetNodesUpSummaries {
 			commonAttrs := OTELAttrs(summary.Attrs)
@@ -207,11 +217,21 @@ func Init(r Reporter) func() {
 			o.ObserveInt64(jobsetNodeRecoveries, int64(summary.Recoveries), metric.WithAttributes(commonAttrs...))
 			o.ObserveFloat64(jobsetNodeUpTime, summary.UpTime.Seconds(), metric.WithAttributes(commonAttrs...))
 			o.ObserveFloat64(jobsetNodeInterruptionTime, summary.InterruptionTime.Seconds(), metric.WithAttributes(commonAttrs...))
-			o.ObserveFloat64(jobsetNodeMTTR, summary.MTTR.Seconds(), metric.WithAttributes(commonAttrs...))
-			o.ObserveFloat64(jobsetNodeTTR, summary.TTR.Seconds(), metric.WithAttributes(commonAttrs...))
-			o.ObserveFloat64(jobsetNodeMTBI, summary.MTBI.Seconds(), metric.WithAttributes(commonAttrs...))
-			o.ObserveFloat64(jobsetNodeTBI, summary.TBI.Seconds(), metric.WithAttributes(commonAttrs...))
-			o.ObserveFloat64(jobsetNodeTTIUp, summary.TTIUp.Seconds(), metric.WithAttributes(commonAttrs...))
+			if summary.MTTR != 0 {
+				o.ObserveFloat64(jobsetNodeMTTR, summary.MTTR.Seconds(), metric.WithAttributes(commonAttrs...))
+			}
+			if summary.TTR != 0 {
+				o.ObserveFloat64(jobsetNodeTTR, summary.TTR.Seconds(), metric.WithAttributes(commonAttrs...))
+			}
+			if summary.MTBI != 0 {
+				o.ObserveFloat64(jobsetNodeMTBI, summary.MTBI.Seconds(), metric.WithAttributes(commonAttrs...))
+			}
+			if summary.TBI != 0 {
+				o.ObserveFloat64(jobsetNodeTBI, summary.TBI.Seconds(), metric.WithAttributes(commonAttrs...))
+			}
+			if summary.TTIUp != 0 {
+				o.ObserveFloat64(jobsetNodeTTIUp, summary.TTIUp.Seconds(), metric.WithAttributes(commonAttrs...))
+			}
 		}
 
 		return nil
