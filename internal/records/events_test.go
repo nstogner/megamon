@@ -38,7 +38,7 @@ func TestSummarize(t *testing.T) {
 			},
 			now: t0.Add(time.Hour),
 			expectedSummary: EventSummary{
-				TTIUp: time.Hour,
+				TimeBeforeUp: time.Hour,
 			},
 		},
 		"up for 3 hours": {
@@ -50,8 +50,8 @@ func TestSummarize(t *testing.T) {
 			},
 			now: t0.Add(time.Hour + 3*time.Hour),
 			expectedSummary: EventSummary{
-				TTIUp:  time.Hour,
-				UpTime: 3 * time.Hour,
+				TimeBeforeUp: time.Hour,
+				UpTime:       3 * time.Hour,
 			},
 		},
 		"single interruption": {
@@ -70,11 +70,12 @@ func TestSummarize(t *testing.T) {
 			},
 			now: t0.Add(2 * time.Hour),
 			expectedSummary: EventSummary{
-				TTIUp:         time.Hour,
-				UpTime:        time.Hour,
-				Interruptions: 1,
-				MTBI:          time.Hour,
-				TBI:           time.Hour,
+				TimeBeforeUp:      time.Hour,
+				UpTime:            time.Hour,
+				InterruptionCount: 1,
+				TTBI:              time.Hour,
+				MTBI:              time.Hour,
+				LTBI:              time.Hour,
 			},
 		},
 		"single interruption then down for an hour": {
@@ -93,12 +94,13 @@ func TestSummarize(t *testing.T) {
 			},
 			now: t0.Add(2*time.Hour + time.Hour),
 			expectedSummary: EventSummary{
-				TTIUp:            time.Hour,
-				UpTime:           time.Hour,
-				InterruptionTime: time.Hour,
-				Interruptions:    1,
-				MTBI:             time.Hour,
-				TBI:              time.Hour,
+				TimeBeforeUp:      time.Hour,
+				UpTime:            time.Hour,
+				InterruptionTime:  time.Hour,
+				InterruptionCount: 1,
+				TTBI:              time.Hour,
+				MTBI:              time.Hour,
+				LTBI:              time.Hour,
 			},
 		},
 		"single interruption single recovery": {
@@ -119,15 +121,17 @@ func TestSummarize(t *testing.T) {
 			},
 			now: t0.Add(3 * time.Hour),
 			expectedSummary: EventSummary{
-				TTIUp:            time.Hour,
-				UpTime:           time.Hour,
-				InterruptionTime: time.Hour,
-				Interruptions:    1,
-				Recoveries:       1,
-				MTTR:             time.Hour,
-				TTR:              time.Hour,
-				MTBI:             time.Hour,
-				TBI:              time.Hour,
+				TimeBeforeUp:      time.Hour,
+				UpTime:            time.Hour,
+				InterruptionTime:  time.Hour,
+				InterruptionCount: 1,
+				RecoveryCount:     1,
+				TTTR:              time.Hour,
+				MTTR:              time.Hour,
+				LTTR:              time.Hour,
+				TTBI:              time.Hour,
+				MTBI:              time.Hour,
+				LTBI:              time.Hour,
 			},
 		},
 		"single interruption single recovery then up for an hour": {
@@ -148,15 +152,17 @@ func TestSummarize(t *testing.T) {
 			},
 			now: t0.Add(3*time.Hour + time.Hour),
 			expectedSummary: EventSummary{
-				TTIUp:            time.Hour,
-				UpTime:           2 * time.Hour,
-				InterruptionTime: time.Hour,
-				Interruptions:    1,
-				Recoveries:       1,
-				MTTR:             time.Hour,
-				TTR:              time.Hour,
-				MTBI:             time.Hour,
-				TBI:              time.Hour,
+				TimeBeforeUp:      time.Hour,
+				UpTime:            2 * time.Hour,
+				InterruptionTime:  time.Hour,
+				InterruptionCount: 1,
+				RecoveryCount:     1,
+				TTTR:              time.Hour,
+				MTTR:              time.Hour,
+				LTTR:              time.Hour,
+				TTBI:              time.Hour,
+				MTBI:              time.Hour,
+				LTBI:              time.Hour,
 			},
 		},
 		"two interruptions single recovery": {
@@ -179,15 +185,17 @@ func TestSummarize(t *testing.T) {
 			},
 			now: t0.Add(3*time.Hour + 2*time.Hour),
 			expectedSummary: EventSummary{
-				TTIUp:            time.Hour,
-				UpTime:           time.Hour + 2*time.Hour,
-				InterruptionTime: time.Hour,
-				Interruptions:    2,
-				Recoveries:       1,
-				MTTR:             time.Hour,
-				TTR:              time.Hour,
-				MTBI:             (1*time.Hour + 2*time.Hour) / 2,
-				TBI:              2 * time.Hour,
+				TimeBeforeUp:      time.Hour,
+				UpTime:            time.Hour + 2*time.Hour,
+				InterruptionTime:  time.Hour,
+				InterruptionCount: 2,
+				RecoveryCount:     1,
+				TTTR:              time.Hour,
+				MTTR:              time.Hour,
+				LTTR:              time.Hour,
+				TTBI:              1*time.Hour + 2*time.Hour,
+				MTBI:              (1*time.Hour + 2*time.Hour) / 2,
+				LTBI:              2 * time.Hour,
 			},
 		},
 		"two interruptions two recoveries": {
@@ -212,15 +220,17 @@ func TestSummarize(t *testing.T) {
 			},
 			now: t0.Add(3*time.Hour + 2*time.Hour + 3*time.Hour),
 			expectedSummary: EventSummary{
-				TTIUp:            time.Hour,
-				UpTime:           time.Hour + 2*time.Hour,
-				InterruptionTime: time.Hour + 3*time.Hour,
-				Interruptions:    2,
-				Recoveries:       2,
-				MTTR:             2 * time.Hour,
-				TTR:              3 * time.Hour,
-				MTBI:             (1*time.Hour + 2*time.Hour) / 2,
-				TBI:              2 * time.Hour,
+				TimeBeforeUp:      time.Hour,
+				UpTime:            time.Hour + 2*time.Hour,
+				InterruptionTime:  time.Hour + 3*time.Hour,
+				InterruptionCount: 2,
+				RecoveryCount:     2,
+				TTTR:              time.Hour + 3*time.Hour,
+				MTTR:              2 * time.Hour,
+				LTTR:              3 * time.Hour,
+				TTBI:              1*time.Hour + 2*time.Hour,
+				MTBI:              (1*time.Hour + 2*time.Hour) / 2,
+				LTBI:              2 * time.Hour,
 			},
 		},
 	}
@@ -230,12 +240,14 @@ func TestSummarize(t *testing.T) {
 			gotSum := tc.records.Summarize(tc.now)
 			require.Equal(t, tc.expectedSummary.UpTime, gotSum.UpTime, "UpTime")
 			require.Equal(t, tc.expectedSummary.InterruptionTime, gotSum.InterruptionTime, "InterruptionTime")
-			require.Equal(t, tc.expectedSummary.Interruptions, gotSum.Interruptions, "Interruptions")
-			require.Equal(t, tc.expectedSummary.Recoveries, gotSum.Recoveries, "Recoveries")
+			require.Equal(t, tc.expectedSummary.InterruptionCount, gotSum.InterruptionCount, "Interruptions")
+			require.Equal(t, tc.expectedSummary.RecoveryCount, gotSum.RecoveryCount, "Recoveries")
+			require.Equal(t, tc.expectedSummary.TTTR, gotSum.TTTR, "TTTR")
 			require.Equal(t, tc.expectedSummary.MTTR, gotSum.MTTR, "MTTR")
+			require.Equal(t, tc.expectedSummary.LTTR, gotSum.LTTR, "TTR")
+			require.Equal(t, tc.expectedSummary.TTBI, gotSum.TTBI, "TTBI")
 			require.Equal(t, tc.expectedSummary.MTBI, gotSum.MTBI, "MTBI")
-			require.Equal(t, tc.expectedSummary.TTR, gotSum.TTR, "TTR")
-			require.Equal(t, tc.expectedSummary.TBI, gotSum.TBI, "TBI")
+			require.Equal(t, tc.expectedSummary.LTBI, gotSum.LTBI, "TBI")
 		})
 	}
 }

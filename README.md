@@ -4,8 +4,8 @@
 
 ## TODO
 
-* Take into account completion state of jobset when calculating event-based metrics
-* Add uptime percentage
+* Make sure to always emit the final summaries for a completed/failed jobset.
+* Account for jobset UIDs.
 
 ## Why MegaMon over Kube State Metrics
 

@@ -21,19 +21,33 @@ type UpnessSummaryWithAttrs struct {
 }
 
 type EventSummary struct {
-	TTIUp time.Duration `json:"ttiUp"`
+	// TimeBeforeUp is the time spent before the system was up.
+	TimeBeforeUp time.Duration `json:"timeBeforeUp"`
 
+	// InterruptionCount is the number of times that the system has gone down after being up.
+	InterruptionCount int `json:"interruptionCount"`
+	// RecoveryCount is the number of times that the system has recovered from a down state.
+	RecoveryCount int `json:"recoveryCount"`
+
+	// InterruptionTime is the total time spent in the down state after initially up.
 	InterruptionTime time.Duration `json:"interruptionTime"`
-	UpTime           time.Duration `json:"upTime"`
+	// UpTime is the total time spent in an up state.
+	UpTime time.Duration `json:"upTime"`
 
-	Interruptions int `json:"interruptions"`
-	Recoveries    int `json:"recoveries"`
+	// TTTR - Total Time To Recovery
+	TTTR time.Duration `json:"tttr"`
+	// TTBI - Total Time Between Interruption
+	TTBI time.Duration `json:"ttbi"`
 
-	TTR time.Duration `json:"ttr"`
-	TBI time.Duration `json:"tbi"`
+	// LTTR - Last Time To Recovery
+	LTTR time.Duration `json:"lttr"`
+	// LTBI - Last Time Between Interruption
+	LTBI time.Duration `json:"ltbi"`
 
+	// MTTR - Mean Time To Recovery
 	MTTR time.Duration `json:"mttr"`
-	MTBI time.Duration `json:"mtbi"`
+	// MTBI - Mean Time Between Interruption
+	MTBI time.Duration `json:"mbti"`
 }
 
 func (r *EventRecords) Summarize(now time.Time) EventSummary {
@@ -51,7 +65,7 @@ func (r *EventRecords) Summarize(now time.Time) EventSummary {
 		return summary
 	}
 
-	summary.TTIUp = r.UpEvents[1].Timestamp.Sub(r.UpEvents[0].Timestamp)
+	summary.TimeBeforeUp = r.UpEvents[1].Timestamp.Sub(r.UpEvents[0].Timestamp)
 	if len(r.UpEvents) == 2 {
 		summary.UpTime = now.Sub(r.UpEvents[1].Timestamp)
 		return summary
@@ -63,30 +77,34 @@ func (r *EventRecords) Summarize(now time.Time) EventSummary {
 			// Just transitioned down to up.
 			lastTTR = r.UpEvents[i].Timestamp.Sub(r.UpEvents[i-1].Timestamp)
 			summary.InterruptionTime += lastTTR
-			summary.Recoveries++
+			summary.RecoveryCount++
 		} else {
 			// Just transitioned up to down.
 			lastTBI = r.UpEvents[i].Timestamp.Sub(r.UpEvents[i-1].Timestamp)
 			summary.UpTime += lastTBI
-			summary.Interruptions++
+			summary.InterruptionCount++
 		}
 	}
-	summary.TBI = lastTBI
-	summary.TTR = lastTTR
+	// Set values for last and total-"between" times.
+	summary.LTBI = lastTBI
+	summary.LTTR = lastTTR
+	summary.TTBI = summary.UpTime
+	summary.TTTR = summary.InterruptionTime
 
-	if summary.Interruptions > 0 {
-		summary.MTBI = summary.UpTime / time.Duration(summary.Interruptions)
+	// Calculate means.
+	if summary.InterruptionCount > 0 {
+		summary.MTBI = summary.TTBI / time.Duration(summary.InterruptionCount)
 	}
-	if summary.Recoveries > 0 {
-		summary.MTTR = summary.InterruptionTime / time.Duration(summary.Recoveries)
+	if summary.RecoveryCount > 0 {
+		summary.MTTR = summary.TTTR / time.Duration(summary.RecoveryCount)
 	}
 
-	// Add trailing uptime or interruption.
+	// Add trailing up/interruption time.
 	lastIdx := len(r.UpEvents) - 1
 	if r.UpEvents[lastIdx].Up {
-		summary.UpTime += now.Sub(r.UpEvents[lastIdx].Timestamp)
+		summary.UpTime = summary.TTBI + now.Sub(r.UpEvents[lastIdx].Timestamp)
 	} else {
-		summary.InterruptionTime += now.Sub(r.UpEvents[lastIdx].Timestamp)
+		summary.InterruptionTime = summary.TTTR + now.Sub(r.UpEvents[lastIdx].Timestamp)
 	}
 
 	return summary
