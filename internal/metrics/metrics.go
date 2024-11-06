@@ -61,7 +61,11 @@ func Init(r Reporter) func() {
 	)
 	fatal(err)
 
-	jobsetInterruptionTime, err := meter.Float64ObservableCounter("megamon.jobset.interruption.time",
+	// Note: Technically this could be a counter if we are fully certain that the value
+	// will never decrease. In practice, this caused issues where this value was being
+	// reported inaccurately. It is possible that this was because the timeseries was
+	// not fully unique across JobSet instances at that time.
+	jobsetInterruptionTime, err := meter.Float64ObservableGauge("megamon.jobset.interruption.time",
 		metric.WithDescription("Total time JobSet has interrupted."),
 		metric.WithUnit("s"),
 	)
@@ -77,7 +81,7 @@ func Init(r Reporter) func() {
 	)
 	fatal(err)
 
-	jobsetTTTR, err := meter.Float64ObservableCounter("megamon.jobset.recovery.time",
+	jobsetTTTR, err := meter.Float64ObservableGauge("megamon.jobset.recovery.time",
 		metric.WithDescription("Total Time Spent Recovering for a JobSet."),
 		metric.WithUnit("s"),
 	)
@@ -95,7 +99,7 @@ func Init(r Reporter) func() {
 	)
 	fatal(err)
 
-	jobsetTTBI, err := meter.Float64ObservableCounter("megamon.jobset.interruption.between.time",
+	jobsetTTBI, err := meter.Float64ObservableGauge("megamon.jobset.interruption.between.time",
 		metric.WithDescription("Total Time Between Interruptions for a JobSet."),
 		metric.WithUnit("s"),
 	)
@@ -132,7 +136,7 @@ func Init(r Reporter) func() {
 	)
 	fatal(err)
 
-	jobsetNodeInterruptionTime, err := meter.Float64ObservableCounter("megamon.jobset.nodes.interruption.time",
+	jobsetNodeInterruptionTime, err := meter.Float64ObservableGauge("megamon.jobset.nodes.interruption.time",
 		metric.WithDescription("Total time a JobSets Nodes have been interrupted."),
 		metric.WithUnit("s"),
 	)
@@ -166,7 +170,7 @@ func Init(r Reporter) func() {
 	)
 	fatal(err)
 
-	jobsetNodeTTBI, err := meter.Float64ObservableCounter("megamon.jobset.nodes.interruption.between.time",
+	jobsetNodeTTBI, err := meter.Float64ObservableGauge("megamon.jobset.nodes.interruption.between.time",
 		metric.WithDescription("Total Time Between Interruptions for a JobSets Nodes."),
 		metric.WithUnit("s"),
 	)
