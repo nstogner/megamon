@@ -81,7 +81,7 @@ func Init(r Reporter) func() {
 	)
 	fatal(err)
 
-	jobsetDownTimeProvisioned, err := meter.Float64ObservableGauge("megamon.jobset.down.time.provisioned",
+	jobsetDownTimeInitial, err := meter.Float64ObservableGauge("megamon.jobset.down.time.initial",
 		metric.WithDescription("Initial time elapsed before JobSet is first comes up."),
 		metric.WithUnit("s"),
 	)
@@ -188,7 +188,7 @@ func Init(r Reporter) func() {
 	)
 	fatal(err)
 
-	jobsetNodesDownTimeProvisioned, err := meter.Float64ObservableGauge("megamon.jobset.nodes.down.time.provisioned",
+	jobsetNodesDownTimeInitial, err := meter.Float64ObservableGauge("megamon.jobset.nodes.down.time.initial",
 		metric.WithDescription("Time elapsed before all JobSet Nodes are Ready (up) for the first time."),
 		metric.WithUnit("s"),
 	)
@@ -223,8 +223,8 @@ func Init(r Reporter) func() {
 			o.ObserveInt64(jobsetRecoveryCount, int64(summary.RecoveryCount), metric.WithAttributes(commonAttrs...))
 			o.ObserveFloat64(jobsetUpTime, summary.UpTime.Seconds(), metric.WithAttributes(commonAttrs...))
 			o.ObserveFloat64(jobsetDownTime, summary.DownTime.Seconds(), metric.WithAttributes(commonAttrs...))
-			if summary.DownTimeProvisioned != 0 {
-				o.ObserveFloat64(jobsetDownTimeProvisioned, summary.DownTimeProvisioned.Seconds(), metric.WithAttributes(commonAttrs...))
+			if summary.DownTimeInitial != 0 {
+				o.ObserveFloat64(jobsetDownTimeInitial, summary.DownTimeInitial.Seconds(), metric.WithAttributes(commonAttrs...))
 			}
 			// TTR
 			if summary.TotalDownTimeBetweenRecovery != 0 {
@@ -253,8 +253,8 @@ func Init(r Reporter) func() {
 			o.ObserveInt64(jobsetNodesRecoveryCount, int64(summary.RecoveryCount), metric.WithAttributes(commonAttrs...))
 			o.ObserveFloat64(jobsetNodesUpTime, summary.UpTime.Seconds(), metric.WithAttributes(commonAttrs...))
 			o.ObserveFloat64(jobsetNodesDownTime, summary.DownTime.Seconds(), metric.WithAttributes(commonAttrs...))
-			if summary.DownTimeProvisioned != 0 {
-				o.ObserveFloat64(jobsetNodesDownTimeProvisioned, summary.DownTimeProvisioned.Seconds(), metric.WithAttributes(commonAttrs...))
+			if summary.DownTimeInitial != 0 {
+				o.ObserveFloat64(jobsetNodesDownTimeInitial, summary.DownTimeInitial.Seconds(), metric.WithAttributes(commonAttrs...))
 			}
 			// TTR
 			if summary.TotalDownTimeBetweenRecovery != 0 {
@@ -286,7 +286,7 @@ func Init(r Reporter) func() {
 		jobsetUpTimeBetweenInterruptionMean,
 		jobsetUpTimeBetweenInterruptionLatest,
 		jobsetDownTime,
-		jobsetDownTimeProvisioned,
+		jobsetDownTimeInitial,
 		jobsetDownTimeBetweenRecovery,
 		jobsetDownTimeBetweenRecoveryMean,
 		jobsetDownTimeBetweenRecoveryLatest,
@@ -298,7 +298,7 @@ func Init(r Reporter) func() {
 		jobsetNodesUpTimeBetweenInterruptionMean,
 		jobsetNodesUpTimeBetweenInterruptionLatest,
 		jobsetNodesDownTime,
-		jobsetNodesDownTimeProvisioned,
+		jobsetNodesDownTimeInitial,
 		jobsetNodesDownTimeBetweenRecovery,
 		jobsetNodesDownTimeBetweenInterruptionMean,
 		jobsetNodesDownTimeBetweenRecoveryLatest,

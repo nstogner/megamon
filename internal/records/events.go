@@ -21,8 +21,8 @@ type UpnessSummaryWithAttrs struct {
 }
 
 type EventSummary struct {
-	// DownTimeProvisioned is the time spent before the system was up.
-	DownTimeProvisioned time.Duration `json:"downTimeProvisioned"`
+	// DownTimeInitial is the time spent before the system was up.
+	DownTimeInitial time.Duration `json:"downTimeProvisioned"`
 
 	// InterruptionCount is the number of times that the system has gone down after being up.
 	InterruptionCount int `json:"interruptionCount"`
@@ -70,7 +70,7 @@ func (r *EventRecords) Summarize(now time.Time) EventSummary {
 	}
 
 	summary.DownTime = r.UpEvents[1].Timestamp.Sub(r.UpEvents[0].Timestamp)
-	summary.DownTimeProvisioned = r.UpEvents[1].Timestamp.Sub(r.UpEvents[0].Timestamp)
+	summary.DownTimeInitial = r.UpEvents[1].Timestamp.Sub(r.UpEvents[0].Timestamp)
 
 	// up:        ___
 	// down:  ____|

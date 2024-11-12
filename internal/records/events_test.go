@@ -57,8 +57,8 @@ func TestSummarize(t *testing.T) {
 			},
 			now: t0.Add(time.Hour),
 			expectedSummary: EventSummary{
-				DownTime:            time.Hour,
-				DownTimeProvisioned: time.Hour,
+				DownTime:        time.Hour,
+				DownTimeInitial: time.Hour,
 			},
 		},
 		"up for 3 hours": {
@@ -74,9 +74,9 @@ func TestSummarize(t *testing.T) {
 			},
 			now: t0.Add(time.Hour + 3*time.Hour),
 			expectedSummary: EventSummary{
-				DownTimeProvisioned: time.Hour,
-				DownTime:            time.Hour,
-				UpTime:              3 * time.Hour,
+				DownTimeInitial: time.Hour,
+				DownTime:        time.Hour,
+				UpTime:          3 * time.Hour,
 			},
 		},
 		"single interruption": {
@@ -95,7 +95,7 @@ func TestSummarize(t *testing.T) {
 			},
 			now: t0.Add(2 * time.Hour),
 			expectedSummary: EventSummary{
-				DownTimeProvisioned:             time.Hour,
+				DownTimeInitial:                 time.Hour,
 				UpTime:                          time.Hour,
 				DownTime:                        time.Hour,
 				InterruptionCount:               1,
@@ -120,7 +120,7 @@ func TestSummarize(t *testing.T) {
 			},
 			now: t0.Add(2*time.Hour + time.Hour),
 			expectedSummary: EventSummary{
-				DownTimeProvisioned:             time.Hour,
+				DownTimeInitial:                 time.Hour,
 				UpTime:                          time.Hour,
 				DownTime:                        2 * time.Hour,
 				InterruptionCount:               1,
@@ -147,7 +147,7 @@ func TestSummarize(t *testing.T) {
 			},
 			now: t0.Add(3 * time.Hour),
 			expectedSummary: EventSummary{
-				DownTimeProvisioned:             time.Hour,
+				DownTimeInitial:                 time.Hour,
 				UpTime:                          time.Hour,
 				DownTime:                        2 * time.Hour,
 				InterruptionCount:               1,
@@ -178,7 +178,7 @@ func TestSummarize(t *testing.T) {
 			},
 			now: t0.Add(3*time.Hour + time.Hour),
 			expectedSummary: EventSummary{
-				DownTimeProvisioned:             time.Hour,
+				DownTimeInitial:                 time.Hour,
 				UpTime:                          2 * time.Hour,
 				DownTime:                        2 * time.Hour,
 				InterruptionCount:               1,
@@ -211,7 +211,7 @@ func TestSummarize(t *testing.T) {
 			},
 			now: t0.Add(3*time.Hour + 2*time.Hour),
 			expectedSummary: EventSummary{
-				DownTimeProvisioned:             time.Hour,
+				DownTimeInitial:                 time.Hour,
 				UpTime:                          time.Hour + 2*time.Hour,
 				DownTime:                        2 * time.Hour,
 				InterruptionCount:               2,
@@ -244,7 +244,7 @@ func TestSummarize(t *testing.T) {
 			},
 			now: t0.Add(3*time.Hour + 2*time.Hour + 3*time.Hour),
 			expectedSummary: EventSummary{
-				DownTimeProvisioned:             time.Hour,
+				DownTimeInitial:                 time.Hour,
 				UpTime:                          time.Hour + 2*time.Hour,
 				DownTime:                        time.Hour + time.Hour + 3*time.Hour,
 				InterruptionCount:               2,
@@ -279,7 +279,7 @@ func TestSummarize(t *testing.T) {
 			},
 			now: t0.Add(3*time.Hour + 2*time.Hour + 3*time.Hour),
 			expectedSummary: EventSummary{
-				DownTimeProvisioned:             time.Hour,
+				DownTimeInitial:                 time.Hour,
 				UpTime:                          time.Hour + 2*time.Hour,
 				DownTime:                        time.Hour + time.Hour + 3*time.Hour,
 				InterruptionCount:               2,
@@ -299,6 +299,7 @@ func TestSummarize(t *testing.T) {
 			gotSum := tc.records.Summarize(tc.now)
 			require.Equal(t, tc.expectedSummary.UpTime, gotSum.UpTime, "UpTime")
 			require.Equal(t, tc.expectedSummary.DownTime, gotSum.DownTime, "DownTime")
+			require.Equal(t, tc.expectedSummary.DownTimeInitial, gotSum.DownTimeInitial, "DownTimeInitial")
 			require.Equal(t, tc.expectedSummary.InterruptionCount, gotSum.InterruptionCount, "InterruptionCount")
 			require.Equal(t, tc.expectedSummary.RecoveryCount, gotSum.RecoveryCount, "RecoveryCount")
 			require.Equal(t, tc.expectedSummary.TotalDownTimeBetweenRecovery, gotSum.TotalDownTimeBetweenRecovery, "TotalDownTimeBetweenRecovery")
