@@ -32,11 +32,15 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
@@ -49,6 +53,7 @@ import (
 
 	// +kubebuilder:scaffold:imports
 
+	corev1 "k8s.io/api/core/v1"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 )
 
@@ -157,6 +162,24 @@ func main() {
 		metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
 	}
 
+	// Only watch JobSet leader pods so that Jobs can be bound to the node
+	// pools that they are scheduled on.
+	//
+	// jobset.sigs.k8s.io/jobset-name (exists)
+	// batch.kubernetes.io/job-completion-index: "0"
+	//
+	jobsetPodSelector, err := labels.Parse("jobset.sigs.k8s.io/jobset-name, batch.kubernetes.io/job-completion-index=0")
+	if err != nil {
+		setupLog.Error(err, "unable to create jobset pod selector")
+		os.Exit(1)
+	}
+	// Only watch Pods that are already scheduled to a Node.
+	scheduledPodSelector, err := fields.ParseSelector("spec.nodeName!=")
+	if err != nil {
+		setupLog.Error(err, "unable to create scheduled pod selector")
+		os.Exit(1)
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		Metrics:                metricsServerOptions,
@@ -164,6 +187,14 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "fd0479f1.example.com",
+		Cache: cache.Options{
+			ByObject: map[client.Object]cache.ByObject{
+				&corev1.Pod{}: {
+					Label: jobsetPodSelector,
+					Field: scheduledPodSelector,
+				},
+			},
+		},
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly

@@ -9,6 +9,14 @@ import (
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 )
 
+func GetNodePool(node *corev1.Node) (string, bool) {
+	if node.Labels == nil {
+		return "", false
+	}
+	val, ok := node.Labels["cloud.google.com/gke-nodepool"]
+	return val, ok
+}
+
 func IsJobSetActive(js *jobset.JobSet) bool {
 	for _, c := range js.Status.Conditions {
 		if c.Status == metav1.ConditionTrue {
