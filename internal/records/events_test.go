@@ -8,6 +8,8 @@ import (
 )
 
 func TestSummarize(t *testing.T) {
+	t.Parallel()
+
 	t0, err := time.Parse(time.RFC3339, "2021-01-01T00:00:00Z")
 	if err != nil {
 		t.Fatal(err)
@@ -296,6 +298,8 @@ func TestSummarize(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			gotSum := tc.records.Summarize(tc.now)
 			require.Equal(t, tc.expectedSummary.UpTime, gotSum.UpTime, "UpTime")
 			require.Equal(t, tc.expectedSummary.DownTime, gotSum.DownTime, "DownTime")
@@ -308,6 +312,168 @@ func TestSummarize(t *testing.T) {
 			require.Equal(t, tc.expectedSummary.TotalUpTimeBetweenInterruption, gotSum.TotalUpTimeBetweenInterruption, "TotalUpTimeBetweenInterruption")
 			require.Equal(t, tc.expectedSummary.MeanUpTimeBetweenInterruption, gotSum.MeanUpTimeBetweenInterruption, "MeanUpTimeBetweenInterruption")
 			require.Equal(t, tc.expectedSummary.LatestUpTimeBetweenInterruption, gotSum.LatestUpTimeBetweenInterruption, "LatestUpTimeBetweenInterruption")
+		})
+	}
+}
+
+func TestReconcileEvents(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	cases := map[string]struct {
+		inputUps    map[string]Upness
+		inputEvents map[string]EventRecords
+		expEvents   map[string]EventRecords
+		expChanged  bool
+	}{
+		"empty": {
+			inputUps:    map[string]Upness{},
+			inputEvents: map[string]EventRecords{},
+			expEvents:   map[string]EventRecords{},
+			expChanged:  false,
+		},
+		"first event up": {
+			inputUps: map[string]Upness{
+				"abc": {
+					ExpectedCount: 1,
+					ReadyCount:    1,
+				},
+			},
+			inputEvents: map[string]EventRecords{},
+			expEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: false, Timestamp: now},
+						{Up: true, Timestamp: now},
+					},
+				},
+			},
+			expChanged: true,
+		},
+		"first event down": {
+			inputUps: map[string]Upness{
+				"abc": {
+					ExpectedCount: 1,
+					ReadyCount:    0,
+				},
+			},
+			inputEvents: map[string]EventRecords{},
+			expEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: false, Timestamp: now},
+					},
+				},
+			},
+			expChanged: true,
+		},
+		"down to up": {
+			inputUps: map[string]Upness{
+				"abc": {
+					ExpectedCount: 1,
+					ReadyCount:    1,
+				},
+			},
+			inputEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: false, Timestamp: now.Add(-time.Minute)},
+					},
+				},
+			},
+			expEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: false, Timestamp: now.Add(-time.Minute)},
+						{Up: true, Timestamp: now},
+					},
+				},
+			},
+			expChanged: true,
+		},
+		"up to down": {
+			inputUps: map[string]Upness{
+				"abc": {
+					ExpectedCount: 1,
+					ReadyCount:    0,
+				},
+			},
+			inputEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: false, Timestamp: now.Add(-2 * time.Minute)},
+						{Up: true, Timestamp: now.Add(-time.Minute)},
+					},
+				},
+			},
+			expEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: false, Timestamp: now.Add(-2 * time.Minute)},
+						{Up: true, Timestamp: now.Add(-time.Minute)},
+						{Up: false, Timestamp: now},
+					},
+				},
+			},
+			expChanged: true,
+		},
+		"still down": {
+			inputUps: map[string]Upness{
+				"abc": {
+					ExpectedCount: 1,
+					ReadyCount:    0,
+				},
+			},
+			inputEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: false, Timestamp: now.Add(-time.Minute)},
+					},
+				},
+			},
+			expEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: false, Timestamp: now.Add(-time.Minute)},
+					},
+				},
+			},
+			expChanged: false,
+		},
+		"still up": {
+			inputUps: map[string]Upness{
+				"abc": {
+					ExpectedCount: 1,
+					ReadyCount:    1,
+				},
+			},
+			inputEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: false, Timestamp: now.Add(-2 * time.Minute)},
+						{Up: true, Timestamp: now.Add(-time.Minute)},
+					},
+				},
+			},
+			expEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: false, Timestamp: now.Add(-2 * time.Minute)},
+						{Up: true, Timestamp: now.Add(-time.Minute)},
+					},
+				},
+			},
+			expChanged: false,
+		},
+	}
+
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			events := c.inputEvents
+			gotChanged := ReconcileEvents(now, c.inputUps, events)
+			require.Equal(t, c.expEvents, events)
+			require.Equal(t, c.expChanged, gotChanged)
 		})
 	}
 }

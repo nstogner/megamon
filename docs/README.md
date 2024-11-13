@@ -16,11 +16,6 @@ MegaMon provides granular merics about when a JobSet is Down. This allows for ca
 
 ![Downness Metrics](./diagrams/downness-metrics.excalidraw.png)
 
-## TODO
-
-* Make sure to always emit the final summaries for a completed/failed jobset.
-* Account for jobset UIDs.
-
 ## Why MegaMon over Kube State Metrics
 
 MegaMon was created to address shortcoming of using [kube-state-metrics](https://github.com/kubernetes/kube-state-metrics):

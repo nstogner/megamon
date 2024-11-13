@@ -14,6 +14,7 @@ import (
 
 var (
 	AggregationDuration metric.Float64Histogram
+	Prefix              = "megamon"
 )
 
 func initMeterProvider() *metricsdk.MeterProvider {
@@ -41,7 +42,7 @@ func Init(r Reporter) func() {
 	meter := otel.Meter("megamon")
 
 	var err error
-	AggregationDuration, err = meter.Float64Histogram("megamon.aggregation.duration",
+	AggregationDuration, err = meter.Float64Histogram(Prefix+".aggregation.duration",
 		metric.WithDescription("Duration of the aggregation loop."),
 		metric.WithUnit("s"),
 		metric.WithExplicitBucketBoundaries(0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30, 60),
@@ -50,12 +51,12 @@ func Init(r Reporter) func() {
 
 	// Jobset //
 
-	jobsetUp, err := meter.Int64ObservableGauge("megamon.jobset.up",
+	jobsetUp, err := meter.Int64ObservableGauge(Prefix+".jobset.up",
 		metric.WithDescription("Whether all JobSet Job replicas are in a Ready status (0 or 1)."),
 	)
 	fatal(err)
 
-	jobsetUpTime, err := meter.Float64ObservableCounter("megamon.jobset.up.time",
+	jobsetUpTime, err := meter.Float64ObservableCounter(Prefix+".jobset.up.time",
 		metric.WithDescription("Total time JobSet has been up."),
 		metric.WithUnit("s"),
 	)
@@ -65,59 +66,59 @@ func Init(r Reporter) func() {
 	// will never decrease. In practice, this caused issues where this value was being
 	// reported inaccurately. It is possible that this was because the timeseries was
 	// not fully unique across JobSet instances at that time.
-	jobsetDownTime, err := meter.Float64ObservableGauge("megamon.jobset.down.time",
+	jobsetDownTime, err := meter.Float64ObservableGauge(Prefix+".jobset.down.time",
 		metric.WithDescription("Total time JobSet has not been fully up."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
-	jobsetInterruptionCount, err := meter.Int64ObservableCounter("megamon.jobset.interruption.count",
+	jobsetInterruptionCount, err := meter.Int64ObservableCounter(Prefix+".jobset.interruption.count",
 		metric.WithDescription("Total number of interruptions for a JobSet."),
 	)
 	fatal(err)
 
-	jobsetRecoveryCount, err := meter.Int64ObservableCounter("megamon.jobset.recovery.count",
+	jobsetRecoveryCount, err := meter.Int64ObservableCounter(Prefix+".jobset.recovery.count",
 		metric.WithDescription("Total number of recoveries for a JobSet."),
 	)
 	fatal(err)
 
-	jobsetDownTimeInitial, err := meter.Float64ObservableGauge("megamon.jobset.down.time.initial",
+	jobsetDownTimeInitial, err := meter.Float64ObservableGauge(Prefix+".jobset.down.time.initial",
 		metric.WithDescription("Initial time elapsed before JobSet is first comes up."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
-	jobsetDownTimeBetweenRecovery, err := meter.Float64ObservableGauge("megamon.jobset.down.time.between.recovery",
+	jobsetDownTimeBetweenRecovery, err := meter.Float64ObservableGauge(Prefix+".jobset.down.time.between.recovery",
 		metric.WithDescription("Total time spent down between being all interruptions and recoveries."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
-	jobsetDownTimeBetweenRecoveryMean, err := meter.Float64ObservableGauge("megamon.jobset.down.time.between.recovery.mean",
+	jobsetDownTimeBetweenRecoveryMean, err := meter.Float64ObservableGauge(Prefix+".jobset.down.time.between.recovery.mean",
 		metric.WithDescription("Mean time to recovery for a JobSet."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
-	jobsetDownTimeBetweenRecoveryLatest, err := meter.Float64ObservableGauge("megamon.jobset.down.time.between.recovery.latest",
+	jobsetDownTimeBetweenRecoveryLatest, err := meter.Float64ObservableGauge(Prefix+".jobset.down.time.between.recovery.latest",
 		metric.WithDescription("Last time to recovery for a JobSet."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
-	jobsetUpTimeBetweenInterruption, err := meter.Float64ObservableGauge("megamon.jobset.up.time.between.interruption",
+	jobsetUpTimeBetweenInterruption, err := meter.Float64ObservableGauge(Prefix+".jobset.up.time.between.interruption",
 		metric.WithDescription("Total time between interruptions for a JobSet."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
-	jobsetUpTimeBetweenInterruptionMean, err := meter.Float64ObservableGauge("megamon.jobset.up.time.between.interruption.mean",
+	jobsetUpTimeBetweenInterruptionMean, err := meter.Float64ObservableGauge(Prefix+".jobset.up.time.between.interruption.mean",
 		metric.WithDescription("Mean time between interruptions for a JobSet."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
-	jobsetUpTimeBetweenInterruptionLatest, err := meter.Float64ObservableGauge("megamon.jobset.up.time.between.interruption.latest",
+	jobsetUpTimeBetweenInterruptionLatest, err := meter.Float64ObservableGauge(Prefix+".jobset.up.time.between.interruption.latest",
 		metric.WithDescription("Last time between interruption for a JobSet."),
 		metric.WithUnit("s"),
 	)
@@ -125,70 +126,70 @@ func Init(r Reporter) func() {
 
 	// Jobset Nodes //
 
-	jobsetNodesUp, err := meter.Int64ObservableGauge("megamon.jobset.nodes.up",
+	jobsetNodesUp, err := meter.Int64ObservableGauge(Prefix+".jobset.nodes.up",
 		metric.WithDescription("Whether all Nodes for a JobSet are in a Ready status (0 or 1)."),
 	)
 	fatal(err)
 
-	jobsetNodesUpTime, err := meter.Float64ObservableCounter("megamon.jobset.nodes.up.time",
+	jobsetNodesUpTime, err := meter.Float64ObservableCounter(Prefix+".jobset.nodes.up.time",
 		metric.WithDescription("Total time a JobSets Nodes have been up."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
-	jobsetNodesDownTime, err := meter.Float64ObservableGauge("megamon.jobset.nodes.down.time",
+	jobsetNodesDownTime, err := meter.Float64ObservableGauge(Prefix+".jobset.nodes.down.time",
 		metric.WithDescription("Total time a JobSets Nodes have not all been Ready (up)."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
-	jobsetNodesInterruptionCount, err := meter.Int64ObservableCounter("megamon.jobset.nodes.interruption.count",
+	jobsetNodesInterruptionCount, err := meter.Int64ObservableCounter(Prefix+".jobset.nodes.interruption.count",
 		metric.WithDescription("Total number of interruptions for a JobSets Nodes."),
 	)
 	fatal(err)
 
-	jobsetNodesRecoveryCount, err := meter.Int64ObservableCounter("megamon.jobset.nodes.recovery.count",
+	jobsetNodesRecoveryCount, err := meter.Int64ObservableCounter(Prefix+".jobset.nodes.recovery.count",
 		metric.WithDescription("Total number of recoveries for a JobSets Nodes."),
 	)
 	fatal(err)
 
-	jobsetNodesDownTimeBetweenRecovery, err := meter.Float64ObservableGauge("megamon.jobset.nodes.down.time.between.recovery",
+	jobsetNodesDownTimeBetweenRecovery, err := meter.Float64ObservableGauge(Prefix+".jobset.nodes.down.time.between.recovery",
 		metric.WithDescription("Total time spent recovering for a JobSets Nodes."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
-	jobsetNodesDownTimeBetweenInterruptionMean, err := meter.Float64ObservableGauge("megamon.jobset.nodes.down.time.interruption.mean",
+	jobsetNodesDownTimeBetweenInterruptionMean, err := meter.Float64ObservableGauge(Prefix+".jobset.nodes.down.time.interruption.mean",
 		metric.WithDescription("Mean time to recovery for a JobSets Nodes."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
-	jobsetNodesDownTimeBetweenRecoveryLatest, err := meter.Float64ObservableGauge("megamon.jobset.nodes.down.time.between.recovery.latest",
+	jobsetNodesDownTimeBetweenRecoveryLatest, err := meter.Float64ObservableGauge(Prefix+".jobset.nodes.down.time.between.recovery.latest",
 		metric.WithDescription("Last time To recovery for a JobSets Nodes."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
-	jobsetNodesUpTimeBetweenInterruption, err := meter.Float64ObservableGauge("megamon.jobset.nodes.up.time.between.interruption",
+	jobsetNodesUpTimeBetweenInterruption, err := meter.Float64ObservableGauge(Prefix+".jobset.nodes.up.time.between.interruption",
 		metric.WithDescription("Total time between interruptions for a JobSets Nodes."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
-	jobsetNodesUpTimeBetweenInterruptionMean, err := meter.Float64ObservableGauge("megamon.jobset.nodes.up.time.between.interruption.mean",
+	jobsetNodesUpTimeBetweenInterruptionMean, err := meter.Float64ObservableGauge(Prefix+".jobset.nodes.up.time.between.interruption.mean",
 		metric.WithDescription("Mean time between interruptions for a JobSets Nodes."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
-	jobsetNodesUpTimeBetweenInterruptionLatest, err := meter.Float64ObservableGauge("megamon.jobset.nodes.up.time.between.interruption.latest",
+	jobsetNodesUpTimeBetweenInterruptionLatest, err := meter.Float64ObservableGauge(Prefix+".jobset.nodes.up.time.between.interruption.latest",
 		metric.WithDescription("Last time between interruptions for a JobSets Nodes."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
-	jobsetNodesDownTimeInitial, err := meter.Float64ObservableGauge("megamon.jobset.nodes.down.time.initial",
+	jobsetNodesDownTimeInitial, err := meter.Float64ObservableGauge(Prefix+".jobset.nodes.down.time.initial",
 		metric.WithDescription("Time elapsed before all JobSet Nodes are Ready (up) for the first time."),
 		metric.WithUnit("s"),
 	)

@@ -106,33 +106,3 @@ func SetEventRecordsInConfigMap(cm *corev1.ConfigMap, recs map[string]records.Ev
 	}
 	return nil
 }
-
-/*
-func NodePoolEventsKey(node *corev1.Node) (string, bool) {
-	if node.Labels == nil {
-		return "", false
-	}
-	val, ok := node.Labels["cloud.google.com/gke-nodepool"]
-	return val, ok
-}
-
-func JobSetNodesEventsKey(node *corev1.Node) (string, bool) {
-	if node.Labels == nil {
-		return "", false
-	}
-	val, ok := node.Labels["google.com/tpu-provisioner-jobset-name"]
-	return val, ok
-}
-
-func JobSetEventsKey(js *jobset.JobSet) string {
-	// NOTE: "." is not a valid JobSet name character, so this is safe.
-	return js.Namespace + "." + js.Name
-}
-
-// SplitJobSetEventsKey splits a JobSetEvents key into its namespace and name.
-func SplitJobSetEventsKey(key string) (string, string) {
-	parts := strings.SplitN(key, ".", 2)
-	return parts[0], parts[1]
-}
-
-*/

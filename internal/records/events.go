@@ -12,7 +12,7 @@ type EventRecords struct {
 
 type UpEvent struct {
 	Up        bool      `json:"up"`
-	Timestamp time.Time `json:"timestamp"`
+	Timestamp time.Time `json:"ts"`
 }
 
 type UpnessSummaryWithAttrs struct {
@@ -57,7 +57,7 @@ func (r *EventRecords) Summarize(now time.Time) EventSummary {
 		return summary
 	}
 	if r.UpEvents[0].Up {
-		// Invalid data, must not have caught the beginning.
+		// Invalid data.
 		return summary
 	}
 	if n == 1 {
@@ -119,33 +119,32 @@ func (r *EventRecords) Summarize(now time.Time) EventSummary {
 	return summary
 }
 
-func AppendUpEvent(rec *EventRecords, isUp bool) bool {
+func AppendUpEvent(now time.Time, rec *EventRecords, isUp bool) bool {
 	var changed bool
 	if len(rec.UpEvents) == 0 {
 		rec.UpEvents = append(rec.UpEvents, UpEvent{
-			Up:        isUp,
-			Timestamp: time.Now(),
+			Up:        false,
+			Timestamp: now,
 		})
 		changed = true
-	} else {
-		last := rec.UpEvents[len(rec.UpEvents)-1]
-		if last.Up != isUp {
-			rec.UpEvents = append(rec.UpEvents, UpEvent{
-				Up:        isUp,
-				Timestamp: time.Now(),
-			})
-			changed = true
-		}
+	}
+	last := rec.UpEvents[len(rec.UpEvents)-1]
+	if last.Up != isUp {
+		rec.UpEvents = append(rec.UpEvents, UpEvent{
+			Up:        isUp,
+			Timestamp: now,
+		})
+		changed = true
 	}
 	return changed
 }
 
-func ReconcileEvents( /*mode Mode,*/ ups map[string]Upness, events map[string]EventRecords) (bool, error) {
+func ReconcileEvents(now time.Time, ups map[string]Upness, events map[string]EventRecords) bool {
 	var changed bool
 
 	for key, up := range ups {
 		rec := events[key]
-		if AppendUpEvent(&rec, up.Up()) {
+		if AppendUpEvent(now, &rec, up.Up()) {
 			events[key] = rec
 			changed = true
 		}
@@ -158,5 +157,5 @@ func ReconcileEvents( /*mode Mode,*/ ups map[string]Upness, events map[string]Ev
 		}
 	}
 
-	return changed, nil
+	return changed
 }

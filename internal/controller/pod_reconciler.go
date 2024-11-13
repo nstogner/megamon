@@ -16,7 +16,8 @@ const (
 	jobScheduledNodePoolLabel = "megamon.tbd/scheduled-node-pool"
 )
 
-// JobSetReconciler reconciles a Guestbook object
+// PodReconciler watches for JobSet Job leader Pods and labels the Job once Node scheduling
+// has occurred to keep track of dynamic Job-to-NodePool relationships.
 type PodReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme

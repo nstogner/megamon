@@ -74,6 +74,8 @@ type config struct {
 	ReportConfigMapRef           types.NamespacedName
 	JobSetEventsConfigMapRef     types.NamespacedName
 	JobSetNodeEventsConfigMapRef types.NamespacedName
+
+	DisableJobNodePoolLabelling bool
 }
 
 func main() {
@@ -101,19 +103,20 @@ func main() {
 
 	// TODO: Expose as configuration.
 	cfg := config{
-		AggregationInterval: 1 * time.Second,
+		AggregationInterval: 10 * time.Second,
 		ReportConfigMapRef: types.NamespacedName{
 			Namespace: "megamon-system",
-			Name:      "report",
+			Name:      "megamon-report",
 		},
 		JobSetNodeEventsConfigMapRef: types.NamespacedName{
 			Namespace: "megamon-system",
-			Name:      "jobset-node-events",
+			Name:      "megamon-jobset-node-events",
 		},
 		JobSetEventsConfigMapRef: types.NamespacedName{
 			Namespace: "megamon-system",
-			Name:      "jobset-events",
+			Name:      "megamon-jobset-events",
 		},
+		DisableJobNodePoolLabelling: true,
 	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
@@ -228,6 +231,15 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Node")
 		os.Exit(1)
 	}
+	if !cfg.DisableJobNodePoolLabelling {
+		if err = (&controller.PodReconciler{
+			Client: mgr.GetClient(),
+			Scheme: mgr.GetScheme(),
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Pod")
+			os.Exit(1)
+		}
+	}
 	// +kubebuilder:scaffold:builder
 
 	ctx := ctrl.SetupSignalHandler()
@@ -247,7 +259,7 @@ func main() {
 		},
 	}
 	shutdownMetrics := metrics.Init(agg)
-	mgr.Add(agg)
+	//mgr.Add(agg)
 
 	// Initial aggregation to populate the initial metrics report.
 	// TODO: Verify the readiness check is applied before scraping.
@@ -277,6 +289,16 @@ func main() {
 	metricsServer := http.Server{Handler: metricsMux, Addr: metricsAddr}
 
 	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		log.Println("starting aggregator")
+		defer wg.Done()
+		if err := agg.Start(ctx); err != nil {
+			setupLog.Error(err, "error serving metrics server")
+			os.Exit(1)
+		}
+	}()
+
 	wg.Add(1)
 	go func() {
 		log.Println("starting metrics server")

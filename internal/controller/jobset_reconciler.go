@@ -14,8 +14,6 @@ import (
 type JobSetReconciler struct {
 	Disabled bool
 
-	//Recorder *eventrecorder.Recorder
-
 	client.Client
 	Scheme *runtime.Scheme
 }
@@ -29,17 +27,6 @@ func (r *JobSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if r.Disabled {
 		return ctrl.Result{}, nil
 	}
-
-	/*
-		var js jobset.JobSet
-		if err := r.Get(ctx, req.NamespacedName, &js); err != nil {
-			return ctrl.Result{}, client.IgnoreNotFound(err)
-		}
-
-		if err := r.Recorder.Record(ctx, &js); err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to record jobset events: %w", err)
-		}
-	*/
 
 	return ctrl.Result{}, nil
 }

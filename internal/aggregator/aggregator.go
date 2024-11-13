@@ -85,22 +85,28 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 
 	now := time.Now()
 
+	uidMapKey := func(ns, name string) string {
+		return fmt.Sprintf("%s/%s", ns, name)
+	}
+	// map[<ns>/<name>]<uid>
+	uidMap := map[string]string{}
+
 	for _, js := range jobsetList.Items {
 		if !k8sutils.IsJobSetActive(&js) {
 			continue
 		}
 
-		//expectedCMEventKeys[k8sutils.JobSetEventsKey(&js)] = struct{}{}
-		key := jobsetKey(js.Namespace, js.Name)
+		uid := string(js.UID)
+		uidMap[uidMapKey(js.Namespace, js.Name)] = uid
 
 		attrs := extractJobSetAttrs(&js)
 		specReplicas, readyReplicas := k8sutils.GetJobSetReplicas(&js)
-		report.JobSetsUp[key] = records.Upness{
+		report.JobSetsUp[uid] = records.Upness{
 			ExpectedCount: specReplicas,
 			ReadyCount:    readyReplicas,
 			Attrs:         attrs,
 		}
-		report.JobSetNodesUp[key] = records.Upness{
+		report.JobSetNodesUp[uid] = records.Upness{
 			ExpectedCount: k8sutils.GetExpectedNodeCount(&js),
 			Attrs:         attrs,
 		}
@@ -116,8 +122,12 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 		if jsNS == "" || jsName == "" {
 			continue
 		}
-		key := jobsetKey(jsNS, jsName)
-		up, ok := report.JobSetNodesUp[key]
+		uid, ok := uidMap[uidMapKey(jsNS, jsName)]
+		if !ok {
+			continue
+		}
+
+		up, ok := report.JobSetNodesUp[uid]
 		if !ok {
 			continue
 		}
@@ -125,7 +135,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 			continue
 		}
 		up.ReadyCount++
-		report.JobSetNodesUp[key] = up
+		report.JobSetNodesUp[uid] = up
 	}
 
 	jsEvents, err := reconcileEvents(ctx, a.Client, a.JobSetEventsConfigMapRef, report.JobSetsUp)
@@ -171,12 +181,7 @@ func reconcileEvents(ctx context.Context, client client.Client, cmRef types.Name
 		return nil, fmt.Errorf("failed to get event records from configmap: %w", err)
 	}
 
-	changed, err := records.ReconcileEvents( /*r.mode,*/ ups, recs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to reconcile events: %w", err)
-	}
-
-	if changed {
+	if changed := records.ReconcileEvents(time.Now(), ups, recs); changed {
 		if err := k8sutils.SetEventRecordsInConfigMap(&cm, recs); err != nil {
 			return nil, fmt.Errorf("failed to set event records in configmap: %w", err)
 		}
@@ -187,8 +192,4 @@ func reconcileEvents(ctx context.Context, client client.Client, cmRef types.Name
 	}
 
 	return recs, nil
-}
-
-func jobsetKey(namespace, name string) string {
-	return namespace + "." + name
 }
