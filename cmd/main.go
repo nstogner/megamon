@@ -75,7 +75,7 @@ type config struct {
 	JobSetEventsConfigMapRef     types.NamespacedName
 	JobSetNodeEventsConfigMapRef types.NamespacedName
 
-	DisableJobNodePoolLabelling bool
+	DisableNodePoolJobLabelling bool
 }
 
 func main() {
@@ -116,7 +116,7 @@ func main() {
 			Namespace: "megamon-system",
 			Name:      "megamon-jobset-events",
 		},
-		DisableJobNodePoolLabelling: true,
+		DisableNodePoolJobLabelling: true,
 	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
@@ -231,7 +231,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Node")
 		os.Exit(1)
 	}
-	if !cfg.DisableJobNodePoolLabelling {
+	if !cfg.DisableNodePoolJobLabelling {
 		if err = (&controller.PodReconciler{
 			Client: mgr.GetClient(),
 			Scheme: mgr.GetScheme(),
