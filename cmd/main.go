@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"flag"
 	"log"
@@ -37,6 +38,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -70,7 +72,10 @@ func init() {
 }
 
 type config struct {
-	AggregationInterval          time.Duration
+	MetricsPrefix string
+
+	AggregationIntervalSeconds int64
+
 	ReportConfigMapRef           types.NamespacedName
 	JobSetEventsConfigMapRef     types.NamespacedName
 	JobSetNodeEventsConfigMapRef types.NamespacedName
@@ -85,6 +90,8 @@ func main() {
 	var secureMetrics bool
 	var enableHTTP2 bool
 	var tlsOpts []func(*tls.Config)
+	var configPath string
+	flag.StringVar(&configPath, "config-path", "/etc/megamon/config.json", "The location of the config file.")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -101,9 +108,17 @@ func main() {
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
-	// TODO: Expose as configuration.
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	cfgFile, err := os.ReadFile(configPath)
+	if err != nil {
+		setupLog.Error(err, "unable to read config file")
+		os.Exit(1)
+	}
+	// Define config defaults.
 	cfg := config{
-		AggregationInterval: 10 * time.Second,
+		MetricsPrefix:              "megamon",
+		AggregationIntervalSeconds: 10,
 		ReportConfigMapRef: types.NamespacedName{
 			Namespace: "megamon-system",
 			Name:      "megamon-report",
@@ -118,8 +133,13 @@ func main() {
 		},
 		DisableNodePoolJobLabelling: true,
 	}
+	if err := json.Unmarshal(cfgFile, &cfg); err != nil {
+		setupLog.Error(err, "unable to parse config file")
+		os.Exit(1)
+	}
+	json.NewEncoder(os.Stdout).Encode(cfg)
 
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	metrics.Prefix = cfg.MetricsPrefix
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will
@@ -247,7 +267,7 @@ func main() {
 	agg := &aggregator.Aggregator{
 		JobSetEventsConfigMapRef:     cfg.JobSetEventsConfigMapRef,
 		JobSetNodeEventsConfigMapRef: cfg.JobSetNodeEventsConfigMapRef,
-		Interval:                     cfg.AggregationInterval,
+		Interval:                     time.Duration(cfg.AggregationIntervalSeconds) * time.Second,
 		Client:                       mgr.GetClient(),
 		Exporters: map[string]aggregator.Exporter{
 			"configmap": &aggregator.ConfigMapExporter{

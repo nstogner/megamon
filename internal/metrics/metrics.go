@@ -159,7 +159,7 @@ func Init(r Reporter) func() {
 	)
 	fatal(err)
 
-	jobsetNodesDownTimeBetweenInterruptionMean, err := meter.Float64ObservableGauge(Prefix+".jobset.nodes.down.time.interruption.mean",
+	jobsetNodesDownTimeBetweenRecoveryMean, err := meter.Float64ObservableGauge(Prefix+".jobset.nodes.down.time.between.recovery.mean",
 		metric.WithDescription("Mean time to recovery for a JobSets Nodes."),
 		metric.WithUnit("s"),
 	)
@@ -227,7 +227,6 @@ func Init(r Reporter) func() {
 			if summary.DownTimeInitial != 0 {
 				o.ObserveFloat64(jobsetDownTimeInitial, summary.DownTimeInitial.Seconds(), metric.WithAttributes(commonAttrs...))
 			}
-			// TTR
 			if summary.TotalDownTimeBetweenRecovery != 0 {
 				o.ObserveFloat64(jobsetDownTimeBetweenRecovery, summary.TotalDownTimeBetweenRecovery.Seconds(), metric.WithAttributes(commonAttrs...))
 			}
@@ -237,7 +236,6 @@ func Init(r Reporter) func() {
 			if summary.LatestDownTimeBetweenRecovery != 0 {
 				o.ObserveFloat64(jobsetDownTimeBetweenRecoveryLatest, summary.LatestDownTimeBetweenRecovery.Seconds(), metric.WithAttributes(commonAttrs...))
 			}
-			// TBI
 			if summary.TotalUpTimeBetweenInterruption != 0 {
 				o.ObserveFloat64(jobsetUpTimeBetweenInterruption, summary.TotalUpTimeBetweenInterruption.Seconds(), metric.WithAttributes(commonAttrs...))
 			}
@@ -257,17 +255,15 @@ func Init(r Reporter) func() {
 			if summary.DownTimeInitial != 0 {
 				o.ObserveFloat64(jobsetNodesDownTimeInitial, summary.DownTimeInitial.Seconds(), metric.WithAttributes(commonAttrs...))
 			}
-			// TTR
 			if summary.TotalDownTimeBetweenRecovery != 0 {
 				o.ObserveFloat64(jobsetNodesDownTimeBetweenRecovery, summary.TotalDownTimeBetweenRecovery.Seconds(), metric.WithAttributes(commonAttrs...))
 			}
 			if summary.MeanDownTimeBetweenRecovery != 0 {
-				o.ObserveFloat64(jobsetNodesDownTimeBetweenInterruptionMean, summary.MeanDownTimeBetweenRecovery.Seconds(), metric.WithAttributes(commonAttrs...))
+				o.ObserveFloat64(jobsetNodesDownTimeBetweenRecoveryMean, summary.MeanDownTimeBetweenRecovery.Seconds(), metric.WithAttributes(commonAttrs...))
 			}
 			if summary.LatestDownTimeBetweenRecovery != 0 {
 				o.ObserveFloat64(jobsetNodesDownTimeBetweenRecoveryLatest, summary.LatestDownTimeBetweenRecovery.Seconds(), metric.WithAttributes(commonAttrs...))
 			}
-			// TBI
 			if summary.TotalUpTimeBetweenInterruption != 0 {
 				o.ObserveFloat64(jobsetNodesUpTimeBetweenInterruption, summary.TotalUpTimeBetweenInterruption.Seconds(), metric.WithAttributes(commonAttrs...))
 			}
@@ -301,7 +297,7 @@ func Init(r Reporter) func() {
 		jobsetNodesDownTime,
 		jobsetNodesDownTimeInitial,
 		jobsetNodesDownTimeBetweenRecovery,
-		jobsetNodesDownTimeBetweenInterruptionMean,
+		jobsetNodesDownTimeBetweenRecoveryMean,
 		jobsetNodesDownTimeBetweenRecoveryLatest,
 		jobsetNodesInterruptionCount,
 		jobsetNodesRecoveryCount,

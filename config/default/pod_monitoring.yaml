@@ -10,3 +10,5 @@ spec:
   selector:
     matchLabels:
       control-plane: controller-manager
+  targetLabels:
+    metadata: []

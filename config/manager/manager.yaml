@@ -93,5 +93,13 @@ spec:
           requests:
             cpu: 10m
             memory: 64Mi
+        volumeMounts:
+        - name: config
+          mountPath: /etc/megamon
+          readOnly: true
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: manager-config

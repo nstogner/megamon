@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: manager-config
+  namespace: system
+data:
+  config.json: |
+    {
+      "MetricsPrefix": "megamon.alpha",
+      "AggregationIntervalSeconds": 10,
+      "ReportConfigMapRef": {
+        "Namespace": "megamon-system",
+        "Name": "megamon-report"
+      },
+      "JobSetNodeEventsConfigMapRef": {
+        "Namespace": "megamon-system",
+        "Name": "megamon-jobset-node-events"
+      },
+      "JobSetEventsConfigMapRef": {
+        "Namespace": "megamon-system",
+        "Name": "megamon-jobset-events"
+      },
+      "DisableNodePoolJobLabelling": true
+    }
