@@ -18,34 +18,34 @@ MegaMon provides granular merics about when a JobSet is Down. This allows for ca
 
 ![Example 1 - Job completes](./diagrams/jobcomplete.excalidraw.png)
 
-| Metric                            | Megamon Name                                                         | Calculation      |
-|-----------------------------------|----------------------------------------------------------------------|------------------|
-| Jobset Up time                    | jobset_up_time_seconds                                               | u0 + u1 + u2     |
-| Jobset Interruption time          | jobset_down_time_interruption                                        | d1 + d2          |
-| Down time                         | jobset_down_time                                                     | d0 + d1 + d2     |
-| Time between/around interruptions | Jobset_up_time_between_interruption                                  | u0 + u1          |
-| Interruption count                | jobset_interruption_count                                            | count(d1,d2) = 2 |
-| Provisioning time                 | jobset_down_time_intital                                             | d0               |
-| Recovery time                     | jobset_recovery_time_seconds                                         | d1 + d2          |
-| Recovery count                    | jobset_recovery_count                                                | count(u1,u2) = 2 |
-| Jobset MTTR                       | megamon_jobset_recovery_time_seconds / megamon_jobset_recovery_count | (d1 + d2) / 2    |
-| Jobset MTBI                       | Jobset_up_time_between_interruption / jobset_interruption_count      | (u0 + u1) / 2    |
+| Metric                            | Megamon Name                                                                  | Calculation      |
+|-----------------------------------|-------------------------------------------------------------------------------|------------------|
+| Jobset Up time                    | jobset_up_time_seconds_total                                                  | u0 + u1 + u2     |
+| Jobset Interruption time          | jobset_down_time_between_recovery_seconds                                     | d1 + d2          |
+| Down time                         | jobset_down_time_seconds                                                      | d0 + d1 + d2     |
+| Time between/around interruptions | Jobset_up_time_between_interruption_seconds                                   | u0 + u1          |
+| Interruption count                | jobset_interruption_count_total                                               | count(d1,d2) = 2 |
+| Provisioning time                 | jobset_down_time_intital_seconds                                              | d0               |
+| Recovery time                     | jobset_recovery_time_seconds                                                  | d1 + d2          |
+| Recovery count                    | jobset_recovery_count_total                                                   | count(u1,u2) = 2 |
+| Jobset MTTR                       | jobset_down_time_between_recovery_seconds / jobset_recovery_count_total       | (d1 + d2) / 2    |
+| Jobset MTBI                       | Jobset_up_time_between_interruption_seconds / jobset_interruption_count_total | (u0 + u1) / 2    |
 
 
 ![Example 2 - Job completes](./diagrams/job_incomplete.excalidraw.png)
 
-| Metric                            | Megamon Name                                                               | Calculation   |
-|-----------------------------------|----------------------------------------------------------------------------|---------------|
-| Jobset Up time                    | jobset_up_time_seconds                                                     | u0 + u1       |
-| Jobset Interruption time          | jobset_down_time_interruption                                              | d1 + d2       |
-| Down time                         | jobset_down_time                                                           | d0 + d1 + d2  |
-| Time between/around interruptions | Jobset_up_time_between_interruption                                        | u0 + u1       |
-| Interruption count                | jobset_interruption_count                                                  | count(d1) = 1 |
-| Provisioning time                 | jobset_down_time_intital                                                   | d0            |
-| Recovery time                     | jobset_recovery_time_seconds                                               | d1            |
-| Recovery count                    | jobset_recovery_count                                                      | count(u1) = 2 |
-| Jobset MTTR                       | megamon_jobset_recovery_time_seconds / megamon_jobset_recovery_count_total | d1 / 1        |
-| Jobset MTBI                       | Jobset_up_time_between_interruption / jobset_interruption_count            | (u0 + u1) / 2 |
+| Metric                            | Megamon Name                                                                  | Calculation   |
+|-----------------------------------|-------------------------------------------------------------------------------|---------------|
+| Jobset Up time                    | jobset_up_time_seconds_total                                                  | u0 + u1       |
+| Jobset Interruption time          | jobset_down_time_between_recovery_seconds                                     | d1 + d2       |
+| Down time                         | jobset_down_time_seconds                                                      | d0 + d1 + d2  |
+| Time between/around interruptions | Jobset_up_time_between_interruption_seconds                                   | u0 + u1       |
+| Interruption count                | jobset_interruption_count_total                                               | count(d1) = 1 |
+| Provisioning time                 | jobset_down_time_intital_seconds                                              | d0            |
+| Recovery time                     | jobset_recovery_time_seconds                                                  | d1            |
+| Recovery count                    | jobset_recovery_count_total                                                   | count(u1) = 2 |
+| Jobset MTTR                       | jobset_down_time_between_recovery_seconds / jobset_recovery_count_total       | d1 / 1        |
+| Jobset MTBI                       | Jobset_up_time_between_interruption_seconds / jobset_interruption_count_total | (u0 + u1) / 2 |
 
 ## TODO
 
