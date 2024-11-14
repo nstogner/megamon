@@ -30,6 +30,7 @@ func extractJobSetAttrs(js *jobset.JobSet) records.Attrs {
 
 	attrs.JobSetName = js.Name
 	attrs.JobSetNamespace = js.Namespace
+	attrs.JobSetUID = string(js.UID)
 
 	return attrs
 }

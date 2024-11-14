@@ -20,6 +20,7 @@ type Report struct {
 type Attrs struct {
 	JobSetName      string `json:"jobsetName"`
 	JobSetNamespace string `json:"jobsetNamespace"`
+	JobSetUID       string `json:"jobsetUID"`
 
 	TPUTopology    string `json:"tpuTopology"`
 	TPUAccelerator string `json:"tpuAccelerator"`

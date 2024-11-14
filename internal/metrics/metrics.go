@@ -322,6 +322,9 @@ func OTELAttrs(attrs records.Attrs) []attribute.KeyValue {
 	if attrs.JobSetName != "" {
 		otelAttrs = append(otelAttrs, attribute.String("jobset.name", attrs.JobSetName))
 	}
+	if attrs.JobSetUID != "" {
+		otelAttrs = append(otelAttrs, attribute.String("jobset.uid", attrs.JobSetUID))
+	}
 	if attrs.TPUTopology != "" {
 		otelAttrs = append(otelAttrs, attribute.String("tpu.topology", attrs.TPUTopology))
 	}
