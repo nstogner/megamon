@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: manager-config
+  namespace: megamon-system
+data:
+  config.json: |
+    {
+      "MetricsPrefix": "megamon.alpha",
+      "AggregationIntervalSeconds": 5,
+      "DisableNodePoolJobLabelling": true
+    }
