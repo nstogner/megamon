@@ -14,7 +14,8 @@ type Report struct {
 	JobSetsUpSummaries     map[string]UpnessSummaryWithAttrs `json:"jobSetsUpSummaries"`
 	JobSetNodesUp          map[string]Upness                 `json:"jobSetNodesUp"`
 	JobSetNodesUpSummaries map[string]UpnessSummaryWithAttrs `json:"jobSetNodesUpSummaries"`
-	// TODO: NodePool based upness and summaries.
+	NodePoolsUp            map[string]Upness                 `json:"nodePoolsUp"`
+	NodePoolsUpSummaries   map[string]UpnessSummaryWithAttrs `json:"nodePoolsUpSummaries"`
 }
 
 type Attrs struct {

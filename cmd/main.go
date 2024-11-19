@@ -79,6 +79,7 @@ type config struct {
 	ReportConfigMapRef           types.NamespacedName
 	JobSetEventsConfigMapRef     types.NamespacedName
 	JobSetNodeEventsConfigMapRef types.NamespacedName
+	NodePoolEventsConfigMapRef   types.NamespacedName
 
 	DisableNodePoolJobLabelling bool
 }
@@ -123,13 +124,17 @@ func main() {
 			Namespace: "megamon-system",
 			Name:      "megamon-report",
 		},
+		JobSetEventsConfigMapRef: types.NamespacedName{
+			Namespace: "megamon-system",
+			Name:      "megamon-jobset-events",
+		},
 		JobSetNodeEventsConfigMapRef: types.NamespacedName{
 			Namespace: "megamon-system",
 			Name:      "megamon-jobset-node-events",
 		},
-		JobSetEventsConfigMapRef: types.NamespacedName{
+		NodePoolEventsConfigMapRef: types.NamespacedName{
 			Namespace: "megamon-system",
-			Name:      "megamon-jobset-events",
+			Name:      "megamon-nodepool-events",
 		},
 		DisableNodePoolJobLabelling: true,
 	}
@@ -267,6 +272,7 @@ func main() {
 	agg := &aggregator.Aggregator{
 		JobSetEventsConfigMapRef:     cfg.JobSetEventsConfigMapRef,
 		JobSetNodeEventsConfigMapRef: cfg.JobSetNodeEventsConfigMapRef,
+		NodePoolEventsConfigMapRef:   cfg.NodePoolEventsConfigMapRef,
 		Interval:                     time.Duration(cfg.AggregationIntervalSeconds) * time.Second,
 		Client:                       mgr.GetClient(),
 		Exporters: map[string]aggregator.Exporter{

@@ -21,6 +21,7 @@ type Aggregator struct {
 
 	JobSetEventsConfigMapRef     types.NamespacedName
 	JobSetNodeEventsConfigMapRef types.NamespacedName
+	NodePoolEventsConfigMapRef   types.NamespacedName
 
 	Interval time.Duration
 
@@ -118,24 +119,53 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	}
 
 	for _, node := range nodeList.Items {
-		jsNS, jsName := k8sutils.GetJobSetForNode(&node)
-		if jsNS == "" || jsName == "" {
-			continue
-		}
-		uid, ok := uidMap[uidMapKey(jsNS, jsName)]
-		if !ok {
-			continue
+		ready := k8sutils.IsNodeReady(&node)
+
+		// Node pool mapping:
+
+		if npName, ok := k8sutils.GetNodePool(&node); ok {
+			func() {
+				if !k8sutils.IsTPUNodePool(&node) {
+					return
+				}
+				up := report.NodePoolsUp[npName]
+				if up.ExpectedCount == 0 {
+					var err error
+					up.ExpectedCount, err = k8sutils.GetExpectedTPUNodePoolSize(&node)
+					if err != nil {
+						log.Printf("failed to get expected TPU node pool size for node %q: %v", node.Name, err)
+						return
+					}
+				}
+				if ready {
+					up.ReadyCount++
+				}
+				report.NodePoolsUp[npName] = up
+			}()
 		}
 
-		up, ok := report.JobSetNodesUp[uid]
-		if !ok {
-			continue
+		// Static jobset mapping:
+
+		if jsNS, jsName := k8sutils.GetJobSetForNode(&node); jsNS != "" && jsName != "" {
+			func() {
+				if jsNS == "" || jsName == "" {
+					return
+				}
+				uid, ok := uidMap[uidMapKey(jsNS, jsName)]
+				if !ok {
+					return
+				}
+
+				up, ok := report.JobSetNodesUp[uid]
+				if !ok {
+					return
+				}
+				if ready {
+					up.ReadyCount++
+				}
+				report.JobSetNodesUp[uid] = up
+			}()
 		}
-		if !k8sutils.IsNodeReady(&node) {
-			continue
-		}
-		up.ReadyCount++
-		report.JobSetNodesUp[uid] = up
 	}
 
 	jsEvents, err := reconcileEvents(ctx, a.Client, a.JobSetEventsConfigMapRef, report.JobSetsUp)

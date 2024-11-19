@@ -2,6 +2,9 @@ package k8sutils
 
 import (
 	"encoding/json"
+	"fmt"
+	"strconv"
+	"strings"
 
 	"example.com/megamon/internal/records"
 	corev1 "k8s.io/api/core/v1"
@@ -15,6 +18,14 @@ func GetNodePool(node *corev1.Node) (string, bool) {
 	}
 	val, ok := node.Labels["cloud.google.com/gke-nodepool"]
 	return val, ok
+}
+
+func IsTPUNodePool(node *corev1.Node) bool {
+	if node.Labels == nil {
+		return false
+	}
+	_, ok := node.Labels["cloud.google.com/gke-tpu-topology"]
+	return ok
 }
 
 func IsJobSetActive(js *jobset.JobSet) bool {
@@ -105,4 +116,42 @@ func SetEventRecordsInConfigMap(cm *corev1.ConfigMap, recs map[string]records.Ev
 		cm.Data[k] = string(data)
 	}
 	return nil
+}
+
+func GetExpectedTPUNodePoolSize(node *corev1.Node) (int32, error) {
+	if node.Labels == nil {
+		return 0, fmt.Errorf("no annotations")
+	}
+	const topoKey = "cloud.google.com/gke-tpu-topology"
+	topoVal, ok := node.Labels[topoKey]
+	if !ok {
+		return 0, fmt.Errorf("no topology annotation: %q", topoKey)
+	}
+	const acceleratorCountKey = "cloud.google.com/gke-accelerator-count"
+	acceleratorCountVal, ok := node.Labels[acceleratorCountKey]
+	if !ok {
+		return 0, fmt.Errorf("no accelerator annotation: %q", acceleratorCountKey)
+	}
+	acceleratorCount, err := strconv.Atoi(acceleratorCountVal)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse accelerator count: %w", err)
+	}
+	if acceleratorCount < 1 {
+		return 0, fmt.Errorf("invalid accelerator count: %d", acceleratorCount)
+	}
+
+	split := strings.Split(topoVal, "x")
+	if len(split) < 2 {
+		return 0, fmt.Errorf("invalid topology: %q", topoVal)
+	}
+	product := 1
+	for _, s := range split {
+		x, err := strconv.Atoi(s)
+		if err != nil {
+			return 0, fmt.Errorf("invalid topology: %q, could not convert %q to int: %w", topoVal, s, err)
+		}
+		product *= x
+	}
+
+	return int32(product / acceleratorCount), nil
 }
