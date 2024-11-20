@@ -23,6 +23,7 @@ MegaMon was created to address shortcoming of using [kube-state-metrics](https:/
 * Lack of ability to stop publishing a metric the moment a JobSet completes/fails.
 * Difficult/impossible to aggregate metrics across all JobSets if time-line of metrics is not well defined.
 * Complexity in querying Node metrics (Node labels are a separate metric)
+* Difficulty in deriving expected node count for a node pool.
 * Difficult to derive high level metrics (like MTTR) when baseline metrics like Up-ness of jobset containers / nodes require their own complex queries.
 * Difficult or impossible to derive metrics like Time-to-provisioning / Time-to-first-up with promql
 * Current metrics are very large (they require all Nodes to be published as individual metrics and aggregated later)
