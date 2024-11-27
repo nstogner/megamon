@@ -1,17 +1,8 @@
 {
   "MetricsPrefix": "megamon.alpha",
+  "Exporters": [
+    "stdout"
+  ],
   "AggregationIntervalSeconds": 3,
-  "ReportConfigMapRef": {
-    "Namespace": "megamon-system",
-    "Name": "megamon-report"
-  },
-  "JobSetNodeEventsConfigMapRef": {
-    "Namespace": "megamon-system",
-    "Name": "megamon-jobset-node-events"
-  },
-  "JobSetEventsConfigMapRef": {
-    "Namespace": "megamon-system",
-    "Name": "megamon-jobset-events"
-  },
   "DisableNodePoolJobLabelling": true
 }

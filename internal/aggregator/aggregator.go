@@ -29,6 +29,10 @@ type Aggregator struct {
 	report      records.Report
 	reportReady bool
 
+	nodePoolSchedulingMtx sync.RWMutex
+	// map[<nodepool-name>]<details-about-what-is-scheduled-on-it>
+	nodePoolScheduling map[string]records.ScheduledJob
+
 	Exporters map[string]Exporter
 }
 
@@ -174,7 +178,11 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	}
 	jsNodeEvents, err := reconcileEvents(ctx, a.Client, a.JobSetNodeEventsConfigMapRef, report.JobSetNodesUp)
 	if err != nil {
-		return fmt.Errorf("reconciling jobset events: %w", err)
+		return fmt.Errorf("reconciling jobset node events: %w", err)
+	}
+	nodePoolEvents, err := reconcileEvents(ctx, a.Client, a.NodePoolEventsConfigMapRef, report.NodePoolsUp)
+	if err != nil {
+		return fmt.Errorf("reconciling nodepool events: %w", err)
 	}
 
 	for key, events := range jsEvents {
@@ -191,6 +199,16 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 			EventSummary: eventSummary,
 		}
 	}
+	for key, events := range nodePoolEvents {
+		eventSummary := events.Summarize(now)
+		report.NodePoolsUpSummaries[key] = records.UpnessSummaryWithAttrs{
+			Attrs:        report.NodePoolsUp[key].Attrs,
+			EventSummary: eventSummary,
+		}
+	}
+
+	a.pruneNodePoolScheduling(report.NodePoolsUp)
+	report.NodePoolScheduling = a.getNodePoolScheduling()
 
 	a.reportMtx.Lock()
 	a.report = report
@@ -222,4 +240,33 @@ func reconcileEvents(ctx context.Context, client client.Client, cmRef types.Name
 	}
 
 	return recs, nil
+}
+
+func (a *Aggregator) SetNodePoolScheduling(nodePoolName string, job records.ScheduledJob) {
+	a.nodePoolSchedulingMtx.Lock()
+	defer a.nodePoolSchedulingMtx.Unlock()
+	if a.nodePoolScheduling == nil {
+		a.nodePoolScheduling = make(map[string]records.ScheduledJob)
+	}
+	a.nodePoolScheduling[nodePoolName] = job
+}
+
+func (a *Aggregator) pruneNodePoolScheduling(nps map[string]records.Upness) {
+	a.nodePoolSchedulingMtx.Lock()
+	defer a.nodePoolSchedulingMtx.Unlock()
+	for npName := range a.nodePoolScheduling {
+		if _, ok := nps[npName]; !ok {
+			delete(a.nodePoolScheduling, npName)
+		}
+	}
+}
+
+func (a *Aggregator) getNodePoolScheduling() map[string]records.ScheduledJob {
+	a.nodePoolSchedulingMtx.RLock()
+	defer a.nodePoolSchedulingMtx.RUnlock()
+	cp := make(map[string]records.ScheduledJob, len(a.nodePoolScheduling))
+	for k, v := range a.nodePoolScheduling {
+		cp[k] = v
+	}
+	return cp
 }

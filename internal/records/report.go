@@ -6,6 +6,8 @@ func NewReport() Report {
 		JobSetsUpSummaries:     make(map[string]UpnessSummaryWithAttrs),
 		JobSetNodesUp:          make(map[string]Upness),
 		JobSetNodesUpSummaries: make(map[string]UpnessSummaryWithAttrs),
+		NodePoolsUp:            make(map[string]Upness),
+		NodePoolsUpSummaries:   make(map[string]UpnessSummaryWithAttrs),
 	}
 }
 
@@ -16,6 +18,7 @@ type Report struct {
 	JobSetNodesUpSummaries map[string]UpnessSummaryWithAttrs `json:"jobSetNodesUpSummaries"`
 	NodePoolsUp            map[string]Upness                 `json:"nodePoolsUp"`
 	NodePoolsUpSummaries   map[string]UpnessSummaryWithAttrs `json:"nodePoolsUpSummaries"`
+	NodePoolScheduling     map[string]ScheduledJob           `json:"nodePoolScheduling"`
 }
 
 type Attrs struct {
@@ -38,4 +41,9 @@ type Upness struct {
 
 func (up Upness) Up() bool {
 	return up.ReadyCount == up.ExpectedCount
+}
+
+type ScheduledJob struct {
+	JobName    string `json:"jobName"`
+	JobSetName string `json:"jobsetName"`
 }
