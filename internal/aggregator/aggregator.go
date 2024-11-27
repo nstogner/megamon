@@ -132,7 +132,11 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 				if !k8sutils.IsTPUNodePool(&node) {
 					return
 				}
-				up := report.NodePoolsUp[npName]
+				up, ok := report.NodePoolsUp[npName]
+				if !ok {
+					up.Attrs = extractNodeAttrs(&node)
+					up.Attrs.NodePoolName = npName
+				}
 				if up.ExpectedCount == 0 {
 					var err error
 					up.ExpectedCount, err = k8sutils.GetExpectedTPUNodePoolSize(&node)

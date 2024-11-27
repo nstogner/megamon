@@ -113,6 +113,9 @@ func OTELAttrs(attrs records.Attrs) []attribute.KeyValue {
 	if attrs.Spot {
 		otelAttrs = append(otelAttrs, attribute.Bool("spot", attrs.Spot))
 	}
+	if attrs.NodePoolName != "" {
+		otelAttrs = append(otelAttrs, attribute.String("nodepool.name", attrs.NodePoolName))
+	}
 	return otelAttrs
 }
 
