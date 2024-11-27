@@ -86,8 +86,6 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 		return fmt.Errorf("listing jobsets: %w", err)
 	}
 
-	//	expectedCMEventKeys := make(map[string]struct{})
-
 	now := time.Now()
 
 	uidMapKey := func(ns, name string) string {

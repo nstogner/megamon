@@ -60,6 +60,12 @@ func GetJobSetForNode(node *corev1.Node) (string, string) {
 		return "", ""
 	}
 
+	// TODO: Add additional label checks for different provisioning
+	// paths.
+	// OR:
+	// Consider deprecating these metrics in favor of nodepool-based
+	// metrics with joins to JobSets.
+
 	jsNS := node.Labels[NodeLabelTPUProvisionerJobSetNamespace]
 	jsName := node.Labels[NodeLabelTPUProvisionerJobSetName]
 	return jsNS, jsName
