@@ -50,12 +50,12 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if pod.Labels == nil {
 		return ctrl.Result{}, nil
 	}
-	if jobName, ok := pod.Labels["batch.kubernetes.io/job-name"]; ok {
+	if jobName, ok := pod.Labels[k8sutils.PodLabelJobName]; ok {
 		rec.JobName = jobName
 	} else {
 		return ctrl.Result{}, nil
 	}
-	if jobSetName, ok := pod.Labels["jobset.sigs.k8s.io/jobset-name"]; ok {
+	if jobSetName, ok := pod.Labels[k8sutils.PodLabelJobSetName]; ok {
 		rec.JobSetName = jobSetName
 	} else {
 		return ctrl.Result{}, nil

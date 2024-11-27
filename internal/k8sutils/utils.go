@@ -16,7 +16,7 @@ func GetNodePool(node *corev1.Node) (string, bool) {
 	if node.Labels == nil {
 		return "", false
 	}
-	val, ok := node.Labels["cloud.google.com/gke-nodepool"]
+	val, ok := node.Labels[NodeLabelGKENodepool]
 	return val, ok
 }
 
@@ -24,7 +24,7 @@ func IsTPUNodePool(node *corev1.Node) bool {
 	if node.Labels == nil {
 		return false
 	}
-	_, ok := node.Labels["cloud.google.com/gke-tpu-topology"]
+	_, ok := node.Labels[NodeLabelGKETPUTopology]
 	return ok
 }
 
@@ -60,8 +60,8 @@ func GetJobSetForNode(node *corev1.Node) (string, string) {
 		return "", ""
 	}
 
-	jsNS := node.Labels["google.com/tpu-provisioner-jobset-namespace"]
-	jsName := node.Labels["google.com/tpu-provisioner-jobset-name"]
+	jsNS := node.Labels[NodeLabelTPUProvisionerJobSetNamespace]
+	jsName := node.Labels[NodeLabelTPUProvisionerJobSetName]
 	return jsNS, jsName
 }
 
@@ -122,12 +122,12 @@ func GetExpectedTPUNodePoolSize(node *corev1.Node) (int32, error) {
 	if node.Labels == nil {
 		return 0, fmt.Errorf("no annotations")
 	}
-	const topoKey = "cloud.google.com/gke-tpu-topology"
+	const topoKey = NodeLabelGKETPUTopology
 	topoVal, ok := node.Labels[topoKey]
 	if !ok {
 		return 0, fmt.Errorf("no topology annotation: %q", topoKey)
 	}
-	const acceleratorCountKey = "cloud.google.com/gke-accelerator-count"
+	const acceleratorCountKey = NodeLabelGKEAcceleratorCount
 	acceleratorCountVal, ok := node.Labels[acceleratorCountKey]
 	if !ok {
 		return 0, fmt.Errorf("no accelerator annotation: %q", acceleratorCountKey)
