@@ -21,12 +21,17 @@ type Aggregator struct {
 
 	JobSetEventsConfigMapRef     types.NamespacedName
 	JobSetNodeEventsConfigMapRef types.NamespacedName
+	NodePoolEventsConfigMapRef   types.NamespacedName
 
 	Interval time.Duration
 
 	reportMtx   sync.RWMutex
 	report      records.Report
 	reportReady bool
+
+	nodePoolSchedulingMtx sync.RWMutex
+	// map[<nodepool-name>]<details-about-what-is-scheduled-on-it>
+	nodePoolScheduling map[string]records.ScheduledJob
 
 	Exporters map[string]Exporter
 }
@@ -81,8 +86,6 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 		return fmt.Errorf("listing jobsets: %w", err)
 	}
 
-	//	expectedCMEventKeys := make(map[string]struct{})
-
 	now := time.Now()
 
 	uidMapKey := func(ns, name string) string {
@@ -118,24 +121,57 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	}
 
 	for _, node := range nodeList.Items {
-		jsNS, jsName := k8sutils.GetJobSetForNode(&node)
-		if jsNS == "" || jsName == "" {
-			continue
-		}
-		uid, ok := uidMap[uidMapKey(jsNS, jsName)]
-		if !ok {
-			continue
+		ready := k8sutils.IsNodeReady(&node)
+
+		// Node pool mapping:
+
+		if npName, ok := k8sutils.GetNodePool(&node); ok {
+			func() {
+				if !k8sutils.IsTPUNodePool(&node) {
+					return
+				}
+				up, ok := report.NodePoolsUp[npName]
+				if !ok {
+					up.Attrs = extractNodeAttrs(&node)
+					up.Attrs.NodePoolName = npName
+				}
+				if up.ExpectedCount == 0 {
+					var err error
+					up.ExpectedCount, err = k8sutils.GetExpectedTPUNodePoolSize(&node)
+					if err != nil {
+						log.Printf("failed to get expected TPU node pool size for node %q: %v", node.Name, err)
+						return
+					}
+				}
+				if ready {
+					up.ReadyCount++
+				}
+				report.NodePoolsUp[npName] = up
+			}()
 		}
 
-		up, ok := report.JobSetNodesUp[uid]
-		if !ok {
-			continue
+		// Static jobset mapping:
+
+		if jsNS, jsName := k8sutils.GetJobSetForNode(&node); jsNS != "" && jsName != "" {
+			func() {
+				if jsNS == "" || jsName == "" {
+					return
+				}
+				uid, ok := uidMap[uidMapKey(jsNS, jsName)]
+				if !ok {
+					return
+				}
+
+				up, ok := report.JobSetNodesUp[uid]
+				if !ok {
+					return
+				}
+				if ready {
+					up.ReadyCount++
+				}
+				report.JobSetNodesUp[uid] = up
+			}()
 		}
-		if !k8sutils.IsNodeReady(&node) {
-			continue
-		}
-		up.ReadyCount++
-		report.JobSetNodesUp[uid] = up
 	}
 
 	jsEvents, err := reconcileEvents(ctx, a.Client, a.JobSetEventsConfigMapRef, report.JobSetsUp)
@@ -144,7 +180,11 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	}
 	jsNodeEvents, err := reconcileEvents(ctx, a.Client, a.JobSetNodeEventsConfigMapRef, report.JobSetNodesUp)
 	if err != nil {
-		return fmt.Errorf("reconciling jobset events: %w", err)
+		return fmt.Errorf("reconciling jobset node events: %w", err)
+	}
+	nodePoolEvents, err := reconcileEvents(ctx, a.Client, a.NodePoolEventsConfigMapRef, report.NodePoolsUp)
+	if err != nil {
+		return fmt.Errorf("reconciling nodepool events: %w", err)
 	}
 
 	for key, events := range jsEvents {
@@ -161,6 +201,16 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 			EventSummary: eventSummary,
 		}
 	}
+	for key, events := range nodePoolEvents {
+		eventSummary := events.Summarize(now)
+		report.NodePoolsUpSummaries[key] = records.UpnessSummaryWithAttrs{
+			Attrs:        report.NodePoolsUp[key].Attrs,
+			EventSummary: eventSummary,
+		}
+	}
+
+	a.pruneNodePoolScheduling(report.NodePoolsUp)
+	report.NodePoolScheduling = a.getNodePoolScheduling()
 
 	a.reportMtx.Lock()
 	a.report = report
@@ -192,4 +242,33 @@ func reconcileEvents(ctx context.Context, client client.Client, cmRef types.Name
 	}
 
 	return recs, nil
+}
+
+func (a *Aggregator) SetNodePoolScheduling(nodePoolName string, job records.ScheduledJob) {
+	a.nodePoolSchedulingMtx.Lock()
+	defer a.nodePoolSchedulingMtx.Unlock()
+	if a.nodePoolScheduling == nil {
+		a.nodePoolScheduling = make(map[string]records.ScheduledJob)
+	}
+	a.nodePoolScheduling[nodePoolName] = job
+}
+
+func (a *Aggregator) pruneNodePoolScheduling(nps map[string]records.Upness) {
+	a.nodePoolSchedulingMtx.Lock()
+	defer a.nodePoolSchedulingMtx.Unlock()
+	for npName := range a.nodePoolScheduling {
+		if _, ok := nps[npName]; !ok {
+			delete(a.nodePoolScheduling, npName)
+		}
+	}
+}
+
+func (a *Aggregator) getNodePoolScheduling() map[string]records.ScheduledJob {
+	a.nodePoolSchedulingMtx.RLock()
+	defer a.nodePoolSchedulingMtx.RUnlock()
+	cp := make(map[string]records.ScheduledJob, len(a.nodePoolScheduling))
+	for k, v := range a.nodePoolScheduling {
+		cp[k] = v
+	}
+	return cp
 }

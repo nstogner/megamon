@@ -75,10 +75,12 @@ type config struct {
 	MetricsPrefix string
 
 	AggregationIntervalSeconds int64
+	Exporters                  []string
 
 	ReportConfigMapRef           types.NamespacedName
 	JobSetEventsConfigMapRef     types.NamespacedName
 	JobSetNodeEventsConfigMapRef types.NamespacedName
+	NodePoolEventsConfigMapRef   types.NamespacedName
 
 	DisableNodePoolJobLabelling bool
 }
@@ -123,13 +125,17 @@ func main() {
 			Namespace: "megamon-system",
 			Name:      "megamon-report",
 		},
+		JobSetEventsConfigMapRef: types.NamespacedName{
+			Namespace: "megamon-system",
+			Name:      "megamon-jobset-events",
+		},
 		JobSetNodeEventsConfigMapRef: types.NamespacedName{
 			Namespace: "megamon-system",
 			Name:      "megamon-jobset-node-events",
 		},
-		JobSetEventsConfigMapRef: types.NamespacedName{
+		NodePoolEventsConfigMapRef: types.NamespacedName{
 			Namespace: "megamon-system",
-			Name:      "megamon-jobset-events",
+			Name:      "megamon-nodepool-events",
 		},
 		DisableNodePoolJobLabelling: true,
 	}
@@ -235,6 +241,34 @@ func main() {
 		os.Exit(1)
 	}
 
+	agg := &aggregator.Aggregator{
+		JobSetEventsConfigMapRef:     cfg.JobSetEventsConfigMapRef,
+		JobSetNodeEventsConfigMapRef: cfg.JobSetNodeEventsConfigMapRef,
+		NodePoolEventsConfigMapRef:   cfg.NodePoolEventsConfigMapRef,
+		Interval:                     time.Duration(cfg.AggregationIntervalSeconds) * time.Second,
+		Client:                       mgr.GetClient(),
+		Exporters:                    map[string]aggregator.Exporter{},
+	}
+
+	availableExporters := map[string]aggregator.Exporter{
+		"configmap": &aggregator.ConfigMapExporter{
+			Client: mgr.GetClient(),
+			Ref:    cfg.ReportConfigMapRef,
+			Key:    "report",
+		},
+		"stdout": &aggregator.StdoutExporter{},
+	}
+	for _, name := range cfg.Exporters {
+		if exporter, ok := availableExporters[name]; ok {
+			agg.Exporters[name] = exporter
+		} else {
+			setupLog.Error(errors.New("exporter not found"), "exporter not found", "exporter", name)
+			os.Exit(1)
+		}
+	}
+
+	shutdownMetrics := metrics.Init(agg)
+
 	if err = (&controller.JobSetReconciler{
 		Disabled: false,
 		//JobSetEventsConfigMapRef: cfg.JobSetEventsConfigMapRef,
@@ -251,34 +285,19 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Node")
 		os.Exit(1)
 	}
-	if !cfg.DisableNodePoolJobLabelling {
-		if err = (&controller.PodReconciler{
-			Client: mgr.GetClient(),
-			Scheme: mgr.GetScheme(),
-		}).SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Pod")
-			os.Exit(1)
-		}
+	if err = (&controller.PodReconciler{
+		Client:                      mgr.GetClient(),
+		Scheme:                      mgr.GetScheme(),
+		Aggregator:                  agg,
+		DisableNodePoolJobLabelling: cfg.DisableNodePoolJobLabelling,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Pod")
+		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
 
 	ctx := ctrl.SetupSignalHandler()
 
-	agg := &aggregator.Aggregator{
-		JobSetEventsConfigMapRef:     cfg.JobSetEventsConfigMapRef,
-		JobSetNodeEventsConfigMapRef: cfg.JobSetNodeEventsConfigMapRef,
-		Interval:                     time.Duration(cfg.AggregationIntervalSeconds) * time.Second,
-		Client:                       mgr.GetClient(),
-		Exporters: map[string]aggregator.Exporter{
-			"configmap": &aggregator.ConfigMapExporter{
-				Client: mgr.GetClient(),
-				Ref:    cfg.ReportConfigMapRef,
-				Key:    "report",
-			},
-			"stdout": &aggregator.StdoutExporter{},
-		},
-	}
-	shutdownMetrics := metrics.Init(agg)
 	//mgr.Add(agg)
 
 	// Initial aggregation to populate the initial metrics report.
