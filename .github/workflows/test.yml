@@ -20,4 +20,9 @@ jobs:
       - name: Running Tests
         run: |
           go mod tidy
-          make test
+          make test-unit
+
+      - name: Running Integration Tests
+        run: |
+          go mod tidy
+          make test-integration
