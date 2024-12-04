@@ -22,6 +22,7 @@ import (
 	"io"
 	"net/http"
 	"sort"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -111,10 +112,16 @@ var _ = Describe("JobSet metrics", func() {
 
 		It("should publish metrics after submitting a jobset", func() {
 			jobset := expectedMetricsForJobSet(js)
-			assertMetrics(jobset.up.WithValue(0))
+			assertMetrics(
+				jobset.up.WithValue(0),
+				jobset.up_time_seconds_total,
+				jobset.down_time_seconds_total,
+				jobset.interruption_count_total.WithValue(0),
+				jobset.recovery_count_total.WithValue(0),
+			)
 		})
 
-		It("should publish updated metrics after jobset is marked as ready", func() {
+		It("should publish updated metrics after jobset is first marked as ready for the first time", func() {
 			By("updating the ready jobs in the jobset status")
 			js.Status.ReplicatedJobsStatus = []jobset.ReplicatedJobStatus{
 				{
@@ -128,10 +135,86 @@ var _ = Describe("JobSet metrics", func() {
 			jobset := expectedMetricsForJobSet(js)
 			assertMetrics(
 				jobset.up.WithValue(1),
+				jobset.up_time_seconds_total,
+				jobset.down_time_seconds_total,
+				jobset.down_time_initial_seconds,
+				jobset.interruption_count_total.WithValue(0),
+				jobset.recovery_count_total.WithValue(0),
+			)
+		})
+
+		It("should publish updated metrics after jobset is interrupted for the first time", func() {
+			By("updating the unready jobs in the jobset status")
+			js.Status.ReplicatedJobsStatus = []jobset.ReplicatedJobStatus{
+				{
+					Name:  js.Spec.ReplicatedJobs[0].Name,
+					Ready: 0,
+				},
+			}
+			Expect(k8sClient.Status().Update(ctx, js)).To(Succeed())
+
+			By("rechecking the metrics")
+			jobset := expectedMetricsForJobSet(js)
+			assertMetrics(
+				jobset.up.WithValue(0),
+				jobset.up_time_seconds_total,
+				jobset.down_time_seconds_total,
+				jobset.down_time_initial_seconds,
+				jobset.up_time_between_interruption_seconds_total,
+				jobset.up_time_between_interruption_mean_seconds,
+				jobset.up_time_between_interruption_latest_seconds,
+				jobset.interruption_count_total.WithValue(1),
+				jobset.recovery_count_total.WithValue(0),
+			)
+		})
+
+		It("should publish updated metrics after jobset recovers for the first time", func() {
+			By("updating the unready jobs in the jobset status")
+			js.Status.ReplicatedJobsStatus = []jobset.ReplicatedJobStatus{
+				{
+					Name:  js.Spec.ReplicatedJobs[0].Name,
+					Ready: 1,
+				},
+			}
+			Expect(k8sClient.Status().Update(ctx, js)).To(Succeed())
+
+			By("rechecking the metrics")
+			jobset := expectedMetricsForJobSet(js)
+			assertMetrics(
+				jobset.up.WithValue(1),
+				jobset.up_time_seconds_total,
+				jobset.down_time_seconds_total,
+				jobset.down_time_initial_seconds,
+				jobset.up_time_between_interruption_seconds_total,
+				jobset.up_time_between_interruption_mean_seconds,
+				jobset.up_time_between_interruption_latest_seconds,
+				jobset.down_time_between_recovery_seconds_total,
+				jobset.down_time_between_recovery_mean_seconds,
+				jobset.down_time_between_recovery_latest_seconds,
+				jobset.interruption_count_total.WithValue(1),
+				jobset.recovery_count_total.WithValue(1),
 			)
 		})
 	})
 })
+
+type upnessMetrics struct {
+	// Always present
+	up                       metric
+	up_time_seconds_total    metric
+	down_time_seconds_total  metric
+	interruption_count_total metric
+	recovery_count_total     metric
+
+	// Present after events occur
+	up_time_between_interruption_seconds_total  metric
+	up_time_between_interruption_mean_seconds   metric
+	up_time_between_interruption_latest_seconds metric
+	down_time_initial_seconds                   metric
+	down_time_between_recovery_seconds_total    metric
+	down_time_between_recovery_mean_seconds     metric
+	down_time_between_recovery_latest_seconds   metric
+}
 
 func expectedMetricsForJobSet(js *jobset.JobSet) upnessMetrics {
 	// megamon_test_jobset_up{jobset_name="test-js",jobset_namespace="default",jobset_uid="a9876d7f-4639-41a3-9961-9ac68e0fcb7b",otel_scope_name="megamon",otel_scope_version=""} 0
@@ -143,6 +226,50 @@ func expectedMetricsForJobSet(js *jobset.JobSet) upnessMetrics {
 	return upnessMetrics{
 		up: metric{
 			name:   "jobset_up",
+			labels: jsLabels,
+		},
+		interruption_count_total: metric{
+			name:   "jobset_interruption_count_total",
+			labels: jsLabels,
+		},
+		recovery_count_total: metric{
+			name:   "jobset_recovery_count_total",
+			labels: jsLabels,
+		},
+		up_time_seconds_total: metric{
+			name:   "jobset_up_time_seconds_total",
+			labels: jsLabels,
+		},
+		down_time_seconds_total: metric{
+			name:   "jobset_down_time_seconds_total",
+			labels: jsLabels,
+		},
+		up_time_between_interruption_seconds_total: metric{
+			name:   "jobset_up_time_between_interruption_seconds_total",
+			labels: jsLabels,
+		},
+		up_time_between_interruption_mean_seconds: metric{
+			name:   "jobset_up_time_between_interruption_mean_seconds",
+			labels: jsLabels,
+		},
+		up_time_between_interruption_latest_seconds: metric{
+			name:   "jobset_up_time_between_interruption_latest_seconds",
+			labels: jsLabels,
+		},
+		down_time_initial_seconds: metric{
+			name:   "jobset_down_time_initial_seconds",
+			labels: jsLabels,
+		},
+		down_time_between_recovery_seconds_total: metric{
+			name:   "jobset_down_time_between_recovery_seconds_total",
+			labels: jsLabels,
+		},
+		down_time_between_recovery_mean_seconds: metric{
+			name:   "jobset_down_time_between_recovery_mean_seconds",
+			labels: jsLabels,
+		},
+		down_time_between_recovery_latest_seconds: metric{
+			name:   "jobset_down_time_between_recovery_latest_seconds",
 			labels: jsLabels,
 		},
 	}
@@ -170,13 +297,21 @@ func assertMetrics(expected ...metric) {
 		return metrics, err
 	}, "3s", "1s").Should(ContainSubstring(expected[0].String()), "initial metric not found")
 	for _, exp := range expected {
-		Expect(metrics).To(ContainSubstring(exp.name), "metric name")
-		Expect(metrics).To(ContainSubstring(exp.String()), "full metric")
+		Expect(metrics).To(ContainSubstring(exp.name+"{"), "metric name")
+		line := findMatchingLine(metrics, exp.name+"{")
+		//fmt.Println("-----------------------")
+		//fmt.Println(metrics)
+		Expect(metrics).To(ContainSubstring(exp.String()), "full metric does not match: "+line)
 	}
 }
 
-type upnessMetrics struct {
-	up metric
+func findMatchingLine(lines, match string) string {
+	for _, line := range strings.Split(lines, "\n") {
+		if strings.HasPrefix(line, match) {
+			return line
+		}
+	}
+	return ""
 }
 
 type metric struct {

@@ -134,11 +134,7 @@ func mustRegisterUpnessMetrics(prefix string, meter metric.Meter) ([]metric.Obse
 	)
 	fatal(err)
 
-	// Note: Technically this could be a counter if we are fully certain that the value
-	// will never decrease. In practice, this caused issues where this value was being
-	// reported inaccurately. It is possible that this was because the timeseries was
-	// not fully unique across JobSet instances at that time.
-	downTime, err := meter.Float64ObservableGauge(prefix+".down.time",
+	downTime, err := meter.Float64ObservableCounter(prefix+".down.time",
 		metric.WithDescription("Total time JobSet has not been fully up."),
 		metric.WithUnit("s"),
 	)
@@ -160,7 +156,7 @@ func mustRegisterUpnessMetrics(prefix string, meter metric.Meter) ([]metric.Obse
 	)
 	fatal(err)
 
-	downTimeBetweenRecovery, err := meter.Float64ObservableGauge(prefix+".down.time.between.recovery",
+	downTimeBetweenRecovery, err := meter.Float64ObservableCounter(prefix+".down.time.between.recovery",
 		metric.WithDescription("Total time spent down between being all interruptions and recoveries."),
 		metric.WithUnit("s"),
 	)
@@ -178,7 +174,7 @@ func mustRegisterUpnessMetrics(prefix string, meter metric.Meter) ([]metric.Obse
 	)
 	fatal(err)
 
-	upTimeBetweenInterruption, err := meter.Float64ObservableGauge(prefix+".up.time.between.interruption",
+	upTimeBetweenInterruption, err := meter.Float64ObservableCounter(prefix+".up.time.between.interruption",
 		metric.WithDescription("Total time between interruptions for a JobSet."),
 		metric.WithUnit("s"),
 	)
