@@ -20,7 +20,7 @@ func GetNodePool(node *corev1.Node) (string, bool) {
 	return val, ok
 }
 
-func IsTPUNodePool(node *corev1.Node) bool {
+func IsTPUNode(node *corev1.Node) bool {
 	if node.Labels == nil {
 		return false
 	}

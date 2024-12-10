@@ -6,11 +6,15 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"sync"
 	"time"
+
+	"cloud.google.com/go/compute/metadata"
+	containerv1beta1 "google.golang.org/api/container/v1beta1"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -70,6 +74,23 @@ type Config struct {
 	ProbeAddr            string
 	SecureMetrics        bool
 	EnableHTTP2          bool
+
+	// GKE client options
+	GKE GKEConfig
+}
+
+type GKEConfig struct {
+	ProjectID       string
+	ClusterLocation string
+	ClusterName     string
+}
+
+func (c GKEConfig) ClusterRef() string {
+	return fmt.Sprintf("projects/%s/locations/%s/clusters/%s",
+		c.ProjectID,
+		c.ClusterLocation,
+		c.ClusterName,
+	)
 }
 
 func MustConfigure() Config {
@@ -122,9 +143,41 @@ func MustConfigure() Config {
 		os.Exit(1)
 	}
 
+	if err := configureGKE(context.Background(), &cfg.GKE); err != nil {
+		setupLog.Error(err, "unable to configure gke client")
+		os.Exit(1)
+	}
+
 	json.NewEncoder(os.Stdout).Encode(cfg)
 
 	return cfg
+}
+
+func configureGKE(ctx context.Context, cfg *GKEConfig) error {
+	// Attempt to infer cluster information from GKE metadata server.
+	md := metadata.NewClient(&http.Client{Timeout: 10 * time.Second})
+
+	var err error
+	if cfg.ProjectID == "" {
+		cfg.ProjectID, err = md.ProjectIDWithContext(ctx)
+		if err != nil {
+			return fmt.Errorf("fetching project-id from metadata server because it was not set in config file: %w", err)
+		}
+	}
+	if cfg.ClusterName == "" {
+		cfg.ClusterName, err = md.InstanceAttributeValueWithContext(ctx, "cluster-name")
+		if err != nil {
+			return fmt.Errorf("fetching cluster-name from metadata server because it was not set in config file: %w", err)
+		}
+	}
+	if cfg.ClusterLocation == "" {
+		cfg.ClusterLocation, err = md.InstanceAttributeValueWithContext(ctx, "cluster-location")
+		if err != nil {
+			return fmt.Errorf("fetching cluster-location from metadata server because it was not set in config file: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config) {
@@ -193,6 +246,12 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config) {
 		os.Exit(1)
 	}
 
+	containersService, err := containerv1beta1.NewService(context.Background())
+	if err != nil {
+		setupLog.Error(err, "unable to create gke client")
+		os.Exit(1)
+	}
+
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:                 scheme.Scheme,
 		Metrics:                metricsServerOptions,
@@ -232,6 +291,8 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config) {
 		Interval:                     time.Duration(cfg.AggregationIntervalSeconds) * time.Second,
 		Client:                       mgr.GetClient(),
 		Exporters:                    map[string]aggregator.Exporter{},
+		GKERef:                       cfg.GKE.ClusterRef(),
+		ContainersService:            containersService,
 	}
 
 	availableExporters := map[string]aggregator.Exporter{

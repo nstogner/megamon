@@ -10,6 +10,7 @@ import (
 	"example.com/megamon/internal/k8sutils"
 	"example.com/megamon/internal/metrics"
 	"example.com/megamon/internal/records"
+	containerv1beta1 "google.golang.org/api/container/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -34,6 +35,10 @@ type Aggregator struct {
 	nodePoolScheduling map[string]records.ScheduledJob
 
 	Exporters map[string]Exporter
+
+	// GKE should be of the format `projects/*/locations/*/clusters/*`
+	GKERef            string
+	ContainersService *containerv1beta1.Service
 }
 
 type Exporter interface {
@@ -120,6 +125,28 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 		return fmt.Errorf("listing nodes: %w", err)
 	}
 
+	npListResp, err := a.ContainersService.Projects.Locations.Clusters.NodePools.List(a.GKERef).Context(ctx).Do()
+	if err != nil {
+		return fmt.Errorf("listing node pools: %w", err)
+	}
+	for _, np := range npListResp.NodePools {
+		func() {
+			if !isTPUNodePool(np) {
+				return
+			}
+			up := records.Upness{
+				Attrs: extractNodePoolAttrs(np),
+			}
+			expectedCount, err := getExpectedTPUNodePoolSize(np)
+			if err != nil {
+				log.Printf("ERROR: failed to get expected TPU node pool size for node pool %q: %v", np.Name, err)
+				return
+			}
+			up.ExpectedCount = expectedCount
+			report.NodePoolsUp[np.Name] = up
+		}()
+	}
+
 	for _, node := range nodeList.Items {
 		ready := k8sutils.IsNodeReady(&node)
 
@@ -127,13 +154,10 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 
 		if npName, ok := k8sutils.GetNodePool(&node); ok {
 			func() {
-				if !k8sutils.IsTPUNodePool(&node) {
-					return
-				}
 				up, ok := report.NodePoolsUp[npName]
 				if !ok {
-					up.Attrs = extractNodeAttrs(&node)
-					up.Attrs.NodePoolName = npName
+					log.Printf("WARNING: found Node (%q) for node pool (%q) that was not parsed", node.Name, npName)
+					return
 				}
 				if up.ExpectedCount == 0 {
 					var err error
