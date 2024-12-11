@@ -36,9 +36,11 @@ type Aggregator struct {
 
 	Exporters map[string]Exporter
 
-	// GKE should be of the format `projects/*/locations/*/clusters/*`
-	GKERef            string
-	ContainersService *containerv1beta1.Service
+	GKE GKEClient
+}
+
+type GKEClient interface {
+	ListNodePools(ctx context.Context) ([]*containerv1beta1.NodePool, error)
 }
 
 type Exporter interface {
@@ -125,11 +127,11 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 		return fmt.Errorf("listing nodes: %w", err)
 	}
 
-	npListResp, err := a.ContainersService.Projects.Locations.Clusters.NodePools.List(a.GKERef).Context(ctx).Do()
+	npList, err := a.GKE.ListNodePools(ctx)
 	if err != nil {
 		return fmt.Errorf("listing node pools: %w", err)
 	}
-	for _, np := range npListResp.NodePools {
+	for _, np := range npList {
 		func() {
 			if !isTPUNodePool(np) {
 				return
@@ -154,6 +156,9 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 
 		if npName, ok := k8sutils.GetNodePool(&node); ok {
 			func() {
+				if !k8sutils.IsTPUNode(&node) {
+					return
+				}
 				up, ok := report.NodePoolsUp[npName]
 				if !ok {
 					log.Printf("WARNING: found Node (%q) for node pool (%q) that was not parsed", node.Name, npName)

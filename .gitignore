@@ -25,3 +25,5 @@ go.work
 *.swp
 *.swo
 *~
+
+hack/my-dev-config.json

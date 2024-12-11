@@ -29,5 +29,5 @@ import (
 )
 
 func main() {
-	manager.MustRun(ctrl.SetupSignalHandler(), manager.MustConfigure(), ctrl.GetConfigOrDie())
+	manager.MustRun(ctrl.SetupSignalHandler(), manager.MustConfigure(), ctrl.GetConfigOrDie(), nil)
 }

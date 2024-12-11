@@ -4,5 +4,10 @@
     "stdout"
   ],
   "AggregationIntervalSeconds": 3,
+  "GKE": {
+    "ProjectID": "",
+    "ClusterLocation": "",
+    "ClusterName": ""
+  },
   "DisableNodePoolJobLabelling": true
 }
