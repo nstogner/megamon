@@ -23,6 +23,8 @@ import (
 	"strings"
 	"testing"
 
+	containerv1beta1 "google.golang.org/api/container/v1beta1"
+
 	"example.com/megamon/internal/manager"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -104,7 +106,7 @@ var _ = BeforeSuite(func() {
 	Expect(k8sClient).NotTo(BeNil())
 
 	go func() {
-		manager.MustRun(ctx, testCfg, restCfg)
+		manager.MustRun(ctx, testCfg, restCfg, &mockGKEClient{})
 	}()
 })
 
@@ -136,4 +138,10 @@ func getFirstFoundEnvTestBinaryDir() string {
 		}
 	}
 	return ""
+}
+
+type mockGKEClient struct{}
+
+func (m *mockGKEClient) ListNodePools(ctx context.Context) ([]*containerv1beta1.NodePool, error) {
+	return nil, nil
 }

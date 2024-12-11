@@ -1,8 +1,13 @@
 package aggregator
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
+
 	"example.com/megamon/internal/k8sutils"
 	"example.com/megamon/internal/records"
+	containerv1beta1 "google.golang.org/api/container/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 )
@@ -51,6 +56,76 @@ func extractNodeAttrs(node *corev1.Node) records.Attrs {
 			attrs.Spot = val == "true"
 		}
 	}
+
+	return attrs
+}
+
+func isTPUNodePool(np *containerv1beta1.NodePool) bool {
+	return np.PlacementPolicy != nil && np.PlacementPolicy.TpuTopology != ""
+}
+
+func getExpectedTPUNodePoolSize(np *containerv1beta1.NodePool) (int32, error) {
+	if np.PlacementPolicy == nil {
+		return 0, fmt.Errorf("no placement policy")
+	}
+
+	topoVal := np.PlacementPolicy.TpuTopology
+	if topoVal == "" {
+		return 0, fmt.Errorf("no topology")
+	}
+
+	acceleratorCount, err := machineTypeToChipCount(np.Config.MachineType)
+	if err != nil {
+		return 0, fmt.Errorf("failed to convert machine type to chip count: %w", err)
+	}
+
+	split := strings.Split(topoVal, "x")
+	if len(split) < 2 {
+		return 0, fmt.Errorf("invalid topology: %q", topoVal)
+	}
+	product := 1
+	for _, s := range split {
+		x, err := strconv.Atoi(s)
+		if err != nil {
+			return 0, fmt.Errorf("invalid topology: %q, could not convert %q to int: %w", topoVal, s, err)
+		}
+		product *= x
+	}
+
+	return int32(product / acceleratorCount), nil
+}
+
+func machineTypeToChipCount(mt string) (int, error) {
+	// Example: "ct5p-hightpu-4t"
+
+	split := strings.Split(mt, "-")
+	if len(split) < 2 {
+		return 0, fmt.Errorf("unable to parse tpu machine type: %q", mt)
+	}
+	acceleratorCountVal := strings.TrimSuffix(split[len(split)-1], "t")
+
+	acceleratorCount, err := strconv.Atoi(acceleratorCountVal)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse accelerator count: %w", err)
+	}
+	if acceleratorCount < 1 {
+		return 0, fmt.Errorf("invalid accelerator count: %d", acceleratorCount)
+	}
+
+	return acceleratorCount, nil
+}
+
+func extractNodePoolAttrs(np *containerv1beta1.NodePool) records.Attrs {
+	var attrs records.Attrs
+
+	attrs.NodePoolName = np.Name
+	if np.PlacementPolicy != nil {
+		attrs.TPUTopology = np.PlacementPolicy.TpuTopology
+	}
+	if np.Config != nil {
+		attrs.Spot = np.Config.Spot
+	}
+	// TODO: TPUAccelerator
 
 	return attrs
 }
