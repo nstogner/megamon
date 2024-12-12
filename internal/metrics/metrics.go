@@ -124,34 +124,34 @@ type reportObserveFunc func(ctx context.Context, o metric.Observer, ups map[stri
 // mustRegisterUpnessMetrics registers a set of metrics for observing the upness of something.
 func mustRegisterUpnessMetrics(prefix string, meter metric.Meter) ([]metric.Observable, reportObserveFunc) {
 	up, err := meter.Int64ObservableGauge(prefix+".up",
-		metric.WithDescription("Whether all JobSet Job replicas are in a Ready status (0 or 1)."),
+		metric.WithDescription("Whether all replicas are in a Ready status (0 or 1)."),
 	)
 	fatal(err)
 
 	upTime, err := meter.Float64ObservableCounter(prefix+".up.time",
-		metric.WithDescription("Total time JobSet has been up."),
+		metric.WithDescription("Total time up."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
 	downTime, err := meter.Float64ObservableCounter(prefix+".down.time",
-		metric.WithDescription("Total time JobSet has not been fully up."),
+		metric.WithDescription("Total time down."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
 	interruptionCount, err := meter.Int64ObservableCounter(prefix+".interruption.count",
-		metric.WithDescription("Total number of interruptions for a JobSet."),
+		metric.WithDescription("Total number of interruptions."),
 	)
 	fatal(err)
 
 	recoveryCount, err := meter.Int64ObservableCounter(prefix+".recovery.count",
-		metric.WithDescription("Total number of recoveries for a JobSet."),
+		metric.WithDescription("Total number of recoveries."),
 	)
 	fatal(err)
 
 	downTimeInitial, err := meter.Float64ObservableGauge(prefix+".down.time.initial",
-		metric.WithDescription("Initial time elapsed before JobSet is first comes up."),
+		metric.WithDescription("Initial time elapsed before first up."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
@@ -163,31 +163,31 @@ func mustRegisterUpnessMetrics(prefix string, meter metric.Meter) ([]metric.Obse
 	fatal(err)
 
 	downTimeBetweenRecoveryMean, err := meter.Float64ObservableGauge(prefix+".down.time.between.recovery.mean",
-		metric.WithDescription("Mean time to recovery for a JobSet."),
+		metric.WithDescription("Mean time to recovery."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
 	downTimeBetweenRecoveryLatest, err := meter.Float64ObservableGauge(prefix+".down.time.between.recovery.latest",
-		metric.WithDescription("Last time to recovery for a JobSet."),
+		metric.WithDescription("Last time to recovery."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
 	upTimeBetweenInterruption, err := meter.Float64ObservableCounter(prefix+".up.time.between.interruption",
-		metric.WithDescription("Total time between interruptions for a JobSet."),
+		metric.WithDescription("Total time between interruptions."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
 	upTimeBetweenInterruptionMean, err := meter.Float64ObservableGauge(prefix+".up.time.between.interruption.mean",
-		metric.WithDescription("Mean time between interruptions for a JobSet."),
+		metric.WithDescription("Mean time between interruptions."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
 	upTimeBetweenInterruptionLatest, err := meter.Float64ObservableGauge(prefix+".up.time.between.interruption.latest",
-		metric.WithDescription("Last time between interruption for a JobSet."),
+		metric.WithDescription("Last time between interruption."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
