@@ -114,10 +114,10 @@ var _ = Describe("JobSet metrics", func() {
 			jobset := expectedMetricsForJobSet(js)
 			assertMetrics(
 				jobset.up.WithValue(0),
-				jobset.up_time_seconds_total,
-				jobset.down_time_seconds_total,
-				jobset.interruption_count_total.WithValue(0),
-				jobset.recovery_count_total.WithValue(0),
+				jobset.up_time_seconds,
+				jobset.down_time_seconds,
+				jobset.interruption_count.WithValue(0),
+				jobset.recovery_count.WithValue(0),
 			)
 		})
 
@@ -135,11 +135,11 @@ var _ = Describe("JobSet metrics", func() {
 			jobset := expectedMetricsForJobSet(js)
 			assertMetrics(
 				jobset.up.WithValue(1),
-				jobset.up_time_seconds_total,
-				jobset.down_time_seconds_total,
+				jobset.up_time_seconds,
+				jobset.down_time_seconds,
 				jobset.down_time_initial_seconds,
-				jobset.interruption_count_total.WithValue(0),
-				jobset.recovery_count_total.WithValue(0),
+				jobset.interruption_count.WithValue(0),
+				jobset.recovery_count.WithValue(0),
 			)
 		})
 
@@ -157,14 +157,14 @@ var _ = Describe("JobSet metrics", func() {
 			jobset := expectedMetricsForJobSet(js)
 			assertMetrics(
 				jobset.up.WithValue(0),
-				jobset.up_time_seconds_total,
-				jobset.down_time_seconds_total,
+				jobset.up_time_seconds,
+				jobset.down_time_seconds,
 				jobset.down_time_initial_seconds,
-				jobset.up_time_between_interruption_seconds_total,
+				jobset.up_time_between_interruption_seconds,
 				jobset.up_time_between_interruption_mean_seconds,
 				jobset.up_time_between_interruption_latest_seconds,
-				jobset.interruption_count_total.WithValue(1),
-				jobset.recovery_count_total.WithValue(0),
+				jobset.interruption_count.WithValue(1),
+				jobset.recovery_count.WithValue(0),
 			)
 		})
 
@@ -182,17 +182,17 @@ var _ = Describe("JobSet metrics", func() {
 			jobset := expectedMetricsForJobSet(js)
 			assertMetrics(
 				jobset.up.WithValue(1),
-				jobset.up_time_seconds_total,
-				jobset.down_time_seconds_total,
+				jobset.up_time_seconds,
+				jobset.down_time_seconds,
 				jobset.down_time_initial_seconds,
-				jobset.up_time_between_interruption_seconds_total,
+				jobset.up_time_between_interruption_seconds,
 				jobset.up_time_between_interruption_mean_seconds,
 				jobset.up_time_between_interruption_latest_seconds,
-				jobset.down_time_between_recovery_seconds_total,
+				jobset.down_time_between_recovery_seconds,
 				jobset.down_time_between_recovery_mean_seconds,
 				jobset.down_time_between_recovery_latest_seconds,
-				jobset.interruption_count_total.WithValue(1),
-				jobset.recovery_count_total.WithValue(1),
+				jobset.interruption_count.WithValue(1),
+				jobset.recovery_count.WithValue(1),
 			)
 		})
 	})
@@ -200,18 +200,18 @@ var _ = Describe("JobSet metrics", func() {
 
 type upnessMetrics struct {
 	// Always present
-	up                       metric
-	up_time_seconds_total    metric
-	down_time_seconds_total  metric
-	interruption_count_total metric
-	recovery_count_total     metric
+	up                 metric
+	up_time_seconds    metric
+	down_time_seconds  metric
+	interruption_count metric
+	recovery_count     metric
 
 	// Present after events occur
-	up_time_between_interruption_seconds_total  metric
+	up_time_between_interruption_seconds        metric
 	up_time_between_interruption_mean_seconds   metric
 	up_time_between_interruption_latest_seconds metric
 	down_time_initial_seconds                   metric
-	down_time_between_recovery_seconds_total    metric
+	down_time_between_recovery_seconds          metric
 	down_time_between_recovery_mean_seconds     metric
 	down_time_between_recovery_latest_seconds   metric
 }
@@ -228,24 +228,24 @@ func expectedMetricsForJobSet(js *jobset.JobSet) upnessMetrics {
 			name:   "jobset_up",
 			labels: jsLabels,
 		},
-		interruption_count_total: metric{
-			name:   "jobset_interruption_count_total",
+		interruption_count: metric{
+			name:   "jobset_interruption_count",
 			labels: jsLabels,
 		},
-		recovery_count_total: metric{
-			name:   "jobset_recovery_count_total",
+		recovery_count: metric{
+			name:   "jobset_recovery_count",
 			labels: jsLabels,
 		},
-		up_time_seconds_total: metric{
-			name:   "jobset_up_time_seconds_total",
+		up_time_seconds: metric{
+			name:   "jobset_up_time_seconds",
 			labels: jsLabels,
 		},
-		down_time_seconds_total: metric{
-			name:   "jobset_down_time_seconds_total",
+		down_time_seconds: metric{
+			name:   "jobset_down_time_seconds",
 			labels: jsLabels,
 		},
-		up_time_between_interruption_seconds_total: metric{
-			name:   "jobset_up_time_between_interruption_seconds_total",
+		up_time_between_interruption_seconds: metric{
+			name:   "jobset_up_time_between_interruption_seconds",
 			labels: jsLabels,
 		},
 		up_time_between_interruption_mean_seconds: metric{
@@ -260,8 +260,8 @@ func expectedMetricsForJobSet(js *jobset.JobSet) upnessMetrics {
 			name:   "jobset_down_time_initial_seconds",
 			labels: jsLabels,
 		},
-		down_time_between_recovery_seconds_total: metric{
-			name:   "jobset_down_time_between_recovery_seconds_total",
+		down_time_between_recovery_seconds: metric{
+			name:   "jobset_down_time_between_recovery_seconds",
 			labels: jsLabels,
 		},
 		down_time_between_recovery_mean_seconds: metric{

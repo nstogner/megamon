@@ -128,24 +128,29 @@ func mustRegisterUpnessMetrics(prefix string, meter metric.Meter) ([]metric.Obse
 	)
 	fatal(err)
 
-	upTime, err := meter.Float64ObservableCounter(prefix+".up.time",
+	// NOTE: Gauges are used instead of Counters because Megamon restarts
+	// can show up as different timeseries if they are scraped using a scraper that
+	// adds a label for the megamon Pod name (when scraped via `kind: PodMonitoring` in
+	// Google Managed Prometheus on GKE).
+
+	upTime, err := meter.Float64ObservableGauge(prefix+".up.time",
 		metric.WithDescription("Total time up."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
-	downTime, err := meter.Float64ObservableCounter(prefix+".down.time",
+	downTime, err := meter.Float64ObservableGauge(prefix+".down.time",
 		metric.WithDescription("Total time down."),
 		metric.WithUnit("s"),
 	)
 	fatal(err)
 
-	interruptionCount, err := meter.Int64ObservableCounter(prefix+".interruption.count",
+	interruptionCount, err := meter.Int64ObservableGauge(prefix+".interruption.count",
 		metric.WithDescription("Total number of interruptions."),
 	)
 	fatal(err)
 
-	recoveryCount, err := meter.Int64ObservableCounter(prefix+".recovery.count",
+	recoveryCount, err := meter.Int64ObservableGauge(prefix+".recovery.count",
 		metric.WithDescription("Total number of recoveries."),
 	)
 	fatal(err)
@@ -156,7 +161,7 @@ func mustRegisterUpnessMetrics(prefix string, meter metric.Meter) ([]metric.Obse
 	)
 	fatal(err)
 
-	downTimeBetweenRecovery, err := meter.Float64ObservableCounter(prefix+".down.time.between.recovery",
+	downTimeBetweenRecovery, err := meter.Float64ObservableGauge(prefix+".down.time.between.recovery",
 		metric.WithDescription("Total time spent down between being all interruptions and recoveries."),
 		metric.WithUnit("s"),
 	)
@@ -174,7 +179,7 @@ func mustRegisterUpnessMetrics(prefix string, meter metric.Meter) ([]metric.Obse
 	)
 	fatal(err)
 
-	upTimeBetweenInterruption, err := meter.Float64ObservableCounter(prefix+".up.time.between.interruption",
+	upTimeBetweenInterruption, err := meter.Float64ObservableGauge(prefix+".up.time.between.interruption",
 		metric.WithDescription("Total time between interruptions."),
 		metric.WithUnit("s"),
 	)

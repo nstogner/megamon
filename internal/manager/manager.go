@@ -362,8 +362,6 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 		setupLog.Error(err, "unable to set up health check")
 		os.Exit(1)
 	}
-	// Add readiness check that makes sure that the aggregator is ready.
-	// TODO: Validate that GMP waits for Readiness before scraping.
 	if err := mgr.AddReadyzCheck("readyz", func(req *http.Request) error {
 		if !agg.ReportReady() {
 			return errors.New("aggregator report not ready")
@@ -376,23 +374,32 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 
 	defer shutdownMetrics()
 	metricsMux := http.NewServeMux()
-	metricsMux.Handle("/metrics", promhttp.Handler())
+	promHandler := promhttp.Handler()
+	metricsMux.Handle("/metrics", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !agg.ReportReady() {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		promHandler.ServeHTTP(w, r)
+	}))
 	metricsServer := http.Server{Handler: metricsMux, Addr: cfg.MetricsAddr}
 
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		log.Println("starting aggregator")
-		defer wg.Done()
-		if err := agg.Start(ctx); err != nil {
-			if errors.Is(err, context.Canceled) {
-				setupLog.Info("aggregator - context cancelled")
-			} else {
-				setupLog.Error(err, "aggregator error")
-				os.Exit(1)
-			}
-		}
-	}()
+
+	mgr.Add(agg)
+	//wg.Add(1)
+	//go func() {
+	//	log.Println("starting aggregator")
+	//	defer wg.Done()
+	//	if err := agg.Start(ctx); err != nil {
+	//		if errors.Is(err, context.Canceled) {
+	//			setupLog.Info("aggregator - context cancelled")
+	//		} else {
+	//			setupLog.Error(err, "aggregator error")
+	//			os.Exit(1)
+	//		}
+	//	}
+	//}()
 
 	wg.Add(1)
 	go func() {

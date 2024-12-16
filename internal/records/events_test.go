@@ -35,7 +35,7 @@ func TestSummarize(t *testing.T) {
 			records: EventRecords{
 				// up:
 				// down:   _____
-				// event:  0   1
+				// event:  0
 				// hrs:      1
 				UpEvents: []UpEvent{
 					{Up: false, Timestamp: t0},
@@ -259,11 +259,11 @@ func TestSummarize(t *testing.T) {
 				LatestUpTimeBetweenInterruption: 2 * time.Hour,
 			},
 		},
-		"two interruptions two recoveries": {
-			// up:         _____   _____
-			// down:   ____|   |___|   |___|
-			// event:  0   1   2   3   4   5
-			// hrs:      1   1   1   2   3
+		"two interruptions two recoveries - different durations": {
+			// up:         _____   ______
+			// down:   ____|   |___|    |______|
+			// event:  0   1   2   3    4      5
+			// hrs:      1   1   1    2     3
 			records: EventRecords{
 				UpEvents: []UpEvent{
 					{Up: false, Timestamp: t0},
@@ -293,6 +293,41 @@ func TestSummarize(t *testing.T) {
 				MeanUpTimeBetweenInterruption:   (1*time.Hour + 2*time.Hour) / 2,
 				LatestUpTimeBetweenInterruption: 2 * time.Hour,
 			},
+		},
+		// Error cases
+		"up0": {
+			records: EventRecords{
+				// up:     _____
+				// down:
+				// event:  0
+				// hrs:      1
+				UpEvents: []UpEvent{
+					{Up: true, Timestamp: t0},
+				},
+			},
+			now:             t0.Add(time.Hour),
+			expectedSummary: EventSummary{},
+		},
+		"up0 then down1": {
+			records: EventRecords{
+				// up:     _____
+				// down:       |
+				// event:  0
+				// hrs:      1
+				UpEvents: []UpEvent{
+					{Up: true, Timestamp: t0},
+					{Up: false, Timestamp: t0.Add(time.Hour)},
+				},
+			},
+			now:             t0.Add(time.Hour),
+			expectedSummary: EventSummary{},
+		},
+		"no events": {
+			records: EventRecords{
+				UpEvents: []UpEvent{},
+			},
+			now:             t0.Add(time.Hour),
+			expectedSummary: EventSummary{},
 		},
 	}
 
