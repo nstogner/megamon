@@ -7,6 +7,10 @@ spec:
   endpoints:
   - interval: 10s
     port: 8080
+    metricRelabeling:
+    - action: keep
+      regex: 'megamon.*'
+      sourceLabels: ['__name__']
   selector:
     matchLabels:
       control-plane: controller-manager
