@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
+	containerv1beta1 "google.golang.org/api/container/v1beta1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,6 +43,10 @@ var _ = Describe("JobSet metrics", func() {
 		jsRef := types.NamespacedName{
 			Name:      "test-js",
 			Namespace: "default",
+		}
+
+		npRef := types.NamespacedName{
+			Name: "test-np",
 		}
 
 		//BeforeEach(func() {
@@ -86,14 +91,31 @@ var _ = Describe("JobSet metrics", func() {
 			Expect(k8sClient.Create(ctx, js)).To(Succeed())
 		})
 
+		var np containerv1beta1.NodePool
+		It("should watch a NodePool", func() {
+			np = containerv1beta1.NodePool{
+				Name: npRef.Name,
+			}
+			//	Expect(k8sClient.Get(ctx, npRef, np)).To(Succeed())
+		})
+
+		It("should publish metrics before submitting a jobset", func() {
+			nodepool := expectedMetricsForNodePool(np)
+			assertMetrics(
+				nodepool.nodepool_job_scheduled,
+			)
+		})
+
 		It("should publish metrics after submitting a jobset", func() {
 			jobset := expectedMetricsForJobSet(js)
+			//nodepool := expectedMetricsForNodePool(np)
 			assertMetrics(
 				jobset.up.WithValue(0),
 				jobset.up_time_seconds,
 				jobset.down_time_seconds,
 				jobset.interruption_count.WithValue(0),
 				jobset.recovery_count.WithValue(0),
+			//	nodepool.nodepool_job_scheduled,
 			)
 		})
 
@@ -192,6 +214,24 @@ type upnessMetrics struct {
 	down_time_between_recovery_latest_seconds   metric
 }
 
+type utilizationMetrics struct {
+	// Always present
+	nodepool_job_scheduled metric
+}
+
+func expectedMetricsForNodePool(np containerv1beta1.NodePool) utilizationMetrics {
+	fmt.Printf("%+v\n", np)
+	npLabels := map[string]interface{}{
+		"nodepool_name": np.Name,
+	}
+	return utilizationMetrics{
+		nodepool_job_scheduled: metric{
+			name:   "nodepool_job_scheduled",
+			labels: npLabels,
+		},
+	}
+}
+
 func expectedMetricsForJobSet(js *jobset.JobSet) upnessMetrics {
 	// megamon_test_jobset_up{jobset_name="test-js",jobset_namespace="default",jobset_uid="a9876d7f-4639-41a3-9961-9ac68e0fcb7b",otel_scope_name="megamon",otel_scope_version=""} 0
 	jsLabels := map[string]interface{}{
@@ -270,6 +310,7 @@ func assertMetrics(expected ...metric) {
 	Eventually(func() (string, error) {
 		var err error
 		metrics, err = fetchMetrics()
+		//fmt.Printf("%+v\n", metrics)
 		return metrics, err
 	}, "3s", "1s").Should(ContainSubstring(expected[0].String()), "initial metric not found")
 	for _, exp := range expected {
