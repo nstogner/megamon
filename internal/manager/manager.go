@@ -322,7 +322,7 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 		}
 	}
 
-	shutdownMetrics := metrics.Init(agg)
+	shutdownMetricsFunc := metrics.Init(ctx, agg, time.Duration(cfg.AggregationIntervalSeconds)*time.Second)
 
 	if err = (&controller.JobSetReconciler{
 		Disabled: false,
@@ -372,7 +372,7 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 		os.Exit(1)
 	}
 
-	defer shutdownMetrics()
+	defer shutdownMetricsFunc()
 	metricsMux := http.NewServeMux()
 	promHandler := promhttp.Handler()
 	metricsMux.Handle("/metrics", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

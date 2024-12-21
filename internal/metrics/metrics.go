@@ -3,13 +3,17 @@ package metrics
 import (
 	"context"
 	"log"
+	"time"
 
 	"example.com/megamon/internal/records"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/metric"
 	metricsdk "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
 var (
@@ -17,15 +21,38 @@ var (
 	Prefix              = "megamon"
 )
 
-func initMeterProvider() *metricsdk.MeterProvider {
+func initMeterProvider(ctx context.Context, interval time.Duration) *metricsdk.MeterProvider {
 	// Create a Prometheus exporter
-	exporter, err := prometheus.New()
+	promExporter, err := prometheus.New()
 	if err != nil {
 		log.Fatalf("failed to initialize prometheus exporter: %v", err)
 	}
+	grpcExporter, err := otlpmetricgrpc.New(ctx,
+		otlpmetricgrpc.WithInsecure(),
+	)
+	if err != nil {
+		log.Fatalf("failed to initialize OTLP gRPC exporter: %v", err)
+	}
+
+	res, err := resource.Merge(
+		resource.Default(),
+		resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceName("megamon"),
+		),
+	)
+	if err != nil {
+		log.Fatalf("Error creating resource: %v", err)
+	}
 
 	// Create a MeterProvider and register it globally
-	provider := metricsdk.NewMeterProvider(metricsdk.WithReader(exporter))
+	provider := metricsdk.NewMeterProvider(
+		metricsdk.WithResource(res),
+		metricsdk.WithReader(promExporter),
+		metricsdk.WithReader(metricsdk.NewPeriodicReader(grpcExporter,
+			metricsdk.WithInterval(interval),
+		)),
+	)
 	otel.SetMeterProvider(provider)
 
 	return provider
@@ -35,9 +62,9 @@ type Reporter interface {
 	Report() records.Report
 }
 
-func Init(r Reporter) func() {
+func Init(ctx context.Context, r Reporter, interval time.Duration) func() {
 	// Initialize the OpenTelemetry Prometheus exporter and meter provider.
-	provider := initMeterProvider()
+	provider := initMeterProvider(ctx, interval)
 
 	meter := otel.Meter("megamon")
 
