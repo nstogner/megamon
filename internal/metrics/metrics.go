@@ -59,6 +59,7 @@ func initMeterProvider(ctx context.Context, interval time.Duration) *metricsdk.M
 }
 
 type Reporter interface {
+	ReportReady() bool
 	Report() records.Report
 }
 
@@ -90,6 +91,10 @@ func Init(ctx context.Context, r Reporter, interval time.Duration) func() {
 	observables = append(observables, nodePoolJobScheduled)
 
 	_, err = meter.RegisterCallback(func(ctx context.Context, o metric.Observer) error {
+		if !r.ReportReady() {
+			return nil
+		}
+
 		report := r.Report()
 
 		observeJobset(ctx, o, report.JobSetsUp, report.JobSetsUpSummaries)
