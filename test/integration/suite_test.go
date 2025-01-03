@@ -26,10 +26,10 @@ import (
 	containerv1beta1 "google.golang.org/api/container/v1beta1"
 
 	"example.com/megamon/internal/manager"
+	"example.com/megamon/internal/records"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -57,20 +57,10 @@ var expectedMetricPrefix = strings.ReplaceAll(testCfg.MetricsPrefix, ".", "_")
 var testCfg = manager.Config{
 	MetricsPrefix:              testMetricsPrefix,
 	AggregationIntervalSeconds: 1,
-	JobSetEventsConfigMapRef: types.NamespacedName{
-		Namespace: "default",
-		Name:      "megamon-jobset-events",
-	},
-	JobSetNodeEventsConfigMapRef: types.NamespacedName{
-		Namespace: "default",
-		Name:      "megamon-jobset-node-events",
-	},
-	NodePoolEventsConfigMapRef: types.NamespacedName{
-		Namespace: "default",
-		Name:      "megamon-nodepool-events",
-	},
-	MetricsAddr: "127.0.0.1:8080",
-	ProbeAddr:   "127.0.0.1:8081",
+	EventsBucketName:           "test-bucket",
+	EventsBucketPath:           "test-path",
+	MetricsAddr:                "127.0.0.1:8080",
+	ProbeAddr:                  "127.0.0.1:8081",
 }
 
 func TestControllers(t *testing.T) {
@@ -106,7 +96,10 @@ var _ = BeforeSuite(func() {
 	Expect(k8sClient).NotTo(BeNil())
 
 	go func() {
-		manager.MustRun(ctx, testCfg, restCfg, &mockGKEClient{})
+		manager.MustRun(ctx, testCfg, restCfg,
+			&mockGKEClient{},
+			&mockGCSClient{records: map[string]map[string]records.EventRecords{}},
+		)
 	}()
 })
 
@@ -144,4 +137,21 @@ type mockGKEClient struct{}
 
 func (m *mockGKEClient) ListNodePools(ctx context.Context) ([]*containerv1beta1.NodePool, error) {
 	return nil, nil
+}
+
+type mockGCSClient struct {
+	records map[string]map[string]records.EventRecords
+}
+
+func (m *mockGCSClient) GetRecords(ctx context.Context, bucket, path string) (map[string]records.EventRecords, error) {
+	rec, ok := m.records[path]
+	if !ok {
+		return map[string]records.EventRecords{}, nil
+	}
+	return rec, nil
+}
+
+func (m *mockGCSClient) PutRecords(ctx context.Context, bucket, path string, recs map[string]records.EventRecords) error {
+	m.records[path] = recs
+	return nil
 }

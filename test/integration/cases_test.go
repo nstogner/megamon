@@ -52,30 +52,6 @@ var _ = Describe("JobSet metrics", func() {
 		//	Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		//})
 
-		It("should have the required ConfigMaps", func() {
-			jsEventsCM := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      testCfg.JobSetEventsConfigMapRef.Name,
-					Namespace: testCfg.JobSetEventsConfigMapRef.Namespace,
-				},
-			}
-			Expect(k8sClient.Create(ctx, jsEventsCM)).To(Succeed())
-			jsNodesCM := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      testCfg.JobSetNodeEventsConfigMapRef.Name,
-					Namespace: testCfg.JobSetNodeEventsConfigMapRef.Namespace,
-				},
-			}
-			Expect(k8sClient.Create(ctx, jsNodesCM)).To(Succeed())
-			nodePoolsCM := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      testCfg.NodePoolEventsConfigMapRef.Name,
-					Namespace: testCfg.NodePoolEventsConfigMapRef.Namespace,
-				},
-			}
-			Expect(k8sClient.Create(ctx, nodePoolsCM)).To(Succeed())
-		})
-
 		var js *jobset.JobSet
 		It("should watch a JobSet", func() {
 			js = &jobset.JobSet{
