@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -12,7 +13,6 @@ import (
 	"example.com/megamon/internal/records"
 	containerv1beta1 "google.golang.org/api/container/v1beta1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 )
@@ -20,9 +20,8 @@ import (
 type Aggregator struct {
 	client.Client
 
-	JobSetEventsConfigMapRef     types.NamespacedName
-	JobSetNodeEventsConfigMapRef types.NamespacedName
-	NodePoolEventsConfigMapRef   types.NamespacedName
+	EventsBucketName string
+	EventsBucketPath string
 
 	Interval time.Duration
 
@@ -37,10 +36,16 @@ type Aggregator struct {
 	Exporters map[string]Exporter
 
 	GKE GKEClient
+	GCS GCSClient
 }
 
 type GKEClient interface {
 	ListNodePools(ctx context.Context) ([]*containerv1beta1.NodePool, error)
+}
+
+type GCSClient interface {
+	GetRecords(ctx context.Context, bucket, path string) (map[string]records.EventRecords, error)
+	PutRecords(ctx context.Context, bucket, path string, recs map[string]records.EventRecords) error
 }
 
 type Exporter interface {
@@ -203,15 +208,15 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 		}
 	}
 
-	jsEvents, err := reconcileEvents(ctx, a.Client, a.JobSetEventsConfigMapRef, report.JobSetsUp)
+	jsEvents, err := a.reconcileEvents(ctx, "jobsets.json", report.JobSetsUp)
 	if err != nil {
 		return fmt.Errorf("reconciling jobset events: %w", err)
 	}
-	jsNodeEvents, err := reconcileEvents(ctx, a.Client, a.JobSetNodeEventsConfigMapRef, report.JobSetNodesUp)
+	jsNodeEvents, err := a.reconcileEvents(ctx, "jobset-nodes.json", report.JobSetNodesUp)
 	if err != nil {
 		return fmt.Errorf("reconciling jobset node events: %w", err)
 	}
-	nodePoolEvents, err := reconcileEvents(ctx, a.Client, a.NodePoolEventsConfigMapRef, report.NodePoolsUp)
+	nodePoolEvents, err := a.reconcileEvents(ctx, "node-pools.json", report.NodePoolsUp)
 	if err != nil {
 		return fmt.Errorf("reconciling nodepool events: %w", err)
 	}
@@ -249,24 +254,16 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	return nil
 }
 
-func reconcileEvents(ctx context.Context, client client.Client, cmRef types.NamespacedName, ups map[string]records.Upness) (map[string]records.EventRecords, error) {
-	var cm corev1.ConfigMap
-	if err := client.Get(ctx, cmRef, &cm); err != nil {
-		return nil, fmt.Errorf("failed to get event records configmap: %w", err)
-	}
-
-	recs, err := k8sutils.GetEventRecordsFromConfigMap(&cm)
+func (a *Aggregator) reconcileEvents(ctx context.Context, filename string, ups map[string]records.Upness) (map[string]records.EventRecords, error) {
+	path := strings.TrimSuffix(a.EventsBucketPath, "/") + "/" + filename
+	recs, err := a.GCS.GetRecords(ctx, a.EventsBucketName, path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get event records from configmap: %w", err)
+		return nil, fmt.Errorf("failed to get %q: %w", filename, err)
 	}
 
 	if changed := records.ReconcileEvents(time.Now(), ups, recs); changed {
-		if err := k8sutils.SetEventRecordsInConfigMap(&cm, recs); err != nil {
-			return nil, fmt.Errorf("failed to set event records in configmap: %w", err)
-		}
-
-		if err := client.Update(ctx, &cm); err != nil {
-			return nil, fmt.Errorf("failed to update events configmap: %w", err)
+		if err := a.GCS.PutRecords(ctx, a.EventsBucketName, path, recs); err != nil {
+			return nil, fmt.Errorf("failed to put %q: %w", filename, err)
 		}
 	}
 

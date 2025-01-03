@@ -1,12 +1,10 @@
 package k8sutils
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 
-	"example.com/megamon/internal/records"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
@@ -92,36 +90,6 @@ func IsNodeReady(node *corev1.Node) bool {
 		}
 	}
 	return false
-}
-
-func GetEventRecordsFromConfigMap(cm *corev1.ConfigMap) (map[string]records.EventRecords, error) {
-	recs := make(map[string]records.EventRecords)
-	if cm.Data == nil {
-		return recs, nil
-	}
-	for k, v := range cm.Data {
-		var rec records.EventRecords
-		if err := json.Unmarshal([]byte(v), &rec); err != nil {
-			return recs, err
-		}
-		recs[k] = rec
-	}
-	return recs, nil
-}
-
-func SetEventRecordsInConfigMap(cm *corev1.ConfigMap, recs map[string]records.EventRecords) error {
-	cm.Data = make(map[string]string)
-	for k, rec := range recs {
-		data, err := json.Marshal(rec)
-		if err != nil {
-			return err
-		}
-		if cm.Data == nil {
-			cm.Data = map[string]string{}
-		}
-		cm.Data[k] = string(data)
-	}
-	return nil
 }
 
 func GetExpectedTPUNodePoolSize(node *corev1.Node) (int32, error) {
