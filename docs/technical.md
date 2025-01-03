@@ -12,14 +12,24 @@
 
 ```bash
 gcloud iam service-accounts create megamon
+
 # Allow Megamon to list GKE Node Pools.
 gcloud projects add-iam-policy-binding $PROJECT_ID \
   --member="serviceAccount:megamon@${PROJECT_ID}.iam.gserviceaccount.com" \
   --role="roles/container.viewer"
+
+# Create a bucket for megamon to store event history.
+gcloud storage buckets create gs://${PROJECT_ID}-megamon
+gcloud storage buckets add-iam-policy-binding gs://${PROJECT_ID}-megamon \
+  --member="serviceAccount:megamon@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --role=roles/storage.objectUser
+
 # Allow Megamon to push OTEL metrics.
 gcloud projects add-iam-policy-binding $PROJECT_ID \
   --member="serviceAccount:megamon@${PROJECT_ID}.iam.gserviceaccount.com" \
   --role="roles/monitoring.metricWriter"
+
+# Bind Kubernetes Service Account to GCP Service Account.
 gcloud iam service-accounts add-iam-policy-binding megamon@${PROJECT_ID}.iam.gserviceaccount.com \
     --role roles/iam.workloadIdentityUser \
     --member "serviceAccount:${PROJECT_ID}.svc.id.goog[megamon-system/megamon-controller-manager]"

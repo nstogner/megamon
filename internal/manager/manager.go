@@ -16,6 +16,7 @@ import (
 	"cloud.google.com/go/compute/metadata"
 	containerv1beta1 "google.golang.org/api/container/v1beta1"
 
+	"cloud.google.com/go/storage"
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -39,8 +40,10 @@ import (
 
 	"example.com/megamon/internal/aggregator"
 	"example.com/megamon/internal/controller"
+	"example.com/megamon/internal/gcsclient"
 	"example.com/megamon/internal/gkeclient"
 	"example.com/megamon/internal/metrics"
+	"example.com/megamon/internal/records"
 
 	// +kubebuilder:scaffold:imports
 
@@ -63,10 +66,10 @@ type Config struct {
 	AggregationIntervalSeconds int64
 	Exporters                  []string
 
-	ReportConfigMapRef           types.NamespacedName
-	JobSetEventsConfigMapRef     types.NamespacedName
-	JobSetNodeEventsConfigMapRef types.NamespacedName
-	NodePoolEventsConfigMapRef   types.NamespacedName
+	ReportConfigMapRef types.NamespacedName
+
+	EventsBucketName string
+	EventsBucketPath string
 
 	DisableNodePoolJobLabelling bool
 
@@ -119,18 +122,6 @@ func MustConfigure() Config {
 			Namespace: "megamon-system",
 			Name:      "megamon-report",
 		},
-		JobSetEventsConfigMapRef: types.NamespacedName{
-			Namespace: "megamon-system",
-			Name:      "megamon-jobset-events",
-		},
-		JobSetNodeEventsConfigMapRef: types.NamespacedName{
-			Namespace: "megamon-system",
-			Name:      "megamon-jobset-node-events",
-		},
-		NodePoolEventsConfigMapRef: types.NamespacedName{
-			Namespace: "megamon-system",
-			Name:      "megamon-nodepool-events",
-		},
 		DisableNodePoolJobLabelling: true,
 		MetricsAddr:                 ":8080",
 		EnableLeaderElection:        false,
@@ -147,6 +138,10 @@ func MustConfigure() Config {
 	if err := configureGKE(context.Background(), &cfg.GKE); err != nil {
 		setupLog.Error(err, "unable to configure gke client")
 		os.Exit(1)
+	}
+
+	if cfg.EventsBucketPath == "" {
+		cfg.EventsBucketPath = fmt.Sprintf("megamon/clusters/%s", cfg.GKE.ClusterName)
 	}
 
 	json.NewEncoder(os.Stdout).Encode(cfg)
@@ -185,7 +180,12 @@ type GKEClient interface {
 	ListNodePools(ctx context.Context) ([]*containerv1beta1.NodePool, error)
 }
 
-func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient GKEClient) {
+type GCSClient interface {
+	GetRecords(ctx context.Context, bucket, path string) (map[string]records.EventRecords, error)
+	PutRecords(ctx context.Context, bucket, path string, recs map[string]records.EventRecords) error
+}
+
+func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient GKEClient, gcsClient GCSClient) {
 	metrics.Prefix = cfg.MetricsPrefix
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
@@ -295,14 +295,25 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 		}
 	}
 
+	if gcsClient == nil {
+		storageClient, err := storage.NewClient(ctx)
+		if err != nil {
+			setupLog.Error(err, "unable to create gcs client")
+			os.Exit(1)
+		}
+		gcsClient = &gcsclient.Client{
+			StorageClient: storageClient,
+		}
+	}
+
 	agg := &aggregator.Aggregator{
-		JobSetEventsConfigMapRef:     cfg.JobSetEventsConfigMapRef,
-		JobSetNodeEventsConfigMapRef: cfg.JobSetNodeEventsConfigMapRef,
-		NodePoolEventsConfigMapRef:   cfg.NodePoolEventsConfigMapRef,
-		Interval:                     time.Duration(cfg.AggregationIntervalSeconds) * time.Second,
-		Client:                       mgr.GetClient(),
-		Exporters:                    map[string]aggregator.Exporter{},
-		GKE:                          gkeClient,
+		Interval:         time.Duration(cfg.AggregationIntervalSeconds) * time.Second,
+		Client:           mgr.GetClient(),
+		Exporters:        map[string]aggregator.Exporter{},
+		GKE:              gkeClient,
+		GCS:              gcsClient,
+		EventsBucketName: cfg.EventsBucketName,
+		EventsBucketPath: cfg.EventsBucketPath,
 	}
 
 	availableExporters := map[string]aggregator.Exporter{
