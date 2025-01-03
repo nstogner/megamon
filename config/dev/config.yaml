@@ -8,5 +8,6 @@ data:
     {
       "MetricsPrefix": "megamon.alpha",
       "AggregationIntervalSeconds": 5,
+      "EventsBucketName": "cool-machine-learning-megamon",
       "DisableNodePoolJobLabelling": true
     }
