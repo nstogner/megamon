@@ -26,15 +26,32 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	containerv1beta1 "google.golang.org/api/container/v1beta1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
-	containerv1beta1 "google.golang.org/api/container/v1beta1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 )
+
+var _ = Describe("NodePool metrics", func() {
+	nps, err := gkeClient.ListNodePools(ctx)
+	if err != nil {
+		Fail("Failed to list node pools: " + err.Error())
+	}
+	var np = nps[0]
+	//fmt.Printf("%+v\n", np)
+	Context("When reconciling a resource", func() {
+		It("should publish metrics", func() {
+			nodepool := expectedMetricsForNodePool(np)
+			assertMetrics(
+				nodepool.nodepool_job_scheduled,
+			)
+		})
+	})
+})
 
 var _ = Describe("JobSet metrics", func() {
 	Context("When reconciling a resource", func() {
@@ -43,10 +60,6 @@ var _ = Describe("JobSet metrics", func() {
 		jsRef := types.NamespacedName{
 			Name:      "test-js",
 			Namespace: "default",
-		}
-
-		npRef := types.NamespacedName{
-			Name: "test-np",
 		}
 
 		//BeforeEach(func() {
@@ -91,31 +104,14 @@ var _ = Describe("JobSet metrics", func() {
 			Expect(k8sClient.Create(ctx, js)).To(Succeed())
 		})
 
-		var np containerv1beta1.NodePool
-		It("should watch a NodePool", func() {
-			np = containerv1beta1.NodePool{
-				Name: npRef.Name,
-			}
-			//	Expect(k8sClient.Get(ctx, npRef, np)).To(Succeed())
-		})
-
-		It("should publish metrics before submitting a jobset", func() {
-			nodepool := expectedMetricsForNodePool(np)
-			assertMetrics(
-				nodepool.nodepool_job_scheduled,
-			)
-		})
-
 		It("should publish metrics after submitting a jobset", func() {
 			jobset := expectedMetricsForJobSet(js)
-			//nodepool := expectedMetricsForNodePool(np)
 			assertMetrics(
 				jobset.up.WithValue(0),
 				jobset.up_time_seconds,
 				jobset.down_time_seconds,
 				jobset.interruption_count.WithValue(0),
 				jobset.recovery_count.WithValue(0),
-			//	nodepool.nodepool_job_scheduled,
 			)
 		})
 
@@ -219,7 +215,7 @@ type utilizationMetrics struct {
 	nodepool_job_scheduled metric
 }
 
-func expectedMetricsForNodePool(np containerv1beta1.NodePool) utilizationMetrics {
+func expectedMetricsForNodePool(np *containerv1beta1.NodePool) utilizationMetrics {
 	fmt.Printf("%+v\n", np)
 	npLabels := map[string]interface{}{
 		"nodepool_name": np.Name,
@@ -310,7 +306,6 @@ func assertMetrics(expected ...metric) {
 	Eventually(func() (string, error) {
 		var err error
 		metrics, err = fetchMetrics()
-		//fmt.Printf("%+v\n", metrics)
 		return metrics, err
 	}, "3s", "1s").Should(ContainSubstring(expected[0].String()), "initial metric not found")
 	for _, exp := range expected {

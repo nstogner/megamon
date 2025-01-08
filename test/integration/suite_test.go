@@ -48,6 +48,8 @@ var testEnv *envtest.Environment
 var ctx context.Context
 var cancel context.CancelFunc
 
+var gkeClient = createStubGKEClient()
+
 const (
 	testMetricsPrefix = "megamon.test"
 )
@@ -97,7 +99,7 @@ var _ = BeforeSuite(func() {
 
 	go func() {
 		manager.MustRun(ctx, testCfg, restCfg,
-			&mockGKEClient{},
+			gkeClient,
 			&mockGCSClient{records: map[string]map[string]records.EventRecords{}},
 		)
 	}()
@@ -133,10 +135,35 @@ func getFirstFoundEnvTestBinaryDir() string {
 	return ""
 }
 
-type mockGKEClient struct{}
+type mockGKEClient struct {
+	nodePools []*containerv1beta1.NodePool
+}
 
 func (m *mockGKEClient) ListNodePools(ctx context.Context) ([]*containerv1beta1.NodePool, error) {
-	return nil, nil
+	return m.nodePools, nil
+}
+
+func createStubNodePool() *containerv1beta1.NodePool {
+	return &containerv1beta1.NodePool{
+		Name: "my-test-node-pool",
+		Config: &containerv1beta1.NodeConfig{
+			MachineType: "n1-standard-1",
+			DiskSizeGb:  100,
+		},
+		Autoscaling: &containerv1beta1.NodePoolAutoscaling{
+			Enabled:      true,
+			MinNodeCount: 1,
+			MaxNodeCount: 3,
+		},
+	}
+}
+
+func createStubGKEClient() *mockGKEClient {
+	return &mockGKEClient{
+		nodePools: []*containerv1beta1.NodePool{
+			createStubNodePool(),
+		},
+	}
 }
 
 type mockGCSClient struct {
