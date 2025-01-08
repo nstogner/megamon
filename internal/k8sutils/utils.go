@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -85,8 +86,19 @@ func GetExpectedNodeCount(js *jobset.JobSet) int32 {
 
 func IsNodeReady(node *corev1.Node) bool {
 	for _, c := range node.Status.Conditions {
-		if c.Type == corev1.NodeReady && c.Status == corev1.ConditionTrue {
-			return true
+		if c.Type == corev1.NodeReady {
+			switch c.Status {
+			case corev1.ConditionTrue:
+				return true
+			case corev1.ConditionUnknown:
+				// At large scale a given Node may be in an unknown state for a short period of time.
+				// However the workloads running on that Node could still be functioning.
+				if time.Since(c.LastTransitionTime.Time) < 3*time.Minute {
+					return true
+				}
+			default:
+				return false
+			}
 		}
 	}
 	return false
