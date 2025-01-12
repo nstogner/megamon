@@ -155,6 +155,9 @@ func createStubNodePool() *containerv1beta1.NodePool {
 			MinNodeCount: 1,
 			MaxNodeCount: 3,
 		},
+		PlacementPolicy: &containerv1beta1.PlacementPolicy{
+			TpuTopology: "16x16",
+		},
 	}
 }
 

@@ -36,18 +36,67 @@ import (
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 )
 
-var _ = Describe("NodePool metrics", func() {
-	nps, err := gkeClient.ListNodePools(ctx)
-	if err != nil {
-		Fail("Failed to list node pools: " + err.Error())
-	}
-	var np = nps[0]
-	//fmt.Printf("%+v\n", np)
+var _ = Describe("Nodepool metrics", func() {
 	Context("When reconciling a resource", func() {
+		ctx := context.Background()
+
+		jsRef := types.NamespacedName{
+			Name:      "test-js-1",
+			Namespace: "default",
+		}
+
+		nps, err := gkeClient.ListNodePools(ctx)
+		if err != nil {
+			Fail("Failed to list node pools: " + err.Error())
+		}
+		var np = nps[0]
+		//fmt.Printf("%+v\n", np)
+
+		var js *jobset.JobSet
+		It("should watch a JobSet", func() {
+			js = &jobset.JobSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      jsRef.Name,
+					Namespace: jsRef.Namespace,
+				},
+				Spec: jobset.JobSetSpec{
+					ReplicatedJobs: []jobset.ReplicatedJob{
+						{
+							Name: "job1",
+							Template: batchv1.JobTemplateSpec{
+								Spec: batchv1.JobSpec{
+									BackoffLimit: ptr.To[int32](4),
+									Template: corev1.PodTemplateSpec{
+										Spec: corev1.PodSpec{
+											Containers: []corev1.Container{
+												{
+													Name:  "test-container",
+													Image: "busybox",
+												},
+											},
+											RestartPolicy: corev1.RestartPolicyNever,
+											NodeName:      np.Name,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, js)).To(Succeed())
+		})
+
 		It("should publish metrics", func() {
+			//nodepool := expectedMetricsForNodePool(np)
 			nodepool := expectedMetricsForNodePool(np)
 			assertMetrics(
-				nodepool.nodepool_job_scheduled,
+				//nodepool.nodepool_job_scheduled,
+				nodepool.down_time_seconds,
+				nodepool.interruption_count,
+				nodepool.recovery_count,
+				nodepool.up,
+				nodepool.up_time_seconds,
 			)
 		})
 	})
@@ -212,18 +261,43 @@ type upnessMetrics struct {
 
 type utilizationMetrics struct {
 	// Always present
-	nodepool_job_scheduled metric
+	// nodepool_job_scheduled      metric
+	down_time_seconds  metric
+	interruption_count metric
+	recovery_count     metric
+	up                 metric
+	up_time_seconds    metric
 }
 
 func expectedMetricsForNodePool(np *containerv1beta1.NodePool) utilizationMetrics {
-	fmt.Printf("%+v\n", np)
-	npLabels := map[string]interface{}{
+	//fmt.Printf("%+v\n", np)
+	nodepoolLabels := map[string]interface{}{
 		"nodepool_name": np.Name,
 	}
 	return utilizationMetrics{
-		nodepool_job_scheduled: metric{
-			name:   "nodepool_job_scheduled",
-			labels: npLabels,
+		//nodepool_job_scheduled: metric{
+		//	name:   "nodepool_job_scheduled",
+		//	labels: nodepoolLabels,
+		//},
+		down_time_seconds: metric{
+			name:   "nodepool_down_time_seconds",
+			labels: nodepoolLabels,
+		},
+		interruption_count: metric{
+			name:   "nodepool_interruption_count",
+			labels: nodepoolLabels,
+		},
+		recovery_count: metric{
+			name:   "nodepool_recovery_count",
+			labels: nodepoolLabels,
+		},
+		up: metric{
+			name:   "nodepool_up",
+			labels: nodepoolLabels,
+		},
+		up_time_seconds: metric{
+			name:   "nodepool_up_time_seconds",
+			labels: nodepoolLabels,
 		},
 	}
 }
@@ -356,6 +430,9 @@ func (m metric) valuelessString() string {
 	}
 	labels["otel_scope_name"] = "megamon"
 	labels["otel_scope_version"] = ""
+	if strings.HasPrefix(m.name, "nodepool") {
+		labels["tpu_topology"] = "16x16"
+	}
 	sortedKeys := make([]string, 0, len(labels))
 	for k := range labels {
 		sortedKeys = append(sortedKeys, k)
