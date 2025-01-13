@@ -40,11 +40,6 @@ var _ = Describe("Nodepool metrics", func() {
 	Context("When reconciling a resource", func() {
 		ctx := context.Background()
 
-		jsRef := types.NamespacedName{
-			Name:      "test-js-1",
-			Namespace: "default",
-		}
-
 		nps, err := gkeClient.ListNodePools(ctx)
 		if err != nil {
 			Fail("Failed to list node pools: " + err.Error())
@@ -52,43 +47,36 @@ var _ = Describe("Nodepool metrics", func() {
 		var np = nps[0]
 		//fmt.Printf("%+v\n", np)
 
-		var js *jobset.JobSet
-		It("should watch a JobSet", func() {
-			js = &jobset.JobSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      jsRef.Name,
-					Namespace: jsRef.Namespace,
-				},
-				Spec: jobset.JobSetSpec{
-					ReplicatedJobs: []jobset.ReplicatedJob{
-						{
-							Name: "job1",
-							Template: batchv1.JobTemplateSpec{
-								Spec: batchv1.JobSpec{
-									BackoffLimit: ptr.To[int32](4),
-									Template: corev1.PodTemplateSpec{
-										Spec: corev1.PodSpec{
-											Containers: []corev1.Container{
-												{
-													Name:  "test-container",
-													Image: "busybox",
-												},
-											},
-											RestartPolicy: corev1.RestartPolicyNever,
-											NodeName:      np.Name,
-										},
-									},
-								},
-							},
-						},
+		var node = &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-node",
+			},
+		}
+
+		var pod = &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-pod",
+				Namespace: "default",
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:  "test-container",
+						Image: "busybox",
 					},
 				},
-			}
-			Expect(k8sClient.Create(ctx, js)).To(Succeed())
+				RestartPolicy: corev1.RestartPolicyNever,
+				NodeName:      node.Name,
+			},
+		}
+
+		//fmt.Printf("%+v\n", pod)
+
+		It("should watch a Pod", func() {
+			Expect(k8sClient.Create(ctx, pod)).To(Succeed())
 		})
 
 		It("should publish metrics", func() {
-			//nodepool := expectedMetricsForNodePool(np)
 			nodepool := expectedMetricsForNodePool(np)
 			assertMetrics(
 				//nodepool.nodepool_job_scheduled,
