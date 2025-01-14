@@ -57,6 +57,10 @@ var _ = Describe("Nodepool metrics", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "test-pod",
 				Namespace: "default",
+				Labels: map[string]string{
+					"jobset.sigs.k8s.io/jobset-name":           "test-jobset",
+					"batch.kubernetes.io/job-completion-index": "0",
+				},
 			},
 			Spec: corev1.PodSpec{
 				Containers: []corev1.Container{
@@ -70,7 +74,7 @@ var _ = Describe("Nodepool metrics", func() {
 			},
 		}
 
-		//fmt.Printf("%+v\n", pod)
+		fmt.Printf("%+v\n", pod)
 
 		It("should watch a Pod", func() {
 			Expect(k8sClient.Create(ctx, pod)).To(Succeed())
