@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
 	"example.com/megamon/internal/aggregator"
 	"example.com/megamon/internal/k8sutils"
@@ -34,6 +35,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	//log.Info("reconciling", "req", req.NamespacedName)
 
 	var pod corev1.Pod
+	fmt.Printf("spot 1")
 	if err := r.Get(ctx, req.NamespacedName, &pod); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}

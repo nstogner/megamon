@@ -59,6 +59,7 @@ var _ = Describe("Nodepool metrics", func() {
 				Namespace: "default",
 				Labels: map[string]string{
 					"jobset.sigs.k8s.io/jobset-name":           "test-jobset",
+					"batch.kubernetes.io/job-name":             "test-job",
 					"batch.kubernetes.io/job-completion-index": "0",
 				},
 			},
