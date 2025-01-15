@@ -293,7 +293,6 @@ func (a *Aggregator) getNodePoolScheduling() map[string]records.ScheduledJob {
 	a.nodePoolSchedulingMtx.RLock()
 	defer a.nodePoolSchedulingMtx.RUnlock()
 	cp := make(map[string]records.ScheduledJob, len(a.nodePoolScheduling))
-	fmt.Printf("%+v\n", a.nodePoolScheduling)
 	for k, v := range a.nodePoolScheduling {
 		cp[k] = v
 	}

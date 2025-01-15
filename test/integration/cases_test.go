@@ -46,7 +46,6 @@ var _ = Describe("Nodepool metrics", func() {
 			Fail("Failed to list node pools: " + err.Error())
 		}
 		var np = nps[0]
-		//fmt.Printf("%+v\n", np)
 
 		var node = &corev1.Node{
 			ObjectMeta: metav1.ObjectMeta{
@@ -79,19 +78,17 @@ var _ = Describe("Nodepool metrics", func() {
 			},
 		}
 
-		//fmt.Printf("%+v\n", pod)
-
 		It("should watch a Node", func() {
 			Expect(k8sClient.Create(ctx, node)).To(Succeed())
 		})
 
-		time.Sleep(10 * time.Second)
+		time.Sleep(5 * time.Second)
 
 		It("should watch a Pod", func() {
 			Expect(k8sClient.Create(ctx, pod)).To(Succeed())
 		})
 
-		time.Sleep(10 * time.Second)
+		time.Sleep(5 * time.Second)
 
 		It("should publish metrics", func() {
 			nodepool := expectedMetricsForNodePool(np)
@@ -275,9 +272,9 @@ type utilizationMetrics struct {
 }
 
 func expectedMetricsForNodePool(np *containerv1beta1.NodePool) utilizationMetrics {
-	//fmt.Printf("%+v\n", np)
 	nodepoolLabels := map[string]interface{}{
 		"nodepool_name": np.Name,
+		"tpu_topology":  "16x16",
 	}
 	nodepoolJobLabels := map[string]interface{}{
 		"job_name":      "test-job",
@@ -440,11 +437,6 @@ func (m metric) valuelessString() string {
 	}
 	labels["otel_scope_name"] = "megamon"
 	labels["otel_scope_version"] = ""
-	if strings.HasPrefix(m.name, "nodepool") {
-		if !strings.HasPrefix(m.name, "nodepool_job") {
-			labels["tpu_topology"] = "16x16"
-		}
-	}
 	sortedKeys := make([]string, 0, len(labels))
 	for k := range labels {
 		sortedKeys = append(sortedKeys, k)
