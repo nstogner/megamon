@@ -41,6 +41,16 @@ var _ = Describe("Nodepool metrics", func() {
 	Context("When reconciling a resource", func() {
 		ctx := context.Background()
 
+		jsRef := types.NamespacedName{
+			Name:      "test-jobset",
+			Namespace: "default",
+		}
+
+		jobRef := types.NamespacedName{
+			Name:      "test-job",
+			Namespace: "default",
+		}
+
 		nps, err := gkeClient.ListNodePools(ctx)
 		if err != nil {
 			Fail("Failed to list node pools: " + err.Error())
@@ -61,8 +71,8 @@ var _ = Describe("Nodepool metrics", func() {
 				Name:      "test-pod",
 				Namespace: "default",
 				Labels: map[string]string{
-					"jobset.sigs.k8s.io/jobset-name":           "test-jobset",
-					"batch.kubernetes.io/job-name":             "test-job",
+					"jobset.sigs.k8s.io/jobset-name":           jsRef.Name,
+					"batch.kubernetes.io/job-name":             jobRef.Name,
 					"batch.kubernetes.io/job-completion-index": "0",
 				},
 			},
@@ -82,16 +92,20 @@ var _ = Describe("Nodepool metrics", func() {
 			Expect(k8sClient.Create(ctx, node)).To(Succeed())
 		})
 
+		// Necessary because pod reconciler uses a cached client
+		// which is eventually consistent w k8sClient here
 		time.Sleep(5 * time.Second)
 
 		It("should watch a Pod", func() {
 			Expect(k8sClient.Create(ctx, pod)).To(Succeed())
 		})
 
+		// Necessary because pod reconciler uses a cached client
+		// which is eventually consistent w k8sClient here
 		time.Sleep(5 * time.Second)
 
 		It("should publish metrics", func() {
-			nodepool := expectedMetricsForNodePool(np)
+			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
 			assertMetrics(
 				nodepool.job_scheduled,
 				nodepool.down_time_seconds,
@@ -271,14 +285,14 @@ type utilizationMetrics struct {
 	up_time_seconds    metric
 }
 
-func expectedMetricsForNodePool(np *containerv1beta1.NodePool) utilizationMetrics {
+func expectedMetricsForNodePool(np *containerv1beta1.NodePool, jobSetName string, jobName string) utilizationMetrics {
 	nodepoolLabels := map[string]interface{}{
 		"nodepool_name": np.Name,
 		"tpu_topology":  "16x16",
 	}
 	nodepoolJobLabels := map[string]interface{}{
-		"job_name":      "test-job",
-		"jobset_name":   "test-jobset",
+		"job_name":      jobName,
+		"jobset_name":   jobSetName,
 		"nodepool_name": np.Name,
 	}
 	return utilizationMetrics{
