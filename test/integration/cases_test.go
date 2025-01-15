@@ -104,10 +104,12 @@ var _ = Describe("Nodepool metrics", func() {
 		// which is eventually consistent w k8sClient here
 		time.Sleep(5 * time.Second)
 
-		It("should publish metrics", func() {
+		It("should publish nodepool metrics", func() {
 			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
 			assertMetrics(
+				// Depends on node and jobset pod being created
 				nodepool.job_scheduled,
+				// Only depend on nodepool being created
 				nodepool.down_time_seconds,
 				nodepool.interruption_count,
 				nodepool.recovery_count,
