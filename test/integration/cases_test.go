@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -50,6 +51,9 @@ var _ = Describe("Nodepool metrics", func() {
 		var node = &corev1.Node{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test-node",
+				Labels: map[string]string{
+					"cloud.google.com/gke-nodepool": "test-nodepool",
+				},
 			},
 		}
 
@@ -75,16 +79,24 @@ var _ = Describe("Nodepool metrics", func() {
 			},
 		}
 
-		fmt.Printf("%+v\n", pod)
+		//fmt.Printf("%+v\n", pod)
+
+		It("should watch a Node", func() {
+			Expect(k8sClient.Create(ctx, node)).To(Succeed())
+		})
+
+		time.Sleep(10 * time.Second)
 
 		It("should watch a Pod", func() {
 			Expect(k8sClient.Create(ctx, pod)).To(Succeed())
 		})
 
+		time.Sleep(10 * time.Second)
+
 		It("should publish metrics", func() {
 			nodepool := expectedMetricsForNodePool(np)
 			assertMetrics(
-				//nodepool.nodepool_job_scheduled,
+				nodepool.job_scheduled,
 				nodepool.down_time_seconds,
 				nodepool.interruption_count,
 				nodepool.recovery_count,
@@ -254,7 +266,7 @@ type upnessMetrics struct {
 
 type utilizationMetrics struct {
 	// Always present
-	// nodepool_job_scheduled      metric
+	job_scheduled      metric
 	down_time_seconds  metric
 	interruption_count metric
 	recovery_count     metric
@@ -267,11 +279,16 @@ func expectedMetricsForNodePool(np *containerv1beta1.NodePool) utilizationMetric
 	nodepoolLabels := map[string]interface{}{
 		"nodepool_name": np.Name,
 	}
+	nodepoolJobLabels := map[string]interface{}{
+		"job_name":      "test-job",
+		"jobset_name":   "test-jobset",
+		"nodepool_name": np.Name,
+	}
 	return utilizationMetrics{
-		//nodepool_job_scheduled: metric{
-		//	name:   "nodepool_job_scheduled",
-		//	labels: nodepoolLabels,
-		//},
+		job_scheduled: metric{
+			name:   "nodepool_job_scheduled",
+			labels: nodepoolJobLabels,
+		},
 		down_time_seconds: metric{
 			name:   "nodepool_down_time_seconds",
 			labels: nodepoolLabels,
@@ -424,7 +441,9 @@ func (m metric) valuelessString() string {
 	labels["otel_scope_name"] = "megamon"
 	labels["otel_scope_version"] = ""
 	if strings.HasPrefix(m.name, "nodepool") {
-		labels["tpu_topology"] = "16x16"
+		if !strings.HasPrefix(m.name, "nodepool_job") {
+			labels["tpu_topology"] = "16x16"
+		}
 	}
 	sortedKeys := make([]string, 0, len(labels))
 	for k := range labels {

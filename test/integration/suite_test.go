@@ -145,7 +145,7 @@ func (m *mockGKEClient) ListNodePools(ctx context.Context) ([]*containerv1beta1.
 
 func createStubNodePool() *containerv1beta1.NodePool {
 	return &containerv1beta1.NodePool{
-		Name: "my-test-node-pool",
+		Name: "test-nodepool",
 		Config: &containerv1beta1.NodeConfig{
 			MachineType: "n1-standard-1",
 			DiskSizeGb:  100,
