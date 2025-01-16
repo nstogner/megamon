@@ -291,7 +291,7 @@ type utilizationMetrics struct {
 func expectedMetricsForNodePool(np *containerv1beta1.NodePool, jobSetName string, jobName string) utilizationMetrics {
 	nodepoolLabels := map[string]interface{}{
 		"nodepool_name": np.Name,
-		"tpu_topology":  "16x16",
+		"tpu_topology":  tpuTopology,
 	}
 	nodepoolJobLabels := map[string]interface{}{
 		"job_name":      jobName,

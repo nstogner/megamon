@@ -53,6 +53,7 @@ var gkeClient = createStubGKEClient()
 const (
 	testMetricsPrefix = "megamon.test"
 	nodePoolName      = "test-nodepool"
+	tpuTopology       = "16x16"
 )
 
 var expectedMetricPrefix = strings.ReplaceAll(testCfg.MetricsPrefix, ".", "_")
@@ -157,7 +158,7 @@ func createStubNodePool() *containerv1beta1.NodePool {
 			MaxNodeCount: 3,
 		},
 		PlacementPolicy: &containerv1beta1.PlacementPolicy{
-			TpuTopology: "16x16",
+			TpuTopology: tpuTopology,
 		},
 	}
 }
