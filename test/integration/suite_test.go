@@ -52,6 +52,7 @@ var gkeClient = createStubGKEClient()
 
 const (
 	testMetricsPrefix = "megamon.test"
+	nodePoolName      = "test-nodepool"
 )
 
 var expectedMetricPrefix = strings.ReplaceAll(testCfg.MetricsPrefix, ".", "_")
@@ -145,7 +146,7 @@ func (m *mockGKEClient) ListNodePools(ctx context.Context) ([]*containerv1beta1.
 
 func createStubNodePool() *containerv1beta1.NodePool {
 	return &containerv1beta1.NodePool{
-		Name: "test-nodepool",
+		Name: nodePoolName,
 		Config: &containerv1beta1.NodeConfig{
 			MachineType: "n1-standard-1",
 			DiskSizeGb:  100,

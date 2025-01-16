@@ -52,16 +52,15 @@ var _ = Describe("Nodepool metrics", func() {
 		}
 
 		nps, err := gkeClient.ListNodePools(ctx)
-		if err != nil {
-			Fail("Failed to list node pools: " + err.Error())
-		}
+		Expect(err).To(BeNil(), "Failed to list node pools")
+
 		var np = nps[0]
 
 		var node = &corev1.Node{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test-node",
 				Labels: map[string]string{
-					"cloud.google.com/gke-nodepool": "test-nodepool",
+					"cloud.google.com/gke-nodepool": nodePoolName,
 				},
 			},
 		}
@@ -108,13 +107,13 @@ var _ = Describe("Nodepool metrics", func() {
 			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
 			assertMetrics(
 				// Depends on node and jobset pod being created
-				nodepool.job_scheduled,
+				nodepool.job_scheduled.WithValue(1),
 				// Only depend on nodepool being created
 				nodepool.down_time_seconds,
-				nodepool.interruption_count,
-				nodepool.recovery_count,
-				nodepool.up,
-				nodepool.up_time_seconds,
+				nodepool.interruption_count.WithValue(0),
+				nodepool.recovery_count.WithValue(0),
+				nodepool.up.WithValue(0),
+				nodepool.up_time_seconds.WithValue(0),
 			)
 		})
 	})
@@ -279,12 +278,14 @@ type upnessMetrics struct {
 
 type utilizationMetrics struct {
 	// Always present
-	job_scheduled      metric
 	down_time_seconds  metric
 	interruption_count metric
 	recovery_count     metric
 	up                 metric
 	up_time_seconds    metric
+
+	// Present after events occur
+	job_scheduled metric
 }
 
 func expectedMetricsForNodePool(np *containerv1beta1.NodePool, jobSetName string, jobName string) utilizationMetrics {
