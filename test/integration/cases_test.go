@@ -23,9 +23,11 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	containerv1beta1 "google.golang.org/api/container/v1beta1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
@@ -34,6 +36,88 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 )
+
+var _ = Describe("Nodepool metrics", func() {
+	Context("When reconciling a resource", func() {
+		ctx := context.Background()
+
+		jsRef := types.NamespacedName{
+			Name:      "test-jobset",
+			Namespace: "default",
+		}
+
+		jobRef := types.NamespacedName{
+			Name:      "test-job",
+			Namespace: "default",
+		}
+
+		nps, err := gkeClient.ListNodePools(ctx)
+		Expect(err).To(BeNil(), "Failed to list node pools")
+
+		var np = nps[0]
+
+		var node = &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-node",
+				Labels: map[string]string{
+					"cloud.google.com/gke-nodepool": nodePoolName,
+				},
+			},
+		}
+
+		var pod = &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-pod",
+				Namespace: "default",
+				Labels: map[string]string{
+					"jobset.sigs.k8s.io/jobset-name":           jsRef.Name,
+					"batch.kubernetes.io/job-name":             jobRef.Name,
+					"batch.kubernetes.io/job-completion-index": "0",
+				},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:  "test-container",
+						Image: "busybox",
+					},
+				},
+				RestartPolicy: corev1.RestartPolicyNever,
+				NodeName:      node.Name,
+			},
+		}
+
+		It("should watch a Node", func() {
+			Expect(k8sClient.Create(ctx, node)).To(Succeed())
+		})
+
+		// Necessary because pod reconciler uses a cached client
+		// which is eventually consistent w k8sClient here
+		time.Sleep(5 * time.Second)
+
+		It("should watch a Pod", func() {
+			Expect(k8sClient.Create(ctx, pod)).To(Succeed())
+		})
+
+		// Necessary because pod reconciler uses a cached client
+		// which is eventually consistent w k8sClient here
+		time.Sleep(5 * time.Second)
+
+		It("should publish nodepool metrics", func() {
+			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
+			assertMetrics(
+				// Depends on node and jobset pod being created
+				nodepool.job_scheduled.WithValue(1),
+				// Only depend on nodepool being created
+				nodepool.down_time_seconds,
+				nodepool.interruption_count.WithValue(0),
+				nodepool.recovery_count.WithValue(0),
+				nodepool.up.WithValue(0),
+				nodepool.up_time_seconds.WithValue(0),
+			)
+		})
+	})
+})
 
 var _ = Describe("JobSet metrics", func() {
 	Context("When reconciling a resource", func() {
@@ -190,6 +274,56 @@ type upnessMetrics struct {
 	down_time_between_recovery_seconds          metric
 	down_time_between_recovery_mean_seconds     metric
 	down_time_between_recovery_latest_seconds   metric
+}
+
+type utilizationMetrics struct {
+	// Always present
+	down_time_seconds  metric
+	interruption_count metric
+	recovery_count     metric
+	up                 metric
+	up_time_seconds    metric
+
+	// Present after events occur
+	job_scheduled metric
+}
+
+func expectedMetricsForNodePool(np *containerv1beta1.NodePool, jobSetName string, jobName string) utilizationMetrics {
+	nodepoolLabels := map[string]interface{}{
+		"nodepool_name": np.Name,
+		"tpu_topology":  tpuTopology,
+	}
+	nodepoolJobLabels := map[string]interface{}{
+		"job_name":      jobName,
+		"jobset_name":   jobSetName,
+		"nodepool_name": np.Name,
+	}
+	return utilizationMetrics{
+		job_scheduled: metric{
+			name:   "nodepool_job_scheduled",
+			labels: nodepoolJobLabels,
+		},
+		down_time_seconds: metric{
+			name:   "nodepool_down_time_seconds",
+			labels: nodepoolLabels,
+		},
+		interruption_count: metric{
+			name:   "nodepool_interruption_count",
+			labels: nodepoolLabels,
+		},
+		recovery_count: metric{
+			name:   "nodepool_recovery_count",
+			labels: nodepoolLabels,
+		},
+		up: metric{
+			name:   "nodepool_up",
+			labels: nodepoolLabels,
+		},
+		up_time_seconds: metric{
+			name:   "nodepool_up_time_seconds",
+			labels: nodepoolLabels,
+		},
+	}
 }
 
 func expectedMetricsForJobSet(js *jobset.JobSet) upnessMetrics {
