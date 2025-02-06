@@ -2,7 +2,7 @@ package metrics
 
 import (
 	"context"
-	"log"
+	"os"
 	"time"
 
 	"example.com/megamon/internal/k8sutils"
@@ -15,24 +15,28 @@ import (
 	metricsdk "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var (
 	AggregationDuration metric.Float64Histogram
 	Prefix              = "megamon"
+	log                 = logf.Log.WithName("metrics")
 )
 
 func initMeterProvider(ctx context.Context, interval time.Duration) *metricsdk.MeterProvider {
 	// Create a Prometheus exporter
 	promExporter, err := prometheus.New()
 	if err != nil {
-		log.Fatalf("failed to initialize prometheus exporter: %v", err)
+		log.Error(err, "failed to initialize Prometheus exporter")
+		os.Exit(1)
 	}
 	grpcExporter, err := otlpmetricgrpc.New(ctx,
 		otlpmetricgrpc.WithInsecure(),
 	)
 	if err != nil {
-		log.Fatalf("failed to initialize OTLP gRPC exporter: %v", err)
+		log.Error(err, "failed to initialize OTLP gRPC exporter")
+		os.Exit(1)
 	}
 
 	res, err := resource.Merge(
@@ -43,7 +47,7 @@ func initMeterProvider(ctx context.Context, interval time.Duration) *metricsdk.M
 		),
 	)
 	if err != nil {
-		log.Fatalf("Error creating resource: %v", err)
+		log.Error(err, "Error creating resource")
 	}
 
 	// Create a MeterProvider and register it globally
@@ -121,13 +125,14 @@ func Init(ctx context.Context, r Reporter, interval time.Duration) func() {
 		observables...,
 	)
 	if err != nil {
-		log.Fatalf("failed to register callback: %v", err)
+		log.Error(err, "failed to register callback")
+		os.Exit(2)
 	}
 
 	// Return a function that can be used to shutdown the provider.
 	return func() {
 		if err := provider.Shutdown(context.Background()); err != nil {
-			log.Printf("failed to shutdown MeterProvider: %v", err)
+			log.Error(err, "failed to shutdown MeterProvider")
 		}
 	}
 }
@@ -294,6 +299,7 @@ func mustRegisterUpnessMetrics(prefix string, meter metric.Meter) ([]metric.Obse
 }
 
 func observeTpuChipCount(o metric.Observer, tpuChipCountMetric metric.Int64ObservableGauge, schJobs map[string]records.ScheduledJob, jobSetNodesUp map[string]records.Upness, nodepools map[string]records.Upness) {
+	log.V(3).Info("observeTpuChipCount")
 	// create map of {jobsetName} -> [leaderjobNames, ...]
 	jobsByJobset := map[string]map[string]string{}
 	for npName, sch := range schJobs {
@@ -302,6 +308,9 @@ func observeTpuChipCount(o metric.Observer, tpuChipCountMetric metric.Int64Obser
 		}
 		jobsByJobset[sch.JobSetName][sch.JobName] = npName
 	}
+	log.V(3).Info("jobsByJobset map", "jobsByJobset", jobsByJobset)
+	log.V(3).Info("jobSetNodesUp map", "jobSetNodesUp", jobSetNodesUp)
+	log.V(3).Info("nodePoolScheduling map", "schJobs", schJobs)
 
 	// for each job uid, lookup leaderjobs by jobset
 	for uid, js := range jobSetNodesUp {
@@ -318,10 +327,10 @@ func observeTpuChipCount(o metric.Observer, tpuChipCountMetric metric.Int64Obser
 			metricAttrs = append(metricAttrs, attribute.KeyValue{Key: "spot", Value: attribute.BoolValue(js.Attrs.Spot)})
 			metricAttrs = append(metricAttrs, attribute.KeyValue{Key: "job.name", Value: attribute.StringValue(leaderJob)})
 			metricAttrs = append(metricAttrs, attribute.KeyValue{Key: "job.namespace", Value: attribute.StringValue(jobsetNamespace)})
-			if chipCount, err := k8sutils.TpuTopologyToChipCount(tpuTopology); err == nil {
-				o.ObserveInt64(tpuChipCountMetric, int64(chipCount), metric.WithAttributes(metricAttrs...))
+			if chipCount, err := k8sutils.TpuTopologyToChipCount(tpuTopology); err != nil {
+				log.Error(err, "error geting chip count for job", "namespace", jobsetNamespace, "jobsetName", jobsetName, "job", leaderJob, "topology", tpuTopology)
 			} else {
-				log.Printf("Error geting chip count for job: %s jobset: %s/%s topology: %s", leaderJob, jobsetNamespace, jobsetName, tpuTopology)
+				o.ObserveInt64(tpuChipCountMetric, int64(chipCount), metric.WithAttributes(metricAttrs...))
 			}
 		}
 	}
