@@ -104,6 +104,23 @@ func IsNodeReady(node *corev1.Node) bool {
 	return false
 }
 
+func TpuTopologyToChipCount(topo string) (int, error) {
+	// TODO: Do we need to validate expectedDims? GKE won't run the jobset if this is invalid?
+	split := strings.Split(topo, "x")
+	if split == nil {
+		return -1, fmt.Errorf("invalid topology: %v", topo)
+	}
+	product := 1
+	for _, s := range split {
+		x, err := strconv.Atoi(s)
+		if err != nil {
+			return 0, fmt.Errorf("invalid topology: %v, could not convert %q to int: %w", topo, s, err)
+		}
+		product *= x
+	}
+	return product, nil
+}
+
 func GetExpectedTPUNodePoolSize(node *corev1.Node) (int32, error) {
 	if node.Labels == nil {
 		return 0, fmt.Errorf("no annotations")
