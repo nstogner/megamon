@@ -7,7 +7,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"sync"
@@ -187,6 +186,8 @@ type GCSClient interface {
 
 func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient GKEClient, gcsClient GCSClient) {
 	metrics.Prefix = cfg.MetricsPrefix
+
+	setupLog.V(1).Info("starting manager with config", "cfg", cfg)
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will
@@ -414,7 +415,7 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 
 	wg.Add(1)
 	go func() {
-		log.Println("starting metrics server")
+		setupLog.Info("starting metrics server")
 		defer wg.Done()
 		if err := metricsServer.ListenAndServe(); err != nil {
 			if errors.Is(err, http.ErrServerClosed) {

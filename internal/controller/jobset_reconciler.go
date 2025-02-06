@@ -6,7 +6,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 )
 
@@ -22,8 +21,6 @@ type JobSetReconciler struct {
 // +kubebuilder:rbac:groups=jobset.x-k8s.io,resources=jobsets/status,verbs=get
 
 func (r *JobSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
-
 	if r.Disabled {
 		return ctrl.Result{}, nil
 	}
