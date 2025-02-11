@@ -48,6 +48,7 @@ func initMeterProvider(ctx context.Context, interval time.Duration) *metricsdk.M
 	)
 	if err != nil {
 		log.Error(err, "Error creating resource")
+		os.Exit(1)
 	}
 
 	// Create a MeterProvider and register it globally
@@ -126,7 +127,7 @@ func Init(ctx context.Context, r Reporter, interval time.Duration) func() {
 	)
 	if err != nil {
 		log.Error(err, "failed to register callback")
-		os.Exit(2)
+		os.Exit(1)
 	}
 
 	// Return a function that can be used to shutdown the provider.

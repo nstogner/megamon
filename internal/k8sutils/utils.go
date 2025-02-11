@@ -108,7 +108,7 @@ func TpuTopologyToChipCount(topo string) (int, error) {
 	// TODO: Do we need to validate expectedDims? GKE won't run the jobset if this is invalid?
 	split := strings.Split(topo, "x")
 	if split == nil {
-		return -1, fmt.Errorf("invalid topology: %v", topo)
+		return 0, fmt.Errorf("invalid topology: %v", topo)
 	}
 	product := 1
 	for _, s := range split {
