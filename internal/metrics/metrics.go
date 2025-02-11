@@ -2,9 +2,10 @@ package metrics
 
 import (
 	"context"
-	"log"
+	"os"
 	"time"
 
+	"example.com/megamon/internal/k8sutils"
 	"example.com/megamon/internal/records"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -14,24 +15,28 @@ import (
 	metricsdk "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var (
 	AggregationDuration metric.Float64Histogram
 	Prefix              = "megamon"
+	log                 = logf.Log.WithName("metrics")
 )
 
 func initMeterProvider(ctx context.Context, interval time.Duration) *metricsdk.MeterProvider {
 	// Create a Prometheus exporter
 	promExporter, err := prometheus.New()
 	if err != nil {
-		log.Fatalf("failed to initialize prometheus exporter: %v", err)
+		log.Error(err, "failed to initialize Prometheus exporter")
+		os.Exit(1)
 	}
 	grpcExporter, err := otlpmetricgrpc.New(ctx,
 		otlpmetricgrpc.WithInsecure(),
 	)
 	if err != nil {
-		log.Fatalf("failed to initialize OTLP gRPC exporter: %v", err)
+		log.Error(err, "failed to initialize OTLP gRPC exporter")
+		os.Exit(1)
 	}
 
 	res, err := resource.Merge(
@@ -42,7 +47,8 @@ func initMeterProvider(ctx context.Context, interval time.Duration) *metricsdk.M
 		),
 	)
 	if err != nil {
-		log.Fatalf("Error creating resource: %v", err)
+		log.Error(err, "Error creating resource")
+		os.Exit(1)
 	}
 
 	// Create a MeterProvider and register it globally
@@ -82,6 +88,10 @@ func Init(ctx context.Context, r Reporter, interval time.Duration) func() {
 	)
 	fatal(err)
 
+	tpuChipCount, err := meter.Int64ObservableGauge(Prefix+".jobset.tpu.chip.count",
+		metric.WithDescription("Total number of TPU chips."))
+	fatal(err)
+
 	jobsetObservables, observeJobset := mustRegisterUpnessMetrics(Prefix+".jobset", meter)
 	jobsetNodeObservables, observeJobsetNodes := mustRegisterUpnessMetrics(Prefix+".jobset.nodes", meter)
 	nodePoolObservables, observeNodePools := mustRegisterUpnessMetrics(Prefix+".nodepool", meter)
@@ -89,6 +99,7 @@ func Init(ctx context.Context, r Reporter, interval time.Duration) func() {
 	observables := append(jobsetObservables, jobsetNodeObservables...)
 	observables = append(observables, nodePoolObservables...)
 	observables = append(observables, nodePoolJobScheduled)
+	observables = append(observables, tpuChipCount)
 
 	_, err = meter.RegisterCallback(func(ctx context.Context, o metric.Observer) error {
 		if !r.ReportReady() {
@@ -100,6 +111,7 @@ func Init(ctx context.Context, r Reporter, interval time.Duration) func() {
 		observeJobset(ctx, o, report.JobSetsUp, report.JobSetsUpSummaries)
 		observeJobsetNodes(ctx, o, report.JobSetNodesUp, report.JobSetNodesUpSummaries)
 		observeNodePools(ctx, o, report.NodePoolsUp, report.NodePoolsUpSummaries)
+		observeTpuChipCount(o, tpuChipCount, report.NodePoolScheduling, report.JobSetNodesUp, report.NodePoolsUp)
 
 		for npName, sch := range report.NodePoolScheduling {
 			o.ObserveInt64(nodePoolJobScheduled, 1, metric.WithAttributes(
@@ -114,13 +126,14 @@ func Init(ctx context.Context, r Reporter, interval time.Duration) func() {
 		observables...,
 	)
 	if err != nil {
-		log.Fatalf("failed to register callback: %v", err)
+		log.Error(err, "failed to register callback")
+		os.Exit(1)
 	}
 
 	// Return a function that can be used to shutdown the provider.
 	return func() {
 		if err := provider.Shutdown(context.Background()); err != nil {
-			log.Printf("failed to shutdown MeterProvider: %v", err)
+			log.Error(err, "failed to shutdown MeterProvider")
 		}
 	}
 }
@@ -284,6 +297,44 @@ func mustRegisterUpnessMetrics(prefix string, meter metric.Meter) ([]metric.Obse
 		interruptionCount,
 		recoveryCount,
 	}, observeFunc
+}
+
+func observeTpuChipCount(o metric.Observer, tpuChipCountMetric metric.Int64ObservableGauge, schJobs map[string]records.ScheduledJob, jobSetNodesUp map[string]records.Upness, nodepools map[string]records.Upness) {
+	log.V(3).Info("observeTpuChipCount")
+	// create map of {jobsetName} -> [leaderjobNames, ...]
+	jobsByJobset := map[string]map[string]string{}
+	for npName, sch := range schJobs {
+		if jobsByJobset[sch.JobSetName] == nil {
+			jobsByJobset[sch.JobSetName] = make(map[string]string)
+		}
+		jobsByJobset[sch.JobSetName][sch.JobName] = npName
+	}
+	log.V(3).Info("jobsByJobset map", "jobsByJobset", jobsByJobset)
+	log.V(3).Info("jobSetNodesUp map", "jobSetNodesUp", jobSetNodesUp)
+	log.V(3).Info("nodePoolScheduling map", "schJobs", schJobs)
+
+	// for each job uid, lookup leaderjobs by jobset
+	for uid, js := range jobSetNodesUp {
+		var metricAttrs []attribute.KeyValue
+		jobsetName := js.Attrs.JobSetName
+		jobsetNamespace := js.Attrs.JobSetNamespace
+		metricAttrs = append(metricAttrs, attribute.KeyValue{Key: "jobset.uid", Value: attribute.StringValue(uid)})
+		metricAttrs = append(metricAttrs, attribute.KeyValue{Key: "jobset.name", Value: attribute.StringValue(jobsetName)})
+		for leaderJob, npName := range jobsByJobset[jobsetName] {
+			tpuTopology := nodepools[npName].TPUTopology
+			metricAttrs = append(metricAttrs, attribute.KeyValue{Key: "tpu.topology", Value: attribute.StringValue(tpuTopology)})
+			metricAttrs = append(metricAttrs, attribute.KeyValue{Key: "tpu.accelerator", Value: attribute.StringValue(js.Attrs.TPUAccelerator)})
+			metricAttrs = append(metricAttrs, attribute.KeyValue{Key: "nodepool.name", Value: attribute.StringValue(npName)})
+			metricAttrs = append(metricAttrs, attribute.KeyValue{Key: "spot", Value: attribute.BoolValue(js.Attrs.Spot)})
+			metricAttrs = append(metricAttrs, attribute.KeyValue{Key: "job.name", Value: attribute.StringValue(leaderJob)})
+			metricAttrs = append(metricAttrs, attribute.KeyValue{Key: "job.namespace", Value: attribute.StringValue(jobsetNamespace)})
+			if chipCount, err := k8sutils.TpuTopologyToChipCount(tpuTopology); err != nil {
+				log.Error(err, "error geting chip count for job", "namespace", jobsetNamespace, "jobsetName", jobsetName, "job", leaderJob, "topology", tpuTopology)
+			} else {
+				o.ObserveInt64(tpuChipCountMetric, int64(chipCount), metric.WithAttributes(metricAttrs...))
+			}
+		}
+	}
 }
 
 func fatal(err error) {

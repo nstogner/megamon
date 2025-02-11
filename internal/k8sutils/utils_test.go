@@ -9,6 +9,50 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+func TestTpuTopologyToChipCount(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		topo          string
+		want          int
+		wantErrString string
+	}{
+		"empty": {
+			topo:          "",
+			wantErrString: "invalid topology",
+		},
+		"invalid topo": {
+			topo:          "abc",
+			wantErrString: "invalid topology",
+		},
+
+		"2x2": {
+			topo: "2x2",
+			want: 4,
+		},
+		"1x2x4": {
+			topo: "1x2x4",
+			want: 8,
+		},
+		"8x8x4": {
+			topo: "8x8x4",
+			want: 256,
+		},
+	}
+
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, err := k8sutils.TpuTopologyToChipCount(c.topo)
+			if c.wantErrString != "" {
+				require.ErrorContains(t, err, c.wantErrString)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, c.want, got)
+		})
+	}
+}
+
 func TestGetExpectedTPUNodePoolSize(t *testing.T) {
 	t.Parallel()
 
