@@ -151,6 +151,11 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 				return
 			}
 			up.ExpectedCount = expectedCount
+			if tpuChipCount, err := k8sutils.TpuTopologyToChipCount(up.TPUTopology); err != nil {
+				log.Printf("WARNING: failed to convert TPU topology to chip count for node pool %q: %v", np.Name, err)
+			} else {
+				up.TPUChipCount = int32(tpuChipCount)
+			}
 			report.NodePoolsUp[np.Name] = up
 		}()
 	}
