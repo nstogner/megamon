@@ -108,6 +108,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 
 	for _, js := range jobsetList.Items {
 		if !k8sutils.IsJobSetActive(&js) {
+			log.Printf("Skipping inactive jobset: %s", js.Name) // log at more verbose level later
 			continue
 		}
 
