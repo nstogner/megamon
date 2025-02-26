@@ -30,12 +30,11 @@ func extractJobSetAttrs(js *jobset.JobSet) records.Attrs {
 			case k8sutils.NodeLabelGKETPUAccelerator:
 				attrs.TPUAccelerator = val
 			case k8sutils.NodeLabelGKETPUTopology:
-				attrs.TPUTopology = val
-				if topologyChipCount, err := k8sutils.TpuTopologyToChipCount(attrs.TPUTopology); err == nil {
+				if topologyChipCount, err := k8sutils.TpuTopologyToChipCount(val); err == nil {
 					rjChipCount = topologyChipCount
 				} else {
 					// TODO: use controller-runtime logging
-					log.Printf("error converting TPU topology (%s) to chip count: %v", attrs.TPUTopology, err)
+					log.Printf("error converting TPU topology (%s) to chip count: %v", val, err)
 				}
 			case k8sutils.NodeLabelGKESpot:
 				attrs.Spot = val == "true"
