@@ -36,7 +36,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
 	// +kubebuilder:scaffold:imports
+	"github.com/onsi/gomega/format"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
@@ -75,6 +77,7 @@ func TestControllers(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
+	format.MaxLength = 20000
 
 	ctx, cancel = context.WithCancel(context.TODO())
 
