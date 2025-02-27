@@ -236,8 +236,12 @@ func mustRegisterUpnessMetrics(prefix string, meter metric.Meter, includeTPUTopo
 			if upness.Up() {
 				val = 1
 			}
+			upnessAttr := OTELAttrs(upness.Attrs)
+			if includeTPUTopology && upness.Attrs.TPUTopology != "" {
+				upnessAttr = append(upnessAttr, attribute.String("tpu.topology", upness.Attrs.TPUTopology))
+			}
 			o.ObserveInt64(up, val, metric.WithAttributes(
-				OTELAttrs(upness.Attrs)...,
+				upnessAttr...,
 			))
 		}
 
