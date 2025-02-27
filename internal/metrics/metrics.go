@@ -82,9 +82,9 @@ func Init(ctx context.Context, r Reporter, interval time.Duration) func() {
 	)
 	fatal(err)
 
-	jobsetObservables, observeJobset := mustRegisterUpnessMetrics(Prefix+".jobset", meter, false)
-	jobsetNodeObservables, observeJobsetNodes := mustRegisterUpnessMetrics(Prefix+".jobset.nodes", meter, false)
-	nodePoolObservables, observeNodePools := mustRegisterUpnessMetrics(Prefix+".nodepool", meter, true)
+	jobsetObservables, observeJobset := mustRegisterUpnessMetrics(Prefix+".jobset", meter)
+	jobsetNodeObservables, observeJobsetNodes := mustRegisterUpnessMetrics(Prefix+".jobset.nodes", meter)
+	nodePoolObservables, observeNodePools := mustRegisterUpnessMetrics(Prefix+".nodepool", meter)
 
 	observables := append(jobsetObservables, jobsetNodeObservables...)
 	observables = append(observables, nodePoolObservables...)
@@ -136,6 +136,9 @@ func OTELAttrs(attrs records.Attrs) []attribute.KeyValue {
 	if attrs.JobSetUID != "" {
 		otelAttrs = append(otelAttrs, attribute.String("jobset.uid", attrs.JobSetUID))
 	}
+	if attrs.TPUTopology != "" {
+		otelAttrs = append(otelAttrs, attribute.String("tpu.topology", attrs.TPUTopology))
+	}
 	if attrs.TPUAccelerator != "" {
 		otelAttrs = append(otelAttrs, attribute.String("tpu.accelerator", attrs.TPUAccelerator))
 	}
@@ -151,7 +154,7 @@ func OTELAttrs(attrs records.Attrs) []attribute.KeyValue {
 type reportObserveFunc func(ctx context.Context, o metric.Observer, ups map[string]records.Upness, summaries map[string]records.UpnessSummaryWithAttrs)
 
 // mustRegisterUpnessMetrics registers a set of metrics for observing the upness of something.
-func mustRegisterUpnessMetrics(prefix string, meter metric.Meter, includeTPUTopology bool) ([]metric.Observable, reportObserveFunc) {
+func mustRegisterUpnessMetrics(prefix string, meter metric.Meter) ([]metric.Observable, reportObserveFunc) {
 	up, err := meter.Int64ObservableGauge(prefix+".up",
 		metric.WithDescription("Whether all replicas are in a Ready status (0 or 1)."),
 	)
@@ -237,9 +240,6 @@ func mustRegisterUpnessMetrics(prefix string, meter metric.Meter, includeTPUTopo
 				val = 1
 			}
 			upnessAttr := OTELAttrs(upness.Attrs)
-			if includeTPUTopology && upness.Attrs.TPUTopology != "" {
-				upnessAttr = append(upnessAttr, attribute.String("tpu.topology", upness.Attrs.TPUTopology))
-			}
 			o.ObserveInt64(up, val, metric.WithAttributes(
 				upnessAttr...,
 			))
@@ -247,9 +247,6 @@ func mustRegisterUpnessMetrics(prefix string, meter metric.Meter, includeTPUTopo
 
 		for _, summary := range summaries {
 			commonAttrs := OTELAttrs(summary.Attrs)
-			if includeTPUTopology && summary.Attrs.TPUTopology != "" {
-				commonAttrs = append(commonAttrs, attribute.String("tpu.topology", summary.Attrs.TPUTopology))
-			}
 			o.ObserveInt64(interruptionCount, int64(summary.InterruptionCount), metric.WithAttributes(commonAttrs...))
 			o.ObserveInt64(recoveryCount, int64(summary.RecoveryCount), metric.WithAttributes(commonAttrs...))
 			o.ObserveFloat64(upTime, summary.UpTime.Seconds(), metric.WithAttributes(commonAttrs...))

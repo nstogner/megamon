@@ -27,3 +27,9 @@ MegaMon was created to address shortcoming of using [kube-state-metrics](https:/
 * Difficult to derive high level metrics (like MTTR) when baseline metrics like Up-ness of jobset containers / nodes require their own complex queries.
 * Difficult or impossible to derive metrics like Time-to-provisioning / Time-to-first-up with promql
 * Current metrics are very large (they require all Nodes to be published as individual metrics and aggregated later)
+
+## Errata
+
+* If a jobset has multiple TPU topologies, only one of them will be in the
+  metric label
+

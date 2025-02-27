@@ -30,6 +30,7 @@ func extractJobSetAttrs(js *jobset.JobSet) records.Attrs {
 			case k8sutils.NodeLabelGKETPUAccelerator:
 				attrs.TPUAccelerator = val
 			case k8sutils.NodeLabelGKETPUTopology:
+				attrs.TPUTopology = val
 				if topologyChipCount, err := k8sutils.TpuTopologyToChipCount(val); err == nil {
 					rjChipCount = topologyChipCount
 				} else {
