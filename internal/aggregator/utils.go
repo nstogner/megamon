@@ -24,7 +24,6 @@ func extractJobSetAttrs(js *jobset.JobSet) records.Attrs {
 		//   cloud.google.com/gke-tpu-topology: 2x2x1
 		//   cloud.google.com/gke-spot: "true"
 		//
-		rjChipCount := 0
 		for key, val := range rj.Template.Spec.Template.Spec.NodeSelector {
 			switch key {
 			case k8sutils.NodeLabelGKETPUAccelerator:
@@ -41,7 +40,6 @@ func extractJobSetAttrs(js *jobset.JobSet) records.Attrs {
 				attrs.Spot = val == "true"
 			}
 		}
-		chipCount += rj.Replicas * int32(rjChipCount)
 	}
 
 	attrs.JobSetName = js.Name
