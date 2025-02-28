@@ -30,6 +30,5 @@ MegaMon was created to address shortcoming of using [kube-state-metrics](https:/
 
 ## Errata
 
-* If a jobset has multiple TPU topologies, only one of them will be in the
-  metric label
-
+* If a jobset has multiple TPU topologies, the label value will be the TPU
+  topology of the last replicated job in the jobset.
