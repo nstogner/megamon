@@ -65,8 +65,8 @@ var testCfg = manager.Config{
 	AggregationIntervalSeconds: 1,
 	EventsBucketName:           "test-bucket",
 	EventsBucketPath:           "test-path",
-	MetricsAddr:                "127.0.0.1:8080",
-	ProbeAddr:                  "127.0.0.1:8081",
+	MetricsAddr:                "127.0.0.1:28080",
+	ProbeAddr:                  "127.0.0.1:28081",
 }
 
 func TestControllers(t *testing.T) {
