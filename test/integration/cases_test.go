@@ -312,6 +312,30 @@ var _ = Describe("JobSet metrics", func() {
 				metrics.tpu_chip_count.WithValue(24),
 			)
 		})
+
+		It("should watch a jobset with a single replicated job", func() {
+			Expect(k8sClient.Create(ctx, jobsetSingleJob)).To(Succeed())
+		})
+		It("should publish total TPU chip counts by jobset", func() {
+			By("looking at TPU topology per replicated job in a deployed jobset")
+			metrics := expectedMetricsForJobSet(jobsetSingleJob)
+			metrics.tpu_chip_count.labels["tpu_topology"] = "2x4"
+			assertMetrics(
+				metrics.tpu_chip_count.WithValue(8),
+			)
+		})
+
+		It("should watch a jobset with a two replicated jobs", func() {
+			Expect(k8sClient.Create(ctx, jobsetMultipleRJobs)).To(Succeed())
+		})
+		It("should publish total TPU chip counts by jobset with multiple replicated jobs with >1 replica", func() {
+			By("looking at TPU topology per replicated job in a deployed jobset")
+			metrics := expectedMetricsForJobSet(jobsetMultipleRJobs)
+			metrics.tpu_chip_count.labels["tpu_topology"] = "2x4"
+			assertMetrics(
+				metrics.tpu_chip_count.WithValue(24),
+			)
+		})
 	})
 })
 
