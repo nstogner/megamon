@@ -77,7 +77,7 @@ func TestControllers(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
-	format.MaxLength = 20000 // Gomega default is 4000, anything past "MaxLength" will get truncateed in output
+	format.MaxLength = 30000 // Gomega default is 4000, anything past "MaxLength" will get truncateed in output
 
 	ctx, cancel = context.WithCancel(context.TODO())
 

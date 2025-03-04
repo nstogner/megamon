@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"example.com/megamon/internal/k8sutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	containerv1beta1 "google.golang.org/api/container/v1beta1"
@@ -35,6 +36,78 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
+)
+
+var (
+	replicatedJob_2x4_r1 = &jobset.ReplicatedJob{
+		Name:     "rj-a",
+		Replicas: 1,
+		Template: batchv1.JobTemplateSpec{
+			Spec: batchv1.JobSpec{
+				Parallelism: ptr.To[int32](1),
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						NodeSelector: map[string]string{
+							k8sutils.NodeLabelGKETPUTopology: "2x4",
+						},
+						Containers: []corev1.Container{
+							{
+								Name:  "test-container",
+								Image: "busybox",
+							},
+						},
+						RestartPolicy: corev1.RestartPolicyNever,
+					},
+				},
+			},
+		},
+	}
+	replicatedJob_2x4_r2 = &jobset.ReplicatedJob{
+		Name:     "rj-b",
+		Replicas: 2,
+		Template: batchv1.JobTemplateSpec{
+			Spec: batchv1.JobSpec{
+				Parallelism: ptr.To[int32](1),
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						NodeSelector: map[string]string{
+							k8sutils.NodeLabelGKETPUTopology: "2x4",
+						},
+						Containers: []corev1.Container{
+							{
+								Name:  "test-container",
+								Image: "busybox",
+							},
+						},
+						RestartPolicy: corev1.RestartPolicyNever,
+					},
+				},
+			},
+		},
+	}
+	jobsetSingleJob = &jobset.JobSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "js-rj-16",
+			Namespace: "default",
+		},
+		Spec: jobset.JobSetSpec{
+			ReplicatedJobs: []jobset.ReplicatedJob{
+				*replicatedJob_2x4_r1,
+			},
+		},
+	}
+	jobsetMultipleRJobs = &jobset.JobSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "js-rj2-24",
+			Namespace: "default",
+		},
+		Spec: jobset.JobSetSpec{
+			ReplicatedJobs: []jobset.ReplicatedJob{
+				*replicatedJob_2x4_r1,
+				*replicatedJob_2x4_r2,
+			},
+		},
+	}
 )
 
 var _ = Describe("Nodepool metrics", func() {
@@ -116,6 +189,7 @@ var _ = Describe("Nodepool metrics", func() {
 				nodepool.up_time_seconds.WithValue(0),
 			)
 		})
+
 	})
 })
 
@@ -255,6 +329,30 @@ var _ = Describe("JobSet metrics", func() {
 				jobset.recovery_count.WithValue(1),
 			)
 		})
+
+		It("should watch a jobset with a single replicated job", func() {
+			Expect(k8sClient.Create(ctx, jobsetSingleJob)).To(Succeed())
+		})
+		It("should publish total TPU chip counts by jobset", func() {
+			By("looking at TPU topology per replicated job in a deployed jobset")
+			metrics := expectedMetricsForJobSet(jobsetSingleJob)
+			metrics.tpu_chip_count.labels["tpu_topology"] = "2x4"
+			assertMetrics(
+				metrics.tpu_chip_count.WithValue(8),
+			)
+		})
+
+		It("should watch a jobset with a two replicated jobs", func() {
+			Expect(k8sClient.Create(ctx, jobsetMultipleRJobs)).To(Succeed())
+		})
+		It("should publish total TPU chip counts by jobset with multiple replicated jobs with >1 replica", func() {
+			By("looking at TPU topology per replicated job in a deployed jobset")
+			metrics := expectedMetricsForJobSet(jobsetMultipleRJobs)
+			metrics.tpu_chip_count.labels["tpu_topology"] = "2x4"
+			assertMetrics(
+				metrics.tpu_chip_count.WithValue(24),
+			)
+		})
 	})
 })
 
@@ -265,6 +363,7 @@ type upnessMetrics struct {
 	down_time_seconds  metric
 	interruption_count metric
 	recovery_count     metric
+	tpu_chip_count     metric
 
 	// Present after events occur
 	up_time_between_interruption_seconds        metric
@@ -380,6 +479,10 @@ func expectedMetricsForJobSet(js *jobset.JobSet) upnessMetrics {
 		},
 		down_time_between_recovery_latest_seconds: metric{
 			name:   "jobset_down_time_between_recovery_latest_seconds",
+			labels: jsLabels,
+		},
+		tpu_chip_count: metric{
+			name:   "jobset_tpu_chip_count",
 			labels: jsLabels,
 		},
 	}
