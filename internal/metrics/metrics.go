@@ -229,7 +229,7 @@ func mustRegisterUpnessMetrics(prefix string, meter metric.Meter) ([]metric.Obse
 	)
 	fatal(err)
 
-	tpuChipCount, err := meter.Int64ObservableGauge(Prefix+".jobset.tpu.chip.count",
+	tpuChipCount, err := meter.Int64ObservableGauge(prefix+".tpu.chip.count",
 		metric.WithDescription("Total number of TPU chips."))
 	fatal(err)
 
