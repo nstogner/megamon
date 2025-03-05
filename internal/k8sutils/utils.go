@@ -149,4 +149,3 @@ func GetTpuTopologyToChipCount(topo string) (int, error) {
 	}
 	return product, nil
 }
-
