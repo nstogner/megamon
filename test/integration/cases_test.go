@@ -187,6 +187,7 @@ var _ = Describe("Nodepool metrics", func() {
 				nodepool.recovery_count.WithValue(0),
 				nodepool.up.WithValue(0),
 				nodepool.up_time_seconds.WithValue(0),
+				nodepool.tpu_chip_count.WithValue(256),
 			)
 		})
 
@@ -382,6 +383,7 @@ type utilizationMetrics struct {
 	recovery_count     metric
 	up                 metric
 	up_time_seconds    metric
+	tpu_chip_count     metric
 
 	// Present after events occur
 	job_scheduled metric
@@ -420,6 +422,10 @@ func expectedMetricsForNodePool(np *containerv1beta1.NodePool, jobSetName string
 		},
 		up_time_seconds: metric{
 			name:   "nodepool_up_time_seconds",
+			labels: nodepoolLabels,
+		},
+		tpu_chip_count: metric{
+			name:   "nodepool_tpu_chip_count",
 			labels: nodepoolLabels,
 		},
 	}
