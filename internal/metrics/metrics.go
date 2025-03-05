@@ -160,6 +160,11 @@ func mustRegisterUpnessMetrics(prefix string, meter metric.Meter) ([]metric.Obse
 	)
 	fatal(err)
 
+	npChipCount, err := meter.Int64ObservableGauge(prefix+".tpu.chip.count",
+		metric.WithDescription("Total number of TPU chips."),
+	)
+	fatal(err)
+
 	// NOTE: Gauges are used instead of Counters because Megamon restarts
 	// can show up as different timeseries if they are scraped using a scraper that
 	// adds a label for the megamon Pod name (when scraped via `kind: PodMonitoring` in
@@ -274,6 +279,9 @@ func mustRegisterUpnessMetrics(prefix string, meter metric.Meter) ([]metric.Obse
 			if summary.TPUChipCount != 0 {
 				o.ObserveInt64(tpuChipCount, int64(summary.TPUChipCount), metric.WithAttributes(commonAttrs...))
 			}
+			if summary.Attrs.NodePoolName != "" && summary.TPUChipCount != 0 {
+				o.ObserveInt64(npChipCount, int64(summary.TPUChipCount), metric.WithAttributes(commonAttrs...))
+			}
 		}
 	}
 
@@ -291,6 +299,7 @@ func mustRegisterUpnessMetrics(prefix string, meter metric.Meter) ([]metric.Obse
 		interruptionCount,
 		recoveryCount,
 		tpuChipCount,
+		npChipCount,
 	}, observeFunc
 }
 
