@@ -198,11 +198,6 @@ var _ = Describe("JobSet metrics", func() {
 	Context("When reconciling a resource", func() {
 		ctx := context.Background()
 
-		jsRef := types.NamespacedName{
-			Name:      "test-js",
-			Namespace: "default",
-		}
-
 		//BeforeEach(func() {
 		//})
 
@@ -211,48 +206,21 @@ var _ = Describe("JobSet metrics", func() {
 		//	Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		//})
 
-		var js *jobset.JobSet
+		js := jobsetSingleJob
 		It("should watch a JobSet", func() {
-			js = &jobset.JobSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      jsRef.Name,
-					Namespace: jsRef.Namespace,
-				},
-				Spec: jobset.JobSetSpec{
-					ReplicatedJobs: []jobset.ReplicatedJob{
-						{
-							Name: "job1",
-							Template: batchv1.JobTemplateSpec{
-								Spec: batchv1.JobSpec{
-									BackoffLimit: ptr.To[int32](4),
-									Template: corev1.PodTemplateSpec{
-										Spec: corev1.PodSpec{
-											Containers: []corev1.Container{
-												{
-													Name:  "test-container",
-													Image: "busybox",
-												},
-											},
-											RestartPolicy: corev1.RestartPolicyNever,
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			}
 			Expect(k8sClient.Create(ctx, js)).To(Succeed())
 		})
 
 		It("should publish metrics after submitting a jobset", func() {
 			jobset := expectedMetricsForJobSet(js)
+			jobset.tpu_chip_count.labels["tpu_topology"] = "2x4"
 			assertMetrics(
 				jobset.up.WithValue(0),
 				jobset.up_time_seconds,
 				jobset.down_time_seconds,
 				jobset.interruption_count.WithValue(0),
 				jobset.recovery_count.WithValue(0),
+				jobset.tpu_chip_count.WithValue(8),
 			)
 		})
 
@@ -268,6 +236,7 @@ var _ = Describe("JobSet metrics", func() {
 
 			By("rechecking the metrics")
 			jobset := expectedMetricsForJobSet(js)
+			jobset.tpu_chip_count.labels["tpu_topology"] = "2x4"
 			assertMetrics(
 				jobset.up.WithValue(1),
 				jobset.up_time_seconds,
@@ -290,6 +259,7 @@ var _ = Describe("JobSet metrics", func() {
 
 			By("rechecking the metrics")
 			jobset := expectedMetricsForJobSet(js)
+			jobset.tpu_chip_count.labels["tpu_topology"] = "2x4"
 			assertMetrics(
 				jobset.up.WithValue(0),
 				jobset.up_time_seconds,
@@ -315,6 +285,7 @@ var _ = Describe("JobSet metrics", func() {
 
 			By("rechecking the metrics")
 			jobset := expectedMetricsForJobSet(js)
+			jobset.tpu_chip_count.labels["tpu_topology"] = "2x4"
 			assertMetrics(
 				jobset.up.WithValue(1),
 				jobset.up_time_seconds,
@@ -328,18 +299,6 @@ var _ = Describe("JobSet metrics", func() {
 				jobset.down_time_between_recovery_latest_seconds,
 				jobset.interruption_count.WithValue(1),
 				jobset.recovery_count.WithValue(1),
-			)
-		})
-
-		It("should watch a jobset with a single replicated job", func() {
-			Expect(k8sClient.Create(ctx, jobsetSingleJob)).To(Succeed())
-		})
-		It("should publish total TPU chip counts by jobset", func() {
-			By("looking at TPU topology per replicated job in a deployed jobset")
-			metrics := expectedMetricsForJobSet(jobsetSingleJob)
-			metrics.tpu_chip_count.labels["tpu_topology"] = "2x4"
-			assertMetrics(
-				metrics.tpu_chip_count.WithValue(8),
 			)
 		})
 
