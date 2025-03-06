@@ -5,7 +5,6 @@ import (
 
 	"example.com/megamon/internal/k8sutils"
 	"example.com/megamon/internal/records"
-	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/require"
 
 	containerv1beta1 "google.golang.org/api/container/v1beta1"
@@ -223,9 +222,7 @@ func TestExtractJobSetAttrs(t *testing.T) {
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
 			got := extractJobSetAttrs(c.js)
-			if diff := cmp.Diff(c.want, got); diff != "" {
-				t.Errorf("extractJobSetAttrs() mismatch (-want +got):\n%s", diff)
-			}
+			require.Equal(t, c.want, got)
 		})
 	}
 }
@@ -272,9 +269,7 @@ func TestExtractNodeAttrs(t *testing.T) {
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
 			got := extractNodeAttrs(c.node)
-			if diff := cmp.Diff(c.want, got); diff != "" {
-				t.Errorf("extractNodeAttrs() mismatch (-want +got):\n%s", diff)
-			}
+			require.Equal(t, c.want, got)
 		})
 	}
 }
