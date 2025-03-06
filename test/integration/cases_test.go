@@ -318,8 +318,7 @@ var _ = Describe("JobSet metrics", func() {
 		})
 		It("should publish total TPU chip counts by jobset with multiple replicated jobs with >1 replica", func() {
 			By("looking at TPU topology per replicated job in a deployed jobset")
-			metrics := expectedMetricsForJobSet(jobsetMultipleRJobs)
-			metrics.tpu_chip_count.labels["tpu_topology"] = "2x4"
+			metrics := expectedMetricsForJobSet(jobsetMultipleRJobs, "2x4")
 			assertMetrics(
 				metrics.tpu_chip_count.WithValue(24),
 			)
