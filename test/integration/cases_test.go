@@ -87,7 +87,7 @@ var (
 	}
 	jobsetSingleJob = &jobset.JobSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "js-rj-16",
+			Name:      "js-rj-8",
 			Namespace: "default",
 		},
 		Spec: jobset.JobSetSpec{
@@ -133,7 +133,8 @@ var _ = Describe("Nodepool metrics", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test-node",
 				Labels: map[string]string{
-					"cloud.google.com/gke-nodepool": nodePoolName,
+					"cloud.google.com/gke-nodepool":     nodePoolName,
+					"cloud.google.com/gke-tpu-topology": "2x4",
 				},
 			},
 		}
@@ -212,8 +213,7 @@ var _ = Describe("JobSet metrics", func() {
 		})
 
 		It("should publish metrics after submitting a jobset", func() {
-			jobset := expectedMetricsForJobSet(js)
-			jobset.tpu_chip_count.labels["tpu_topology"] = "2x4"
+			jobset := expectedMetricsForJobSet(js, "2x4")
 			assertMetrics(
 				jobset.up.WithValue(0),
 				jobset.up_time_seconds,
@@ -235,8 +235,7 @@ var _ = Describe("JobSet metrics", func() {
 			Expect(k8sClient.Status().Update(ctx, js)).To(Succeed())
 
 			By("rechecking the metrics")
-			jobset := expectedMetricsForJobSet(js)
-			jobset.tpu_chip_count.labels["tpu_topology"] = "2x4"
+			jobset := expectedMetricsForJobSet(js, "2x4")
 			assertMetrics(
 				jobset.up.WithValue(1),
 				jobset.up_time_seconds,
@@ -244,6 +243,7 @@ var _ = Describe("JobSet metrics", func() {
 				jobset.down_time_initial_seconds,
 				jobset.interruption_count.WithValue(0),
 				jobset.recovery_count.WithValue(0),
+				jobset.tpu_chip_count.WithValue(8),
 			)
 		})
 
@@ -258,8 +258,7 @@ var _ = Describe("JobSet metrics", func() {
 			Expect(k8sClient.Status().Update(ctx, js)).To(Succeed())
 
 			By("rechecking the metrics")
-			jobset := expectedMetricsForJobSet(js)
-			jobset.tpu_chip_count.labels["tpu_topology"] = "2x4"
+			jobset := expectedMetricsForJobSet(js, "2x4")
 			assertMetrics(
 				jobset.up.WithValue(0),
 				jobset.up_time_seconds,
@@ -270,6 +269,7 @@ var _ = Describe("JobSet metrics", func() {
 				jobset.up_time_between_interruption_latest_seconds,
 				jobset.interruption_count.WithValue(1),
 				jobset.recovery_count.WithValue(0),
+				jobset.tpu_chip_count.WithValue(8),
 			)
 		})
 
@@ -284,8 +284,7 @@ var _ = Describe("JobSet metrics", func() {
 			Expect(k8sClient.Status().Update(ctx, js)).To(Succeed())
 
 			By("rechecking the metrics")
-			jobset := expectedMetricsForJobSet(js)
-			jobset.tpu_chip_count.labels["tpu_topology"] = "2x4"
+			jobset := expectedMetricsForJobSet(js, "2x4")
 			assertMetrics(
 				jobset.up.WithValue(1),
 				jobset.up_time_seconds,
@@ -299,6 +298,7 @@ var _ = Describe("JobSet metrics", func() {
 				jobset.down_time_between_recovery_latest_seconds,
 				jobset.interruption_count.WithValue(1),
 				jobset.recovery_count.WithValue(1),
+				jobset.tpu_chip_count.WithValue(8),
 			)
 		})
 
@@ -307,8 +307,7 @@ var _ = Describe("JobSet metrics", func() {
 		})
 		It("should publish total TPU chip counts by jobset with multiple replicated jobs with >1 replica", func() {
 			By("looking at TPU topology per replicated job in a deployed jobset")
-			metrics := expectedMetricsForJobSet(jobsetMultipleRJobs)
-			metrics.tpu_chip_count.labels["tpu_topology"] = "2x4"
+			metrics := expectedMetricsForJobSet(jobsetMultipleRJobs, "2x4")
 			assertMetrics(
 				metrics.tpu_chip_count.WithValue(24),
 			)
@@ -390,12 +389,13 @@ func expectedMetricsForNodePool(np *containerv1beta1.NodePool, jobSetName string
 	}
 }
 
-func expectedMetricsForJobSet(js *jobset.JobSet) upnessMetrics {
+func expectedMetricsForJobSet(js *jobset.JobSet, tpuTopology string) upnessMetrics {
 	// megamon_test_jobset_up{jobset_name="test-js",jobset_namespace="default",jobset_uid="a9876d7f-4639-41a3-9961-9ac68e0fcb7b",otel_scope_name="megamon",otel_scope_version=""} 0
 	jsLabels := map[string]interface{}{
 		"jobset_name":      js.Name,
 		"jobset_namespace": js.Namespace,
 		"jobset_uid":       js.UID,
+		"tpu_topology":     tpuTopology,
 	}
 	return upnessMetrics{
 		up: metric{
