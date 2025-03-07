@@ -126,18 +126,26 @@ func GetExpectedTPUNodePoolSize(node *corev1.Node) (int32, error) {
 		return 0, fmt.Errorf("invalid accelerator count: %d", acceleratorCount)
 	}
 
-	split := strings.Split(topoVal, "x")
+	product, err := GetTpuTopologyToChipCount(topoVal)
+	if err != nil {
+		return 0, err
+	}
+	return int32(product / acceleratorCount), nil
+}
+
+func GetTpuTopologyToChipCount(topo string) (int, error) {
+	// TODO: Do we need to validate expectedDims? GKE won't run the jobset if this is invalid?
+	split := strings.Split(topo, "x")
 	if len(split) < 2 {
-		return 0, fmt.Errorf("invalid topology: %q", topoVal)
+		return 0, fmt.Errorf("invalid topology: %q", topo)
 	}
 	product := 1
 	for _, s := range split {
 		x, err := strconv.Atoi(s)
 		if err != nil {
-			return 0, fmt.Errorf("invalid topology: %q, could not convert %q to int: %w", topoVal, s, err)
+			return 0, fmt.Errorf("invalid topology: %v, could not convert %q to int: %w", topo, s, err)
 		}
 		product *= x
 	}
-
-	return int32(product / acceleratorCount), nil
+	return product, nil
 }

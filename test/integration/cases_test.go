@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"example.com/megamon/internal/k8sutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	containerv1beta1 "google.golang.org/api/container/v1beta1"
@@ -35,6 +36,78 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
+)
+
+var (
+	replicatedJob_2x4_r1 = &jobset.ReplicatedJob{
+		Name:     "rj-a",
+		Replicas: 1,
+		Template: batchv1.JobTemplateSpec{
+			Spec: batchv1.JobSpec{
+				Parallelism: ptr.To[int32](1),
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						NodeSelector: map[string]string{
+							k8sutils.NodeLabelGKETPUTopology: "2x4",
+						},
+						Containers: []corev1.Container{
+							{
+								Name:  "test-container",
+								Image: "busybox",
+							},
+						},
+						RestartPolicy: corev1.RestartPolicyNever,
+					},
+				},
+			},
+		},
+	}
+	replicatedJob_2x4_r2 = &jobset.ReplicatedJob{
+		Name:     "rj-b",
+		Replicas: 2,
+		Template: batchv1.JobTemplateSpec{
+			Spec: batchv1.JobSpec{
+				Parallelism: ptr.To[int32](1),
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						NodeSelector: map[string]string{
+							k8sutils.NodeLabelGKETPUTopology: "2x4",
+						},
+						Containers: []corev1.Container{
+							{
+								Name:  "test-container",
+								Image: "busybox",
+							},
+						},
+						RestartPolicy: corev1.RestartPolicyNever,
+					},
+				},
+			},
+		},
+	}
+	jobsetSingleJob = &jobset.JobSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "js-rj-8",
+			Namespace: "default",
+		},
+		Spec: jobset.JobSetSpec{
+			ReplicatedJobs: []jobset.ReplicatedJob{
+				*replicatedJob_2x4_r1,
+			},
+		},
+	}
+	jobsetMultipleRJobs = &jobset.JobSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "js-rj2-24",
+			Namespace: "default",
+		},
+		Spec: jobset.JobSetSpec{
+			ReplicatedJobs: []jobset.ReplicatedJob{
+				*replicatedJob_2x4_r1,
+				*replicatedJob_2x4_r2,
+			},
+		},
+	}
 )
 
 var _ = Describe("Nodepool metrics", func() {
@@ -60,7 +133,8 @@ var _ = Describe("Nodepool metrics", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test-node",
 				Labels: map[string]string{
-					"cloud.google.com/gke-nodepool": nodePoolName,
+					"cloud.google.com/gke-nodepool":     nodePoolName,
+					"cloud.google.com/gke-tpu-topology": "2x4",
 				},
 			},
 		}
@@ -114,19 +188,16 @@ var _ = Describe("Nodepool metrics", func() {
 				nodepool.recovery_count.WithValue(0),
 				nodepool.up.WithValue(0),
 				nodepool.up_time_seconds.WithValue(0),
+				nodepool.tpu_chip_count.WithValue(256),
 			)
 		})
+
 	})
 })
 
 var _ = Describe("JobSet metrics", func() {
 	Context("When reconciling a resource", func() {
 		ctx := context.Background()
-
-		jsRef := types.NamespacedName{
-			Name:      "test-js",
-			Namespace: "default",
-		}
 
 		//BeforeEach(func() {
 		//})
@@ -136,48 +207,20 @@ var _ = Describe("JobSet metrics", func() {
 		//	Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		//})
 
-		var js *jobset.JobSet
+		js := jobsetSingleJob
 		It("should watch a JobSet", func() {
-			js = &jobset.JobSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      jsRef.Name,
-					Namespace: jsRef.Namespace,
-				},
-				Spec: jobset.JobSetSpec{
-					ReplicatedJobs: []jobset.ReplicatedJob{
-						{
-							Name: "job1",
-							Template: batchv1.JobTemplateSpec{
-								Spec: batchv1.JobSpec{
-									BackoffLimit: ptr.To[int32](4),
-									Template: corev1.PodTemplateSpec{
-										Spec: corev1.PodSpec{
-											Containers: []corev1.Container{
-												{
-													Name:  "test-container",
-													Image: "busybox",
-												},
-											},
-											RestartPolicy: corev1.RestartPolicyNever,
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			}
 			Expect(k8sClient.Create(ctx, js)).To(Succeed())
 		})
 
 		It("should publish metrics after submitting a jobset", func() {
-			jobset := expectedMetricsForJobSet(js)
+			jobset := expectedMetricsForJobSet(js, "2x4")
 			assertMetrics(
 				jobset.up.WithValue(0),
 				jobset.up_time_seconds,
 				jobset.down_time_seconds,
 				jobset.interruption_count.WithValue(0),
 				jobset.recovery_count.WithValue(0),
+				jobset.tpu_chip_count.WithValue(8),
 			)
 		})
 
@@ -192,7 +235,7 @@ var _ = Describe("JobSet metrics", func() {
 			Expect(k8sClient.Status().Update(ctx, js)).To(Succeed())
 
 			By("rechecking the metrics")
-			jobset := expectedMetricsForJobSet(js)
+			jobset := expectedMetricsForJobSet(js, "2x4")
 			assertMetrics(
 				jobset.up.WithValue(1),
 				jobset.up_time_seconds,
@@ -200,6 +243,7 @@ var _ = Describe("JobSet metrics", func() {
 				jobset.down_time_initial_seconds,
 				jobset.interruption_count.WithValue(0),
 				jobset.recovery_count.WithValue(0),
+				jobset.tpu_chip_count.WithValue(8),
 			)
 		})
 
@@ -214,7 +258,7 @@ var _ = Describe("JobSet metrics", func() {
 			Expect(k8sClient.Status().Update(ctx, js)).To(Succeed())
 
 			By("rechecking the metrics")
-			jobset := expectedMetricsForJobSet(js)
+			jobset := expectedMetricsForJobSet(js, "2x4")
 			assertMetrics(
 				jobset.up.WithValue(0),
 				jobset.up_time_seconds,
@@ -225,6 +269,7 @@ var _ = Describe("JobSet metrics", func() {
 				jobset.up_time_between_interruption_latest_seconds,
 				jobset.interruption_count.WithValue(1),
 				jobset.recovery_count.WithValue(0),
+				jobset.tpu_chip_count.WithValue(8),
 			)
 		})
 
@@ -239,7 +284,7 @@ var _ = Describe("JobSet metrics", func() {
 			Expect(k8sClient.Status().Update(ctx, js)).To(Succeed())
 
 			By("rechecking the metrics")
-			jobset := expectedMetricsForJobSet(js)
+			jobset := expectedMetricsForJobSet(js, "2x4")
 			assertMetrics(
 				jobset.up.WithValue(1),
 				jobset.up_time_seconds,
@@ -253,6 +298,18 @@ var _ = Describe("JobSet metrics", func() {
 				jobset.down_time_between_recovery_latest_seconds,
 				jobset.interruption_count.WithValue(1),
 				jobset.recovery_count.WithValue(1),
+				jobset.tpu_chip_count.WithValue(8),
+			)
+		})
+
+		It("should watch a jobset with a two replicated jobs", func() {
+			Expect(k8sClient.Create(ctx, jobsetMultipleRJobs)).To(Succeed())
+		})
+		It("should publish total TPU chip counts by jobset with multiple replicated jobs with >1 replica", func() {
+			By("looking at TPU topology per replicated job in a deployed jobset")
+			metrics := expectedMetricsForJobSet(jobsetMultipleRJobs, "2x4")
+			assertMetrics(
+				metrics.tpu_chip_count.WithValue(24),
 			)
 		})
 	})
@@ -265,6 +322,7 @@ type upnessMetrics struct {
 	down_time_seconds  metric
 	interruption_count metric
 	recovery_count     metric
+	tpu_chip_count     metric
 
 	// Present after events occur
 	up_time_between_interruption_seconds        metric
@@ -283,6 +341,7 @@ type utilizationMetrics struct {
 	recovery_count     metric
 	up                 metric
 	up_time_seconds    metric
+	tpu_chip_count     metric
 
 	// Present after events occur
 	job_scheduled metric
@@ -323,15 +382,20 @@ func expectedMetricsForNodePool(np *containerv1beta1.NodePool, jobSetName string
 			name:   "nodepool_up_time_seconds",
 			labels: nodepoolLabels,
 		},
+		tpu_chip_count: metric{
+			name:   "nodepool_tpu_chip_count",
+			labels: nodepoolLabels,
+		},
 	}
 }
 
-func expectedMetricsForJobSet(js *jobset.JobSet) upnessMetrics {
+func expectedMetricsForJobSet(js *jobset.JobSet, tpuTopology string) upnessMetrics {
 	// megamon_test_jobset_up{jobset_name="test-js",jobset_namespace="default",jobset_uid="a9876d7f-4639-41a3-9961-9ac68e0fcb7b",otel_scope_name="megamon",otel_scope_version=""} 0
 	jsLabels := map[string]interface{}{
 		"jobset_name":      js.Name,
 		"jobset_namespace": js.Namespace,
 		"jobset_uid":       js.UID,
+		"tpu_topology":     tpuTopology,
 	}
 	return upnessMetrics{
 		up: metric{
@@ -380,6 +444,10 @@ func expectedMetricsForJobSet(js *jobset.JobSet) upnessMetrics {
 		},
 		down_time_between_recovery_latest_seconds: metric{
 			name:   "jobset_down_time_between_recovery_latest_seconds",
+			labels: jsLabels,
+		},
+		tpu_chip_count: metric{
+			name:   "jobset_tpu_chip_count",
 			labels: jsLabels,
 		},
 	}

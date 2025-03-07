@@ -108,6 +108,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 
 	for _, js := range jobsetList.Items {
 		if !k8sutils.IsJobSetActive(&js) {
+			log.Printf("Skipping inactive jobset: %s", js.Name) // log at more verbose level later
 			continue
 		}
 
@@ -150,6 +151,11 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 				return
 			}
 			up.ExpectedCount = expectedCount
+			if tpuChipCount, err := k8sutils.GetTpuTopologyToChipCount(up.TPUTopology); err != nil {
+				log.Printf("WARNING: failed to convert TPU topology to chip count for node pool %q: %v", np.Name, err)
+			} else {
+				up.TPUChipCount = int32(tpuChipCount)
+			}
 			report.NodePoolsUp[np.Name] = up
 		}()
 	}

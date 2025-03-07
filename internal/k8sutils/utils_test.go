@@ -80,3 +80,60 @@ func TestGetExpectedTPUNodePoolSize(t *testing.T) {
 	}
 
 }
+
+func TestGetTpuTopologyToChipCount(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		topo            string
+		want            int
+		wantErrContains string
+	}{
+		"valid 2x2": {
+			topo: "2x2",
+			want: 4,
+		},
+		"valid 2x4": {
+			topo: "2x4",
+			want: 8,
+		},
+		"valid 4x2": {
+			topo: "4x2",
+			want: 8,
+		},
+		"valid 8x8x8": {
+			topo: "8x8x8",
+			want: 512,
+		},
+		"invalid empty": {
+			topo:            "",
+			wantErrContains: "invalid topology",
+		},
+		"invalid single": {
+			topo:            "2",
+			wantErrContains: "invalid topology",
+		},
+		"invalid 2x": {
+			topo:            "2x",
+			wantErrContains: "invalid topology",
+		},
+		"invalid x2": {
+			topo:            "x2",
+			wantErrContains: "invalid topology",
+		},
+	}
+
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			got, err := k8sutils.GetTpuTopologyToChipCount(c.topo)
+			if c.wantErrContains != "" {
+				require.Error(t, err)
+				require.ErrorContains(t, err, c.wantErrContains)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, c.want, got)
+		})
+	}
+}

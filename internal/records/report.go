@@ -28,6 +28,7 @@ type Attrs struct {
 
 	TPUTopology    string `json:"tpuTopology"`
 	TPUAccelerator string `json:"tpuAccelerator"`
+	TPUChipCount   int32  `json:"tpuChipCount"`
 	Spot           bool   `json:"spot"`
 
 	NodePoolName string `json:"nodePoolName"`

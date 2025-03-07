@@ -2,6 +2,7 @@ package aggregator
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
@@ -14,7 +15,7 @@ import (
 
 func extractJobSetAttrs(js *jobset.JobSet) records.Attrs {
 	var attrs records.Attrs
-
+	var chipCount int32
 	for _, rj := range js.Spec.ReplicatedJobs {
 		// Example:
 		//
@@ -29,6 +30,12 @@ func extractJobSetAttrs(js *jobset.JobSet) records.Attrs {
 				attrs.TPUAccelerator = val
 			case k8sutils.NodeLabelGKETPUTopology:
 				attrs.TPUTopology = val
+				if topologyChipCount, err := k8sutils.GetTpuTopologyToChipCount(val); err == nil {
+					chipCount += rj.Replicas * int32(topologyChipCount)
+				} else {
+					// TODO: use controller-runtime logging
+					log.Printf("error converting TPU topology (%s) to chip count: %v", val, err)
+				}
 			case k8sutils.NodeLabelGKESpot:
 				attrs.Spot = val == "true"
 			}
@@ -38,6 +45,7 @@ func extractJobSetAttrs(js *jobset.JobSet) records.Attrs {
 	attrs.JobSetName = js.Name
 	attrs.JobSetNamespace = js.Namespace
 	attrs.JobSetUID = string(js.UID)
+	attrs.TPUChipCount = chipCount
 
 	return attrs
 }

@@ -36,7 +36,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
 	// +kubebuilder:scaffold:imports
+	"github.com/onsi/gomega/format"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
@@ -63,8 +65,8 @@ var testCfg = manager.Config{
 	AggregationIntervalSeconds: 1,
 	EventsBucketName:           "test-bucket",
 	EventsBucketPath:           "test-path",
-	MetricsAddr:                "127.0.0.1:8080",
-	ProbeAddr:                  "127.0.0.1:8081",
+	MetricsAddr:                "127.0.0.1:28080",
+	ProbeAddr:                  "127.0.0.1:28081",
 }
 
 func TestControllers(t *testing.T) {
@@ -75,6 +77,7 @@ func TestControllers(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
+	format.MaxLength = 30000 // Gomega default is 4000, anything past "MaxLength" will get truncateed in output
 
 	ctx, cancel = context.WithCancel(context.TODO())
 
