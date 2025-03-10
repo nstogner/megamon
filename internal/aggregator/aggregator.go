@@ -3,7 +3,6 @@ package aggregator
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 	"time"
@@ -14,6 +13,7 @@ import (
 	containerv1beta1 "google.golang.org/api/container/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 )
 
@@ -38,6 +38,8 @@ type Aggregator struct {
 	GKE GKEClient
 	GCS GCSClient
 }
+
+var log = logf.Log.WithName("aggregator")
 
 type GKEClient interface {
 	ListNodePools(ctx context.Context) ([]*containerv1beta1.NodePool, error)
@@ -66,19 +68,19 @@ func (a *Aggregator) Start(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-t.C:
-			log.Println("aggregating")
+			log.Info("aggregating")
 		}
 
 		start := time.Now()
 		if err := a.Aggregate(ctx); err != nil {
-			log.Printf("failed to aggregate: %v", err)
+			log.Error(err, "failed to aggregate")
 			continue
 		}
 		metrics.AggregationDuration.Record(ctx, time.Since(start).Seconds())
 
 		for name, exporter := range a.Exporters {
 			if err := exporter.Export(ctx, a.Report()); err != nil {
-				log.Printf("failed to export %s: %v", name, err)
+				log.Error(err, "failed to export", "exporter", name)
 			}
 		}
 	}
@@ -147,7 +149,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 			}
 			expectedCount, err := getExpectedTPUNodePoolSize(np)
 			if err != nil {
-				log.Printf("ERROR: failed to get expected TPU node pool size for node pool %q: %v", np.Name, err)
+				log.Error(err, "failed to get expected TPU node pool size", "nodepool", np.Name)
 				return
 			}
 			up.ExpectedCount = expectedCount
@@ -172,14 +174,14 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 				}
 				up, ok := report.NodePoolsUp[npName]
 				if !ok {
-					log.Printf("WARNING: found Node (%q) for node pool (%q) that was not parsed", node.Name, npName)
+					log.Info("WARNING: found Node for node pool that was not parsed", "node", node.Name, "nodepool", npName)
 					return
 				}
 				if up.ExpectedCount == 0 {
 					var err error
 					up.ExpectedCount, err = k8sutils.GetExpectedTPUNodePoolSize(&node)
 					if err != nil {
-						log.Printf("failed to get expected TPU node pool size for node %q: %v", node.Name, err)
+						log.Error(err, "failed to get expected TPU node pool size", "node", node.Name)
 						return
 					}
 				}

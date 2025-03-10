@@ -12,7 +12,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
+
+var log = logf.Log.WithName("controller")
 
 const (
 	jobScheduledNodePoolLabel = "megamon.tbd/scheduled-node-pool"
@@ -37,6 +40,8 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if err := r.Get(ctx, req.NamespacedName, &pod); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
+
+	log.V(5).Info("PodReconciler pod", "pod", pod)
 
 	// Example labels:
 	//   batch.kubernetes.io/job-name: example-single-3-rs-s-0

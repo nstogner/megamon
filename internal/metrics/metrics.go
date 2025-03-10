@@ -2,7 +2,7 @@ package metrics
 
 import (
 	"context"
-	"log"
+	"os"
 	"time"
 
 	"example.com/megamon/internal/records"
@@ -14,24 +14,28 @@ import (
 	metricsdk "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var (
 	AggregationDuration metric.Float64Histogram
 	Prefix              = "megamon"
+	log                 = logf.Log.WithName("metrics")
 )
 
 func initMeterProvider(ctx context.Context, interval time.Duration) *metricsdk.MeterProvider {
 	// Create a Prometheus exporter
 	promExporter, err := prometheus.New()
 	if err != nil {
-		log.Fatalf("failed to initialize prometheus exporter: %v", err)
+		log.Error(err, "failed to initialize Prometheus exporter")
+		os.Exit(1)
 	}
 	grpcExporter, err := otlpmetricgrpc.New(ctx,
 		otlpmetricgrpc.WithInsecure(),
 	)
 	if err != nil {
-		log.Fatalf("failed to initialize OTLP gRPC exporter: %v", err)
+		log.Error(err, "failed to initialize OTLP gRPC exporter")
+		os.Exit(1)
 	}
 
 	res, err := resource.Merge(
@@ -42,7 +46,7 @@ func initMeterProvider(ctx context.Context, interval time.Duration) *metricsdk.M
 		),
 	)
 	if err != nil {
-		log.Fatalf("Error creating resource: %v", err)
+		log.Error(err, "Error creating resource")
 	}
 
 	// Create a MeterProvider and register it globally
@@ -114,13 +118,14 @@ func Init(ctx context.Context, r Reporter, interval time.Duration) func() {
 		observables...,
 	)
 	if err != nil {
-		log.Fatalf("failed to register callback: %v", err)
+		log.Error(err, "failed to register callback")
+		os.Exit(2)
 	}
 
 	// Return a function that can be used to shutdown the provider.
 	return func() {
 		if err := provider.Shutdown(context.Background()); err != nil {
-			log.Printf("failed to shutdown MeterProvider: %v", err)
+			log.Error(err, "failed to shutdown MeterProvider")
 		}
 	}
 }
