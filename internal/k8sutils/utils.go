@@ -6,10 +6,14 @@ import (
 	"strings"
 	"time"
 
+	"example.com/megamon/internal/experiments"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 )
+
+var log = logf.Log.WithName("k8sutils")
 
 func GetNodePool(node *corev1.Node) (string, bool) {
 	if node.Labels == nil {
@@ -29,6 +33,7 @@ func IsTPUNode(node *corev1.Node) bool {
 
 func IsJobSetActive(js *jobset.JobSet) bool {
 	for _, c := range js.Status.Conditions {
+		log.V(1).Info("IsJobSetActive", "name", js.Name, "status", c.Status, "type", c.Type)
 		if c.Status == metav1.ConditionTrue {
 			switch jobset.JobSetConditionType(c.Type) {
 			case jobset.JobSetFailed, jobset.JobSetCompleted, jobset.JobSetSuspended:
@@ -94,6 +99,10 @@ func IsNodeReady(node *corev1.Node) bool {
 				// At large scale a given Node may be in an unknown state for a short period of time.
 				// However the workloads running on that Node could still be functioning.
 				if time.Since(c.LastTransitionTime.Time) < 3*time.Minute {
+					log.V(1).Info("node is in an unknown state", "node", node.Name, "lastTransitionTime", c.LastTransitionTime.Time.String())
+					if experiments.IsExperimentEnabled("NodeUnknownAsNotReady") {
+						return false
+					}
 					return true
 				}
 			default:

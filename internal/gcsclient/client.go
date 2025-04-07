@@ -9,7 +9,10 @@ import (
 
 	"cloud.google.com/go/storage"
 	"example.com/megamon/internal/records"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
+
+var log = logf.Log.WithName("gcsclient")
 
 type Client struct {
 	StorageClient *storage.Client
@@ -35,10 +38,13 @@ func (c *Client) GetRecords(ctx context.Context, bucket, path string) (map[strin
 		return nil, err
 	}
 
+	log.V(3).Info("got records", "count", len(recs), "bucket", bucket, "path", path)
 	return recs, nil
 }
 
 func (c *Client) PutRecords(ctx context.Context, bucket, path string, recs map[string]records.EventRecords) error {
+	log.V(3).Info("putting records", "count", len(recs), "bucket", bucket, "path", path)
+
 	data, err := json.Marshal(recs)
 	if err != nil {
 		return err

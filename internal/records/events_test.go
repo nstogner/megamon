@@ -1,6 +1,7 @@
 package records
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -331,11 +332,11 @@ func TestSummarize(t *testing.T) {
 		},
 	}
 
+	ctx := context.Background()
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-
-			gotSum := tc.records.Summarize(tc.now)
+			gotSum := tc.records.Summarize(ctx, tc.now)
 			require.Equal(t, tc.expectedSummary.UpTime, gotSum.UpTime, "UpTime")
 			require.Equal(t, tc.expectedSummary.DownTime, gotSum.DownTime, "DownTime")
 			require.Equal(t, tc.expectedSummary.DownTimeInitial, gotSum.DownTimeInitial, "DownTimeInitial")
@@ -501,12 +502,12 @@ func TestReconcileEvents(t *testing.T) {
 			expChanged: false,
 		},
 	}
-
+	ctx := context.Background()
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			events := c.inputEvents
-			gotChanged := ReconcileEvents(now, c.inputUps, events)
+			gotChanged := ReconcileEvents(ctx, now, c.inputUps, events)
 			require.Equal(t, c.expEvents, events)
 			require.Equal(t, c.expChanged, gotChanged)
 		})

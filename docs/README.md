@@ -28,6 +28,9 @@ MegaMon was created to address shortcoming of using [kube-state-metrics](https:/
 * Difficult or impossible to derive metrics like Time-to-provisioning / Time-to-first-up with promql
 * Current metrics are very large (they require all Nodes to be published as individual metrics and aggregated later)
 
+## Runtime config
+* Set log level via `-zap-log-level 3` flag on manager binary
+
 ## Errata
 
 * If a jobset has multiple TPU topologies, the label value will be the TPU

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"sync"
@@ -40,6 +39,7 @@ import (
 
 	"example.com/megamon/internal/aggregator"
 	"example.com/megamon/internal/controller"
+	"example.com/megamon/internal/experiments"
 	"example.com/megamon/internal/gcsclient"
 	"example.com/megamon/internal/gkeclient"
 	"example.com/megamon/internal/metrics"
@@ -81,6 +81,9 @@ type Config struct {
 
 	// GKE client options
 	GKE GKEConfig
+
+	// Experiments
+	Experiments []experiments.ExperimentConfig
 }
 
 type GKEConfig struct {
@@ -128,6 +131,7 @@ func MustConfigure() Config {
 		ProbeAddr:                   ":8081",
 		SecureMetrics:               true,
 		EnableHTTP2:                 false,
+		Experiments:                 []experiments.ExperimentConfig{},
 	}
 
 	if err := json.Unmarshal(cfgFile, &cfg); err != nil {
@@ -144,7 +148,9 @@ func MustConfigure() Config {
 		cfg.EventsBucketPath = fmt.Sprintf("megamon/clusters/%s", cfg.GKE.ClusterName)
 	}
 
-	json.NewEncoder(os.Stdout).Encode(cfg)
+	if len(cfg.Experiments) > 0 {
+		experiments.SetExperimentsConfig(cfg.Experiments)
+	}
 
 	return cfg
 }
@@ -186,6 +192,7 @@ type GCSClient interface {
 }
 
 func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient GKEClient, gcsClient GCSClient) {
+	setupLog.Info("starting manager with config", "config", cfg)
 	metrics.Prefix = cfg.MetricsPrefix
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
@@ -414,7 +421,7 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 
 	wg.Add(1)
 	go func() {
-		log.Println("starting metrics server")
+		setupLog.Info("starting metrics server")
 		defer wg.Done()
 		if err := metricsServer.ListenAndServe(); err != nil {
 			if errors.Is(err, http.ErrServerClosed) {

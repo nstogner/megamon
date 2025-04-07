@@ -1,10 +1,21 @@
 package records
 
 import (
+	"context"
 	"time"
+
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+var log = logf.Log.WithName("events")
+
 const JobSetRecordsAnnotationKey = "megamon.tbd/records"
+
+type LogKey struct{}
+type LogKeyValue struct {
+	Type string
+	Key  string
+}
 
 type EventRecords struct {
 	UpEvents []UpEvent `json:"upEvents"`
@@ -49,15 +60,18 @@ type EventSummary struct {
 	MeanUpTimeBetweenInterruption time.Duration `json:"meanUpTimeBetweenInterruption"`
 }
 
-func (r *EventRecords) Summarize(now time.Time) EventSummary {
+func (r *EventRecords) Summarize(ctx context.Context, now time.Time) EventSummary {
 	var summary EventSummary
 
+	summaryLog := log.WithValues("key", ctx.Value(LogKey{}))
 	n := len(r.UpEvents)
+	summaryLog.V(3).Info("summarizing events", "event_count", n)
 	if n == 0 {
 		return summary
 	}
 	if r.UpEvents[0].Up {
 		// Invalid data.
+		summaryLog.V(3).Info("invalid data: first event is up")
 		return summary
 	}
 	if n == 1 {
@@ -66,6 +80,7 @@ func (r *EventRecords) Summarize(now time.Time) EventSummary {
 	}
 	// Invalid or missing data:
 	if !r.UpEvents[1].Up {
+		summaryLog.V(3).Info("invalid data: second event is not up")
 		return summary
 	}
 
@@ -91,12 +106,14 @@ func (r *EventRecords) Summarize(now time.Time) EventSummary {
 			summary.DownTime += summary.LatestDownTimeBetweenRecovery
 			summary.TotalDownTimeBetweenRecovery += summary.LatestDownTimeBetweenRecovery
 			summary.RecoveryCount++
+			summaryLog.V(5).Info("recovery event found, incrementing count")
 		} else {
 			// Just transitioned up to down.
 			summary.LatestUpTimeBetweenInterruption = r.UpEvents[i].Timestamp.Sub(r.UpEvents[i-1].Timestamp)
 			summary.UpTime += summary.LatestUpTimeBetweenInterruption
 			summary.TotalUpTimeBetweenInterruption += summary.LatestUpTimeBetweenInterruption
 			summary.InterruptionCount++
+			summaryLog.V(5).Info("interruption event found, incrementing count")
 		}
 	}
 
@@ -116,6 +133,7 @@ func (r *EventRecords) Summarize(now time.Time) EventSummary {
 		summary.DownTime = summary.DownTime + now.Sub(r.UpEvents[lastIdx].Timestamp)
 	}
 
+	summaryLog.V(1).Info("event summary", "summary", summary)
 	return summary
 }
 
@@ -139,11 +157,13 @@ func AppendUpEvent(now time.Time, rec *EventRecords, isUp bool) bool {
 	return changed
 }
 
-func ReconcileEvents(now time.Time, ups map[string]Upness, events map[string]EventRecords) bool {
+func ReconcileEvents(ctx context.Context, now time.Time, ups map[string]Upness, events map[string]EventRecords) bool {
 	var changed bool
 
+	reconcileLog := log.WithValues("event", ctx.Value(LogKey{}))
 	for key, up := range ups {
 		rec := events[key]
+		reconcileLog.Info("ReconcileEvents", "key", key, "expected", up.ExpectedCount, "ready", up.ReadyCount)
 		if AppendUpEvent(now, &rec, up.Up()) {
 			events[key] = rec
 			changed = true

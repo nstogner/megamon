@@ -2,7 +2,9 @@ package k8sutils_test
 
 import (
 	"testing"
+	"time"
 
+	"example.com/megamon/internal/experiments"
 	"example.com/megamon/internal/k8sutils"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -133,6 +135,90 @@ func TestGetTpuTopologyToChipCount(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
+			require.Equal(t, c.want, got)
+		})
+	}
+}
+
+func nodeStatusBuilder(condType corev1.NodeConditionType, status corev1.ConditionStatus, lastTransitionTime time.Time) corev1.NodeStatus {
+	return corev1.NodeStatus{
+		Conditions: []corev1.NodeCondition{
+			{
+				Type:               condType,
+				Status:             status,
+				LastTransitionTime: metav1.NewTime(lastTransitionTime),
+			},
+		},
+	}
+}
+
+func TestIsNodeReady(t *testing.T) {
+	cases := map[string]struct {
+		node        *corev1.Node
+		want        bool
+		experiments []experiments.ExperimentConfig
+	}{
+		"empty": {
+			node: &corev1.Node{},
+			want: false,
+		},
+		"ready": {
+			node: &corev1.Node{
+				Status: nodeStatusBuilder(corev1.NodeReady, corev1.ConditionTrue, time.Now()),
+			},
+			want: true,
+		},
+		"not ready": {
+			node: &corev1.Node{
+				Status: nodeStatusBuilder(corev1.NodeReady, corev1.ConditionFalse, time.Now()),
+			},
+			want: false,
+		},
+		"unknown": {
+			node: &corev1.Node{
+				Status: nodeStatusBuilder(corev1.NodeReady, corev1.ConditionUnknown, time.Now().Add(-1*time.Minute)),
+			},
+			want: true,
+		},
+		"unknown status older than 3 minutes": {
+			node: &corev1.Node{
+				Status: nodeStatusBuilder(corev1.NodeReady, corev1.ConditionUnknown, time.Now().Add(-5*time.Minute)),
+			},
+			want: false,
+		},
+		"unknown status older than 3 minutes with NodeUnknownAsNotReady enabled": {
+			node: &corev1.Node{
+				Status: nodeStatusBuilder(corev1.NodeReady, corev1.ConditionUnknown, time.Now().Add(-5*time.Minute)),
+			},
+			experiments: []experiments.ExperimentConfig{
+				{
+					Name:    "NodeUnknownAsNotReady",
+					Enabled: true,
+				},
+			},
+			want: false,
+		},
+		"unknown status with NodeUnknownAsNotReady enabled, last transition < 3 minutes": {
+			node: &corev1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "abcd",
+				},
+				Status: nodeStatusBuilder(corev1.NodeReady, corev1.ConditionUnknown, time.Now().Add(-30*time.Second)),
+			},
+			experiments: []experiments.ExperimentConfig{
+				{
+					Name:    "NodeUnknownAsNotReady",
+					Enabled: true,
+				},
+			},
+			want: false,
+		},
+	}
+
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			experiments.SetExperimentsConfig(c.experiments)
+			got := k8sutils.IsNodeReady(c.node)
 			require.Equal(t, c.want, got)
 		})
 	}
