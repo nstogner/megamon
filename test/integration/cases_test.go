@@ -305,6 +305,7 @@ var _ = Describe("JobSet metrics", func() {
 		It("should watch a jobset with a two replicated jobs", func() {
 			Expect(k8sClient.Create(ctx, jobsetMultipleRJobs)).To(Succeed())
 		})
+
 		It("should publish total TPU chip counts by jobset with multiple replicated jobs with >1 replica", func() {
 			By("looking at TPU topology per replicated job in a deployed jobset")
 			metrics := expectedMetricsForJobSet(jobsetMultipleRJobs, "2x4")
@@ -313,9 +314,6 @@ var _ = Describe("JobSet metrics", func() {
 			)
 		})
 
-		It("should watch a jobset with a two replicated jobs", func() {
-			Expect(k8sClient.Create(ctx, jobsetMultipleRJobs)).To(Succeed())
-		})
 		It("should publish total TPU chip counts by jobset with multiple replicated jobs with >1 replica", func() {
 			By("looking at TPU topology per replicated job in a deployed jobset")
 			metrics := expectedMetricsForJobSet(jobsetMultipleRJobs, "2x4")
