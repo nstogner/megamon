@@ -20,14 +20,14 @@ func IsExperimentEnabled(name string) bool {
 	return false
 }
 
-func getExperimentValueInt(name string) (int, error) {
+func GetExperimentValueInt(name string) (int, error) {
 	if c, ok := exp[name]; ok {
 		return c.Value.(int), nil
 	}
 	return 0, fmt.Errorf("experiment %s not found", name)
 }
 
-func getExperimentValueFloat(name string) (float64, error) {
+func GetExperimentValueFloat(name string) (float64, error) {
 	if c, ok := exp[name]; ok {
 		return c.Value.(float64), nil
 	}
