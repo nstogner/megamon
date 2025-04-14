@@ -100,6 +100,32 @@ func (c GKEConfig) ClusterRef() string {
 	)
 }
 
+func loadConfig(configFile []byte) (Config, error) {
+	// Define config defaults.
+	cfg := Config{
+		MetricsPrefix:              "megamon",
+		AggregationIntervalSeconds: 10,
+		ReportConfigMapRef: types.NamespacedName{
+			Namespace: "megamon-system",
+			Name:      "megamon-report",
+		},
+		DisableNodePoolJobLabelling: true,
+		MetricsAddr:                 ":8080",
+		EnableLeaderElection:        false,
+		ProbeAddr:                   ":8081",
+		SecureMetrics:               true,
+		EnableHTTP2:                 false,
+		Experiments:                 map[string]experiments.ExperimentConfig{},
+	}
+
+	if err := json.Unmarshal(configFile, &cfg); err != nil {
+		setupLog.Error(err, "unable to unmarshal config file")
+		return cfg, fmt.Errorf("unable to unmarshal config file: %v", err)
+		// os.Exit(1)
+	}
+	return cfg, nil
+}
+
 func MustConfigure() Config {
 	var configPath string
 	flag.StringVar(&configPath, "config-path", "/etc/megamon/config.json", "The location of the config file.")
@@ -117,25 +143,8 @@ func MustConfigure() Config {
 		setupLog.Error(err, "unable to read config file")
 		os.Exit(1)
 	}
-	// Define config defaults.
-	cfg := Config{
-		MetricsPrefix:              "megamon",
-		AggregationIntervalSeconds: 10,
-		ReportConfigMapRef: types.NamespacedName{
-			Namespace: "megamon-system",
-			Name:      "megamon-report",
-		},
-		DisableNodePoolJobLabelling: true,
-		MetricsAddr:                 ":8080",
-		EnableLeaderElection:        false,
-		ProbeAddr:                   ":8081",
-		SecureMetrics:               true,
-		EnableHTTP2:                 false,
-		Experiments:                 []experiments.ExperimentConfig{},
-	}
-
-	if err := json.Unmarshal(cfgFile, &cfg); err != nil {
-		setupLog.Error(err, "unable to unmarshal config file")
+	cfg, err := loadConfig(cfgFile)
+	if err != nil {
 		os.Exit(1)
 	}
 
