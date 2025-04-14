@@ -83,7 +83,7 @@ type Config struct {
 	GKE GKEConfig
 
 	// Experiments
-	Experiments []experiments.ExperimentConfig
+	Experiments map[string]experiments.ExperimentConfig
 }
 
 type GKEConfig struct {

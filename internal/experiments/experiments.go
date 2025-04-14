@@ -1,21 +1,35 @@
 package experiments
 
+import "fmt"
+
 type ExperimentConfig struct {
-	Name    string
 	Enabled bool
+	Value   interface{}
 }
 
-var exp = []ExperimentConfig{}
+var exp = map[string]ExperimentConfig{}
 
-func SetExperimentsConfig(c []ExperimentConfig) {
+func SetExperimentsConfig(c map[string]ExperimentConfig) {
 	exp = c
 }
 
 func IsExperimentEnabled(name string) bool {
-	for _, e := range exp {
-		if e.Name == name {
-			return e.Enabled
-		}
+	if c, ok := exp[name]; ok {
+		return c.Enabled
 	}
 	return false
+}
+
+func getExperimentValueInt(name string) (int, error) {
+	if c, ok := exp[name]; ok {
+		return c.Value.(int), nil
+	}
+	return 0, fmt.Errorf("experiment %s not found", name)
+}
+
+func getExperimentValueFloat(name string) (float64, error) {
+	if c, ok := exp[name]; ok {
+		return c.Value.(float64), nil
+	}
+	return 0, fmt.Errorf("experiment %s not found", name)
 }

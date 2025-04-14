@@ -37,6 +37,7 @@ type Attrs struct {
 type Upness struct {
 	ReadyCount    int32 `json:"readyCount"`
 	ExpectedCount int32 `json:"expectedCount"`
+	UnknownCount  int32 `json:"unknownCount"`
 	Attrs
 }
 

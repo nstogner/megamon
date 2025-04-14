@@ -155,48 +155,47 @@ func nodeStatusBuilder(condType corev1.NodeConditionType, status corev1.Conditio
 func TestIsNodeReady(t *testing.T) {
 	cases := map[string]struct {
 		node        *corev1.Node
-		want        bool
-		experiments []experiments.ExperimentConfig
+		want        k8sutils.NodeStatus
+		experiments map[string]experiments.ExperimentConfig
 	}{
 		"empty": {
 			node: &corev1.Node{},
-			want: false,
+			want: k8sutils.NodeStatusNotReady,
 		},
 		"ready": {
 			node: &corev1.Node{
 				Status: nodeStatusBuilder(corev1.NodeReady, corev1.ConditionTrue, time.Now()),
 			},
-			want: true,
+			want: k8sutils.NodeStatusReady,
 		},
 		"not ready": {
 			node: &corev1.Node{
 				Status: nodeStatusBuilder(corev1.NodeReady, corev1.ConditionFalse, time.Now()),
 			},
-			want: false,
+			want: k8sutils.NodeStatusNotReady,
 		},
 		"unknown": {
 			node: &corev1.Node{
 				Status: nodeStatusBuilder(corev1.NodeReady, corev1.ConditionUnknown, time.Now().Add(-1*time.Minute)),
 			},
-			want: true,
+			want: k8sutils.NodeStatusReady,
 		},
 		"unknown status older than 3 minutes": {
 			node: &corev1.Node{
 				Status: nodeStatusBuilder(corev1.NodeReady, corev1.ConditionUnknown, time.Now().Add(-5*time.Minute)),
 			},
-			want: false,
+			want: k8sutils.NodeStatusNotReady,
 		},
 		"unknown status older than 3 minutes with NodeUnknownAsNotReady enabled": {
 			node: &corev1.Node{
 				Status: nodeStatusBuilder(corev1.NodeReady, corev1.ConditionUnknown, time.Now().Add(-5*time.Minute)),
 			},
-			experiments: []experiments.ExperimentConfig{
-				{
-					Name:    "NodeUnknownAsNotReady",
+			experiments: map[string]experiments.ExperimentConfig{
+				"NodeUnknownAsNotReady": {
 					Enabled: true,
 				},
 			},
-			want: false,
+			want: k8sutils.NodeStatusUnknown,
 		},
 		"unknown status with NodeUnknownAsNotReady enabled, last transition < 3 minutes": {
 			node: &corev1.Node{
@@ -205,13 +204,12 @@ func TestIsNodeReady(t *testing.T) {
 				},
 				Status: nodeStatusBuilder(corev1.NodeReady, corev1.ConditionUnknown, time.Now().Add(-30*time.Second)),
 			},
-			experiments: []experiments.ExperimentConfig{
-				{
-					Name:    "NodeUnknownAsNotReady",
+			experiments: map[string]experiments.ExperimentConfig{
+				"NodeUnknownAsNotReady": {
 					Enabled: true,
 				},
 			},
-			want: false,
+			want: k8sutils.NodeStatusUnknown,
 		},
 	}
 

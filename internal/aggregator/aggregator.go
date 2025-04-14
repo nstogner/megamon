@@ -38,8 +38,6 @@ type Aggregator struct {
 
 	GKE GKEClient
 	GCS GCSClient
-
-	Experiments []experiments.ExperimentConfig
 }
 
 var log = logf.Log.WithName("aggregator")
@@ -169,7 +167,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	}
 
 	for _, node := range nodeList.Items {
-		ready := k8sutils.IsNodeReady(&node)
+		nodeStatus := k8sutils.IsNodeReady(&node)
 
 		// Node pool mapping:
 
@@ -193,8 +191,12 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 						return
 					}
 				}
-				if ready {
+				if nodeStatus == k8sutils.NodeStatusReady {
 					up.ReadyCount++
+				} else if experiments.IsExperimentEnabled("NodeUnknownAsNotReady") {
+					if nodeStatus == k8sutils.NodeStatusUnknown {
+						up.UnknownCount++
+					}
 				}
 				report.NodePoolsUp[npName] = up
 			}()
@@ -215,8 +217,12 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 				if !ok {
 					return
 				}
-				if ready {
+				if nodeStatus == k8sutils.NodeStatusReady {
 					up.ReadyCount++
+				} else if experiments.IsExperimentEnabled("NodeUnknownAsNotReady") {
+					if nodeStatus == k8sutils.NodeStatusUnknown {
+						up.UnknownCount++
+					}
 				}
 				report.JobSetNodesUp[uid] = up
 			}()
