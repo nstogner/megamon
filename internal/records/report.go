@@ -1,5 +1,11 @@
 package records
 
+import (
+	"math"
+
+	"example.com/megamon/internal/experiments"
+)
+
 func NewReport() Report {
 	return Report{
 		JobSetsUp:              make(map[string]Upness),
@@ -42,6 +48,24 @@ type Upness struct {
 }
 
 func (up Upness) Up() bool {
+	if experiments.IsExperimentEnabled("NodeUnknownAsNotReady") {
+		val, err := experiments.GetExperimentValueFloat("NodeUnknownAsNotReady")
+		if err != nil {
+			log.Error(err, "failed to get NodeUnknownAsNotReady experiment value")
+		}
+		log.Info("NodeUnknownAsNotReady experiment enabled", "val", val, "ready", up.ReadyCount, "expected", up.ExpectedCount, "unknown", up.UnknownCount)
+		// tolerate up to "NodeUnknownAsNotReady" value of Nodes being unknown (value expected between 0 and 1.0)
+		if val < 0 || val > 1 {
+			log.Info("invalid value for NodeUnknownAsNotReady experiment, ignoring")
+			return up.ReadyCount == up.ExpectedCount
+		}
+		unknownCountTolerated := int32(math.Floor(float64(up.ExpectedCount) * (1 - val)))
+		if up.ReadyCount >= unknownCountTolerated {
+			return true
+		} else {
+			return false
+		}
+	}
 	return up.ReadyCount == up.ExpectedCount
 }
 

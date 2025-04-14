@@ -163,7 +163,7 @@ func ReconcileEvents(ctx context.Context, now time.Time, ups map[string]Upness, 
 	reconcileLog := log.WithValues("event", ctx.Value(LogKey{}))
 	for key, up := range ups {
 		rec := events[key]
-		reconcileLog.Info("ReconcileEvents", "key", key, "expected", up.ExpectedCount, "ready", up.ReadyCount)
+		reconcileLog.Info("ReconcileEvents", "key", key, "expected", up.ExpectedCount, "ready", up.ReadyCount, "unknown", up.UnknownCount)
 		if AppendUpEvent(now, &rec, up.Up()) {
 			events[key] = rec
 			changed = true
