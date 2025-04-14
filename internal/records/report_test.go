@@ -181,6 +181,21 @@ func TestUpness_Up_NodeUnknownAsNotReady(t *testing.T) {
 			},
 			expected: true,
 		},
+		{
+			name: "NodeUnknownAsNotReady exp enabled at 1.0, 16 expected, 14 ready, 1 unknown",
+			upness: Upness{
+				ReadyCount:    8,
+				ExpectedCount: 16,
+				UnknownCount:  8,
+			},
+			experimentConf: map[string]experiments.ExperimentConfig{
+				"NodeUnknownAsNotReady": {
+					Enabled: true,
+					Value:   1.0,
+				},
+			},
+			expected: true,
+		},
 	}
 
 	for _, tt := range tests {
