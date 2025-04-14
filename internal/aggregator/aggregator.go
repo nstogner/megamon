@@ -223,9 +223,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 		}
 	}
 
-	log.V(3).Info("DEBUG", "report.NodePoolsUp", report.NodePoolsUp)
-	log.V(3).Info("DEBUG", "report.JobSetNodesUp", report.JobSetNodesUp)
-	log.V(3).Info("DEBUG", "report.JobSetsUp", report.JobSetsUp)
+	log.V(3).Info("DEBUG", "report.NodePoolsUp", report.NodePoolsUp, "report.JobSetNodesUp", report.JobSetNodesUp, "report.JobSetsUp", report.JobSetsUp)
 
 	log.V(1).Info("reconciling jobset events")
 	ctx = context.WithValue(ctx, records.LogKey{}, "jobset")
