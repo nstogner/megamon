@@ -232,19 +232,19 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	log.V(3).Info("DEBUG", "report.NodePoolsUp", report.NodePoolsUp, "report.JobSetNodesUp", report.JobSetNodesUp, "report.JobSetsUp", report.JobSetsUp)
 
 	log.V(1).Info("reconciling jobset events")
-	ctx = context.WithValue(ctx, records.LogKey{}, "jobset")
+	ctx = context.WithValue(ctx, records.LogKey{}, records.LogKeyValue{Type: records.ContextJobset})
 	jsEvents, err := a.reconcileEvents(ctx, "jobsets.json", report.JobSetsUp)
 	if err != nil {
 		return fmt.Errorf("reconciling jobset events: %w", err)
 	}
 	log.V(1).Info("reconciling jobset node events")
-	ctx = context.WithValue(ctx, records.LogKey{}, "jobset-nodes")
+	ctx = context.WithValue(ctx, records.LogKey{}, records.LogKeyValue{Type: records.ContextJobsetNodes})
 	jsNodeEvents, err := a.reconcileEvents(ctx, "jobset-nodes.json", report.JobSetNodesUp)
 	if err != nil {
 		return fmt.Errorf("reconciling jobset node events: %w", err)
 	}
 	log.V(1).Info("reconciling nodepool events")
-	ctx = context.WithValue(ctx, records.LogKey{}, "nodepool")
+	ctx = context.WithValue(ctx, records.LogKey{}, records.LogKeyValue{Type: records.ContextNodePools})
 	nodePoolEvents, err := a.reconcileEvents(ctx, "node-pools.json", report.NodePoolsUp)
 	if err != nil {
 		return fmt.Errorf("reconciling nodepool events: %w", err)
@@ -252,7 +252,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 
 	log.V(1).Info("summarize jobsets")
 	for key, events := range jsEvents {
-		ctx = context.WithValue(ctx, records.LogKey{}, records.LogKeyValue{Type: "jobset", Key: key})
+		ctx = context.WithValue(ctx, records.LogKey{}, records.LogKeyValue{Type: records.ContextJobset, Key: key})
 		log.V(1).Info("summarizing jobset events", "jobset", key)
 		eventSummary := events.Summarize(ctx, now)
 		report.JobSetsUpSummaries[key] = records.UpnessSummaryWithAttrs{
@@ -263,7 +263,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 
 	log.V(1).Info("summarize JobSetNodes events")
 	for key, events := range jsNodeEvents {
-		ctx = context.WithValue(ctx, records.LogKey{}, records.LogKeyValue{Type: "jobset-nodes", Key: key})
+		ctx = context.WithValue(ctx, records.LogKey{}, records.LogKeyValue{Type: records.ContextJobsetNodes, Key: key})
 		log.V(1).Info("summarizing node events", "JobSetNodes", key)
 		eventSummary := events.Summarize(ctx, now)
 		report.JobSetNodesUpSummaries[key] = records.UpnessSummaryWithAttrs{
@@ -274,7 +274,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 
 	log.V(1).Info("summarize nodepool events")
 	for key, events := range nodePoolEvents {
-		ctx = context.WithValue(ctx, records.LogKey{}, records.LogKeyValue{Type: "nodepool", Key: key})
+		ctx = context.WithValue(ctx, records.LogKey{}, records.LogKeyValue{Type: records.ContextNodePools, Key: key})
 		log.V(1).Info("summarizing nodepool events", "nodepool", key)
 		eventSummary := events.Summarize(ctx, now)
 		report.NodePoolsUpSummaries[key] = records.UpnessSummaryWithAttrs{

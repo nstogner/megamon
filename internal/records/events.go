@@ -11,9 +11,17 @@ var log = logf.Log.WithName("events")
 
 const JobSetRecordsAnnotationKey = "megamon.tbd/records"
 
+type contextType int
+
+const (
+	ContextJobset contextType = iota
+	ContextJobsetNodes
+	ContextNodePools
+)
+
 type LogKey struct{}
 type LogKeyValue struct {
-	Type string
+	Type contextType
 	Key  string
 }
 
