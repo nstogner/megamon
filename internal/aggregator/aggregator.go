@@ -168,7 +168,6 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 
 	for _, node := range nodeList.Items {
 		nodeStatus := k8sutils.IsNodeReady(&node)
-
 		// Node pool mapping:
 
 		if npName, ok := k8sutils.GetNodePool(&node); ok {

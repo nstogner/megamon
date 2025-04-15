@@ -157,10 +157,6 @@ func MustConfigure() Config {
 		cfg.EventsBucketPath = fmt.Sprintf("megamon/clusters/%s", cfg.GKE.ClusterName)
 	}
 
-	if len(cfg.Experiments) > 0 {
-		experiments.SetExperimentsConfig(cfg.Experiments)
-	}
-
 	return cfg
 }
 
@@ -203,6 +199,9 @@ type GCSClient interface {
 func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient GKEClient, gcsClient GCSClient) {
 	setupLog.Info("starting manager with config", "config", cfg)
 	metrics.Prefix = cfg.MetricsPrefix
+	if len(cfg.Experiments) > 0 {
+		experiments.SetExperimentsConfig(cfg.Experiments)
+	}
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will
