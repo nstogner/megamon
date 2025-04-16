@@ -48,15 +48,15 @@ type Upness struct {
 }
 
 func (up Upness) Up() bool {
-	if experiments.IsExperimentEnabled("NodeUnknownAsNotReady") {
-		val, err := experiments.GetExperimentValueFloat("NodeUnknownAsNotReady")
+	if experiments.IsExperimentEnabled("NodeUnknownAsReady") {
+		val, err := experiments.GetExperimentValueFloat("NodeUnknownAsReady")
 		if err != nil {
-			log.Error(err, "failed to get NodeUnknownAsNotReady experiment value")
+			log.Error(err, "failed to get NodeUnknownAsReady experiment value")
 		}
-		log.Info("NodeUnknownAsNotReady experiment enabled", "val", val, "ready", up.ReadyCount, "expected", up.ExpectedCount, "unknown", up.UnknownCount, "nodepool", up.NodePoolName, "jobset", up.JobSetName)
-		// tolerate up to "NodeUnknownAsNotReady" value of Nodes being unknown (value expected between 0 and 1.0)
+		log.Info("NodeUnknownAsReady experiment enabled", "val", val, "ready", up.ReadyCount, "expected", up.ExpectedCount, "unknown", up.UnknownCount, "nodepool", up.NodePoolName, "jobset", up.JobSetName)
+		// tolerate up to "NodeUnknownAsReady" value of Nodes being unknown (value expected between 0 and 1.0)
 		if val < 0 || val > 1 {
-			log.Info("invalid value for NodeUnknownAsNotReady experiment, ignoring")
+			log.Info("invalid value for NodeUnknownAsReady experiment, ignoring")
 			return up.ReadyCount == up.ExpectedCount
 		}
 		maxUnknown := int32(math.RoundToEven(float64(up.ExpectedCount) * val))

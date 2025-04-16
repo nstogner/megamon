@@ -17,7 +17,7 @@ func setupExperiment(t *testing.T, config map[string]experiments.ExperimentConfi
 	})
 }
 
-func TestUpness_Up_NodeUnknownAsNotReady(t *testing.T) {
+func TestUpness_Up_NodeUnknownAsReady(t *testing.T) {
 	tests := []struct {
 		name           string
 		upness         Upness
@@ -26,7 +26,7 @@ func TestUpness_Up_NodeUnknownAsNotReady(t *testing.T) {
 	}{
 		// --- Experiment Disabled ---
 		{
-			name: "NodeUnknownAsNotReady exp disabled - Ready == Expected",
+			name: "NodeUnknownAsReady exp disabled - Ready == Expected",
 			upness: Upness{
 				ReadyCount:    10,
 				ExpectedCount: 10,
@@ -36,7 +36,7 @@ func TestUpness_Up_NodeUnknownAsNotReady(t *testing.T) {
 			expected:       true,
 		},
 		{
-			name: "NodeUnknownAsNotReady exp disabled - Ready < Expected",
+			name: "NodeUnknownAsReady exp disabled - Ready < Expected",
 			upness: Upness{
 				ReadyCount:    9,
 				ExpectedCount: 10,
@@ -47,14 +47,14 @@ func TestUpness_Up_NodeUnknownAsNotReady(t *testing.T) {
 		},
 		// --- Experiment Enabled ---
 		{
-			name: "NodeUnknownAsNotReady exp enabled at 0.1, ready == expected",
+			name: "NodeUnknownAsReady exp enabled at 0.1, ready == expected",
 			upness: Upness{
 				ReadyCount:    10,
 				ExpectedCount: 10,
 				UnknownCount:  0,
 			},
 			experimentConf: map[string]experiments.ExperimentConfig{
-				"NodeUnknownAsNotReady": {
+				"NodeUnknownAsReady": {
 					Enabled: true,
 					Value:   0.1,
 				},
@@ -62,14 +62,14 @@ func TestUpness_Up_NodeUnknownAsNotReady(t *testing.T) {
 			expected: true,
 		},
 		{
-			name: "NodeUnknownAsNotReady exp enabled at 0.1, 10 expected, 9 ready, 1 unknown",
+			name: "NodeUnknownAsReady exp enabled at 0.1, 10 expected, 9 ready, 1 unknown",
 			upness: Upness{
 				ReadyCount:    9,
 				ExpectedCount: 10,
 				UnknownCount:  1,
 			},
 			experimentConf: map[string]experiments.ExperimentConfig{
-				"NodeUnknownAsNotReady": {
+				"NodeUnknownAsReady": {
 					Enabled: true,
 					Value:   0.1,
 				},
@@ -77,14 +77,14 @@ func TestUpness_Up_NodeUnknownAsNotReady(t *testing.T) {
 			expected: true,
 		},
 		{
-			name: "NodeUnknownAsNotReady exp enabled at 0.1, 10 expected, 8 ready, 1 unknown",
+			name: "NodeUnknownAsReady exp enabled at 0.1, 10 expected, 8 ready, 1 unknown",
 			upness: Upness{
 				ReadyCount:    8,
 				ExpectedCount: 10,
 				UnknownCount:  1,
 			},
 			experimentConf: map[string]experiments.ExperimentConfig{
-				"NodeUnknownAsNotReady": {
+				"NodeUnknownAsReady": {
 					Enabled: true,
 					Value:   0.1,
 				},
@@ -92,14 +92,14 @@ func TestUpness_Up_NodeUnknownAsNotReady(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "NodeUnknownAsNotReady exp enabled at 0.1, 10 expected, 8 ready, 2 unknown",
+			name: "NodeUnknownAsReady exp enabled at 0.1, 10 expected, 8 ready, 2 unknown",
 			upness: Upness{
 				ReadyCount:    8,
 				ExpectedCount: 10,
 				UnknownCount:  2,
 			},
 			experimentConf: map[string]experiments.ExperimentConfig{
-				"NodeUnknownAsNotReady": {
+				"NodeUnknownAsReady": {
 					Enabled: true,
 					Value:   0.1,
 				},
@@ -107,14 +107,14 @@ func TestUpness_Up_NodeUnknownAsNotReady(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "NodeUnknownAsNotReady exp enabled at 0.1, 16 expected, 15 ready, 1 unknown",
+			name: "NodeUnknownAsReady exp enabled at 0.1, 16 expected, 15 ready, 1 unknown",
 			upness: Upness{
 				ReadyCount:    15,
 				ExpectedCount: 16,
 				UnknownCount:  1,
 			},
 			experimentConf: map[string]experiments.ExperimentConfig{
-				"NodeUnknownAsNotReady": {
+				"NodeUnknownAsReady": {
 					Enabled: true,
 					Value:   0.1,
 				},
@@ -122,14 +122,14 @@ func TestUpness_Up_NodeUnknownAsNotReady(t *testing.T) {
 			expected: true,
 		},
 		{
-			name: "NodeUnknownAsNotReady exp enabled at 0.1, 16 expected, 14 ready, 2 unknown",
+			name: "NodeUnknownAsReady exp enabled at 0.1, 16 expected, 14 ready, 2 unknown",
 			upness: Upness{
 				ReadyCount:    14,
 				ExpectedCount: 16,
 				UnknownCount:  2,
 			},
 			experimentConf: map[string]experiments.ExperimentConfig{
-				"NodeUnknownAsNotReady": {
+				"NodeUnknownAsReady": {
 					Enabled: true,
 					Value:   0.1,
 				},
@@ -137,14 +137,14 @@ func TestUpness_Up_NodeUnknownAsNotReady(t *testing.T) {
 			expected: true,
 		},
 		{
-			name: "NodeUnknownAsNotReady exp enabled at 0.1, 16 expected, 13 ready, 3 unknown",
+			name: "NodeUnknownAsReady exp enabled at 0.1, 16 expected, 13 ready, 3 unknown",
 			upness: Upness{
 				ReadyCount:    13,
 				ExpectedCount: 16,
 				UnknownCount:  3,
 			},
 			experimentConf: map[string]experiments.ExperimentConfig{
-				"NodeUnknownAsNotReady": {
+				"NodeUnknownAsReady": {
 					Enabled: true,
 					Value:   0.1,
 				},
@@ -152,14 +152,14 @@ func TestUpness_Up_NodeUnknownAsNotReady(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "NodeUnknownAsNotReady exp enabled at 0.1, 16 expected, 14 ready, 1 unknown",
+			name: "NodeUnknownAsReady exp enabled at 0.1, 16 expected, 14 ready, 1 unknown",
 			upness: Upness{
 				ReadyCount:    14,
 				ExpectedCount: 16,
 				UnknownCount:  1,
 			},
 			experimentConf: map[string]experiments.ExperimentConfig{
-				"NodeUnknownAsNotReady": {
+				"NodeUnknownAsReady": {
 					Enabled: true,
 					Value:   0.1,
 				},
@@ -167,14 +167,14 @@ func TestUpness_Up_NodeUnknownAsNotReady(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "NodeUnknownAsNotReady exp enabled at 1.0, 16 expected, 14 ready, 1 unknown",
+			name: "NodeUnknownAsReady exp enabled at 1.0, 16 expected, 14 ready, 1 unknown",
 			upness: Upness{
 				ReadyCount:    8,
 				ExpectedCount: 16,
 				UnknownCount:  8,
 			},
 			experimentConf: map[string]experiments.ExperimentConfig{
-				"NodeUnknownAsNotReady": {
+				"NodeUnknownAsReady": {
 					Enabled: true,
 					Value:   1.0,
 				},

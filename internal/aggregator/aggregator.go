@@ -192,7 +192,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 				}
 				if nodeStatus == k8sutils.NodeStatusReady {
 					up.ReadyCount++
-				} else if experiments.IsExperimentEnabled("NodeUnknownAsNotReady") {
+				} else if experiments.IsExperimentEnabled("NodeUnknownAsReady") {
 					if nodeStatus == k8sutils.NodeStatusUnknown {
 						up.UnknownCount++
 					}
@@ -218,7 +218,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 				}
 				if nodeStatus == k8sutils.NodeStatusReady {
 					up.ReadyCount++
-				} else if experiments.IsExperimentEnabled("NodeUnknownAsNotReady") {
+				} else if experiments.IsExperimentEnabled("NodeUnknownAsReady") {
 					if nodeStatus == k8sutils.NodeStatusUnknown {
 						up.UnknownCount++
 					}

@@ -39,7 +39,7 @@ func TestLoadConfig(t *testing.T) {
   "EventsBucketName": "cool-machine-learning-megamon",
   "DisableNodePoolJobLabelling": true,
   "Experiments": {
-    "NodeUnknownAsNotReady": {
+    "NodeUnknownAsReady": {
       "Enabled": true
     },
 	"ExperimentWithValueFloat" : {
@@ -71,7 +71,7 @@ func TestLoadConfig(t *testing.T) {
 	}
 	experimentConfig := baseConfig
 	experimentConfig.Experiments = map[string]experiments.ExperimentConfig{
-		"NodeUnknownAsNotReady": {
+		"NodeUnknownAsReady": {
 			Enabled: true,
 		},
 		"ExperimentWithValueFloat": {

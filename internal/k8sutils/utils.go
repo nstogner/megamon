@@ -108,12 +108,12 @@ func IsNodeReady(node *corev1.Node) NodeStatus {
 				// However the workloads running on that Node could still be functioning.
 				if time.Since(c.LastTransitionTime.Time) < 3*time.Minute {
 					log.V(1).Info("node is in an unknown state", "node", node.Name, "lastTransitionTime", c.LastTransitionTime.Time.String())
-					if experiments.IsExperimentEnabled("NodeUnknownAsNotReady") {
+					if experiments.IsExperimentEnabled("NodeUnknownAsReady") {
 						return NodeStatusUnknown
 					}
 					return NodeStatusReady
 				}
-				if experiments.IsExperimentEnabled("NodeUnknownAsNotReady") {
+				if experiments.IsExperimentEnabled("NodeUnknownAsReady") {
 					return NodeStatusUnknown
 				}
 			default:

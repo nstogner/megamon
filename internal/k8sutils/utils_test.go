@@ -186,18 +186,18 @@ func TestIsNodeReady(t *testing.T) {
 			},
 			want: k8sutils.NodeStatusNotReady,
 		},
-		"unknown status older than 3 minutes with NodeUnknownAsNotReady enabled": {
+		"unknown status older than 3 minutes with NodeUnknownAsReady enabled": {
 			node: &corev1.Node{
 				Status: nodeStatusBuilder(corev1.NodeReady, corev1.ConditionUnknown, time.Now().Add(-5*time.Minute)),
 			},
 			experiments: map[string]experiments.ExperimentConfig{
-				"NodeUnknownAsNotReady": {
+				"NodeUnknownAsReady": {
 					Enabled: true,
 				},
 			},
 			want: k8sutils.NodeStatusUnknown,
 		},
-		"unknown status with NodeUnknownAsNotReady enabled, last transition < 3 minutes": {
+		"unknown status with NodeUnknownAsReady enabled, last transition < 3 minutes": {
 			node: &corev1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "abcd",
@@ -205,7 +205,7 @@ func TestIsNodeReady(t *testing.T) {
 				Status: nodeStatusBuilder(corev1.NodeReady, corev1.ConditionUnknown, time.Now().Add(-30*time.Second)),
 			},
 			experiments: map[string]experiments.ExperimentConfig{
-				"NodeUnknownAsNotReady": {
+				"NodeUnknownAsReady": {
 					Enabled: true,
 				},
 			},
