@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"example.com/megamon/internal/k8sutils"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	containerv1beta1 "google.golang.org/api/container/v1beta1"
@@ -111,7 +112,7 @@ var (
 )
 
 var _ = Describe("Nodepool metrics", func() {
-	Context("When reconciling a resource", func() {
+	Context("When reconciling a nodepool resource", func() {
 		ctx := context.Background()
 
 		jsRef := types.NamespacedName{
@@ -134,7 +135,7 @@ var _ = Describe("Nodepool metrics", func() {
 				Name: "test-node",
 				Labels: map[string]string{
 					"cloud.google.com/gke-nodepool":     nodePoolName,
-					"cloud.google.com/gke-tpu-topology": "2x4",
+					"cloud.google.com/gke-tpu-topology": "16x16",
 				},
 			},
 		}
@@ -192,11 +193,144 @@ var _ = Describe("Nodepool metrics", func() {
 			)
 		})
 
+		// update node to status ready
+		It("should update first node to ready status", func() {
+			node.Status = corev1.NodeStatus{
+				Conditions: []corev1.NodeCondition{
+					{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
+				},
+			}
+			Expect(k8sClient.Status().Update(ctx, node)).To(Succeed())
+		})
+
+		// add in remaining 255 nodes
+		nodeList := []*corev1.Node{}
+		It("should succeed in adding all nodes", func() {
+			var npErr error
+			for i := range 255 {
+				node := &corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: fmt.Sprintf("node-%d", i),
+						Labels: map[string]string{
+							"cloud.google.com/gke-nodepool":     nodePoolName,
+							"cloud.google.com/gke-tpu-topology": tpuTopology,
+						},
+					},
+					Status: corev1.NodeStatus{
+						Conditions: []corev1.NodeCondition{
+							{
+								Type:   corev1.NodeReady,
+								Status: corev1.ConditionTrue,
+							},
+						},
+					},
+				}
+				nodeList = append(nodeList, node)
+				if npErr = k8sClient.Create(ctx, node); npErr != nil {
+					break
+				}
+			}
+			Expect(npErr).To(BeNil())
+		})
+
+		// upness validation
+		It("should update nodepool_up metric to 1 when the node becomes Ready", func() {
+			// Allow time for aggregation (1s interval) and metric update
+			time.Sleep(3 * time.Second)
+
+			By("rechecking the metrics for nodepool_up")
+			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
+			// Expected node count is 1, Ready node count is 1 -> nodepool_up should be 1
+			assertMetrics(
+				// Depends on node and jobset pod being created
+				nodepool.job_scheduled.WithValue(1),
+				// Only depend on nodepool being created
+				nodepool.down_time_seconds,
+				nodepool.interruption_count.WithValue(0),
+				nodepool.recovery_count.WithValue(0),
+				nodepool.up.WithValue(1),
+				nodepool.up_time_seconds,
+				nodepool.tpu_chip_count.WithValue(256),
+			)
+		})
+
+		// update nodepool so 27 nodes are in unknown state
+		It("should update nodepool_up metric to 0 when too many node status become Unknown", func() {
+			By("updating 27 node status to Unknown")
+			var updateErr error
+			for i := 0; i < 27; i++ {
+				node := nodeList[i]
+				node.Status = corev1.NodeStatus{
+					Conditions: []corev1.NodeCondition{
+						{Type: corev1.NodeReady, Status: corev1.ConditionUnknown, LastHeartbeatTime: metav1.Now()},
+					},
+				}
+				if updateErr = k8sClient.Status().Update(ctx, node); updateErr != nil {
+					break
+				}
+			}
+			Expect(updateErr).To(BeNil())
+
+			// Allow time for aggregation (1s interval) and metric update
+			time.Sleep(3 * time.Second)
+
+			By("rechecking the metrics for nodepool_up")
+			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
+			// Expected node count is 1, Ready node count is 1 -> nodepool_up should be 1
+			assertMetrics(
+				// Depends on node and jobset pod being created
+				nodepool.job_scheduled.WithValue(1),
+				// Only depend on nodepool being created
+				nodepool.down_time_seconds,
+				nodepool.interruption_count.WithValue(1),
+				nodepool.recovery_count,
+				nodepool.up.WithValue(0),
+				nodepool.up_time_seconds,
+				nodepool.tpu_chip_count.WithValue(256),
+			)
+		})
+
+		// update nodepool to have +7 more nodes in READY state, so we have 20 nodes in UNKNOWN
+		It("should update nodepool_up metric to 1 when less than 10% of node status become Unknown", func() {
+			By("updating 10 node status to Ready")
+			var updateErr error
+			for i := 0; i < 10; i++ {
+				node := nodeList[i]
+				node.Status = corev1.NodeStatus{
+					Conditions: []corev1.NodeCondition{
+						{Type: corev1.NodeReady, Status: corev1.ConditionTrue, LastHeartbeatTime: metav1.Now()},
+					},
+				}
+				if updateErr = k8sClient.Status().Update(ctx, node); updateErr != nil {
+					break
+				}
+			}
+			Expect(updateErr).To(BeNil())
+			// Allow time for aggregation (1s interval) and metric update
+			time.Sleep(3 * time.Second)
+
+			By("rechecking the metrics for nodepool_up")
+			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
+			// Expected node count is 1, Ready node count is 1 -> nodepool_up should be 1
+			assertMetrics(
+				// Depends on node and jobset pod being created
+				nodepool.job_scheduled.WithValue(1),
+				// Only depend on nodepool being created
+				nodepool.down_time_seconds,
+				nodepool.interruption_count.WithValue(1),
+				nodepool.recovery_count,
+				nodepool.up.WithValue(1),
+				nodepool.up_time_seconds,
+				nodepool.tpu_chip_count.WithValue(256),
+			)
+
+		})
+
 	})
 })
 
 var _ = Describe("JobSet metrics", func() {
-	Context("When reconciling a resource", func() {
+	Context("When reconciling a jobset resource", func() {
 		ctx := context.Background()
 
 		//BeforeEach(func() {

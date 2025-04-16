@@ -30,6 +30,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"example.com/megamon/internal/experiments"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -67,6 +68,12 @@ var testCfg = manager.Config{
 	EventsBucketPath:           "test-path",
 	MetricsAddr:                "127.0.0.1:28080",
 	ProbeAddr:                  "127.0.0.1:28081",
+	Experiments: map[string]experiments.ExperimentConfig{
+		"NodeUnknownAsReady": {
+			Enabled: true,
+			Value:   0.1,
+		},
+	},
 }
 
 func TestControllers(t *testing.T) {
