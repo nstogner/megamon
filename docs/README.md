@@ -31,6 +31,9 @@ MegaMon was created to address shortcoming of using [kube-state-metrics](https:/
 ## Runtime config
 * Set log level via `-zap-log-level 3` flag on manager binary
 
+## Experiments
+* See [Experiments](experiments.md)
+
 ## Errata
 
 * If a jobset has multiple TPU topologies, the label value will be the TPU

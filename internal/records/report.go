@@ -53,18 +53,20 @@ func (up Upness) Up() bool {
 		if err != nil {
 			log.Error(err, "failed to get NodeUnknownAsNotReady experiment value")
 		}
-		log.Info("NodeUnknownAsNotReady experiment enabled", "val", val, "ready", up.ReadyCount, "expected", up.ExpectedCount, "unknown", up.UnknownCount)
+		log.Info("NodeUnknownAsNotReady experiment enabled", "val", val, "ready", up.ReadyCount, "expected", up.ExpectedCount, "unknown", up.UnknownCount, "nodepool", up.NodePoolName, "jobset", up.JobSetName)
 		// tolerate up to "NodeUnknownAsNotReady" value of Nodes being unknown (value expected between 0 and 1.0)
 		if val < 0 || val > 1 {
 			log.Info("invalid value for NodeUnknownAsNotReady experiment, ignoring")
 			return up.ReadyCount == up.ExpectedCount
 		}
-		unknownCountTolerated := int32(math.Floor(float64(up.ExpectedCount) * (1 - val)))
-		if up.ReadyCount >= unknownCountTolerated {
-			return true
-		} else {
+		maxUnknown := int32(math.RoundToEven(float64(up.ExpectedCount) * val))
+		if up.UnknownCount > maxUnknown {
 			return false
 		}
+		if up.ReadyCount+up.UnknownCount == up.ExpectedCount {
+			return true
+		}
+		return false
 	}
 	return up.ReadyCount == up.ExpectedCount
 }
