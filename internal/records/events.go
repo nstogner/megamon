@@ -9,8 +9,6 @@ import (
 
 const JobSetRecordsAnnotationKey = "megamon.tbd/records"
 
-type ContextKey struct{}
-
 type EventRecords struct {
 	UpEvents []UpEvent `json:"upEvents"`
 }
@@ -56,7 +54,7 @@ type EventSummary struct {
 
 func (r *EventRecords) Summarize(ctx context.Context, now time.Time) EventSummary {
 	var summary EventSummary
-	summaryLog := logf.FromContext(ctx, "type", ctx.Value(ContextKey{})).WithName("events")
+	summaryLog := logf.FromContext(ctx).WithName("events")
 
 	n := len(r.UpEvents)
 	summaryLog.V(3).Info("summarizing events", "event_count", n)
