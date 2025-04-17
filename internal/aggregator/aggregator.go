@@ -234,22 +234,25 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 		return fmt.Errorf("reconciling nodepool events: %w", err)
 	}
 
+	jobsetContext := context.WithValue(ctx, records.ContextKey{}, "jobsets")
 	for key, events := range jsEvents {
-		eventSummary := events.Summarize(ctx, now)
+		eventSummary := events.Summarize(jobsetContext, now)
 		report.JobSetsUpSummaries[key] = records.UpnessSummaryWithAttrs{
 			Attrs:        report.JobSetsUp[key].Attrs,
 			EventSummary: eventSummary,
 		}
 	}
+	jobsetNodesContext := context.WithValue(ctx, records.ContextKey{}, "jobset-nodes")
 	for key, events := range jsNodeEvents {
-		eventSummary := events.Summarize(ctx, now)
+		eventSummary := events.Summarize(jobsetNodesContext, now)
 		report.JobSetNodesUpSummaries[key] = records.UpnessSummaryWithAttrs{
 			Attrs:        report.JobSetNodesUp[key].Attrs,
 			EventSummary: eventSummary,
 		}
 	}
+	nodePoolsContxt := context.WithValue(ctx, records.ContextKey{}, "nodepools")
 	for key, events := range nodePoolEvents {
-		eventSummary := events.Summarize(ctx, now)
+		eventSummary := events.Summarize(nodePoolsContxt, now)
 		report.NodePoolsUpSummaries[key] = records.UpnessSummaryWithAttrs{
 			Attrs:        report.NodePoolsUp[key].Attrs,
 			EventSummary: eventSummary,
