@@ -2,7 +2,6 @@ package aggregator
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 
@@ -33,8 +32,7 @@ func extractJobSetAttrs(js *jobset.JobSet) records.Attrs {
 				if topologyChipCount, err := k8sutils.GetTpuTopologyToChipCount(val); err == nil {
 					chipCount += rj.Replicas * int32(topologyChipCount)
 				} else {
-					// TODO: use controller-runtime logging
-					log.Printf("error converting TPU topology (%s) to chip count: %v", val, err)
+					log.Error(err, "error converting TPU topology to chip count", "topology", val)
 				}
 			case k8sutils.NodeLabelGKESpot:
 				attrs.Spot = val == "true"

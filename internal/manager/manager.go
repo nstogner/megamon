@@ -7,7 +7,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"sync"
@@ -144,8 +143,6 @@ func MustConfigure() Config {
 		cfg.EventsBucketPath = fmt.Sprintf("megamon/clusters/%s", cfg.GKE.ClusterName)
 	}
 
-	json.NewEncoder(os.Stdout).Encode(cfg)
-
 	return cfg
 }
 
@@ -186,6 +183,7 @@ type GCSClient interface {
 }
 
 func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient GKEClient, gcsClient GCSClient) {
+	setupLog.Info("starting manager with config", "config", cfg)
 	metrics.Prefix = cfg.MetricsPrefix
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
@@ -414,7 +412,7 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 
 	wg.Add(1)
 	go func() {
-		log.Println("starting metrics server")
+		setupLog.Info("starting metrics server")
 		defer wg.Done()
 		if err := metricsServer.ListenAndServe(); err != nil {
 			if errors.Is(err, http.ErrServerClosed) {

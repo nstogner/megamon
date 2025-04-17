@@ -32,3 +32,6 @@ MegaMon was created to address shortcoming of using [kube-state-metrics](https:/
 
 * If a jobset has multiple TPU topologies, the label value will be the TPU
   topology of the last replicated job in the jobset.
+
+## Runtime config
+* Set log level via `-zap-log-level 3` flag on manager binary
