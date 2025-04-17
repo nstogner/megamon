@@ -149,11 +149,14 @@ func AppendUpEvent(now time.Time, rec *EventRecords, isUp bool) bool {
 	return changed
 }
 
-func ReconcileEvents(now time.Time, ups map[string]Upness, events map[string]EventRecords) bool {
+func ReconcileEvents(ctx context.Context, now time.Time, ups map[string]Upness, events map[string]EventRecords) bool {
 	var changed bool
+
+	reconcileLog := logf.FromContext(ctx).WithName("events")
 
 	for key, up := range ups {
 		rec := events[key]
+		reconcileLog.Info("ReconcileEvents", "key", key, "expected", up.ExpectedCount, "ready", up.ReadyCount)
 		if AppendUpEvent(now, &rec, up.Up()) {
 			events[key] = rec
 			changed = true

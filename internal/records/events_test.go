@@ -503,11 +503,12 @@ func TestReconcileEvents(t *testing.T) {
 		},
 	}
 
+	ctx := context.Background()
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			events := c.inputEvents
-			gotChanged := ReconcileEvents(now, c.inputUps, events)
+			gotChanged := ReconcileEvents(ctx, now, c.inputUps, events)
 			require.Equal(t, c.expEvents, events)
 			require.Equal(t, c.expChanged, gotChanged)
 		})

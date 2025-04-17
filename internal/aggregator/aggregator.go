@@ -221,20 +221,23 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 
 	log.V(3).Info("DEBUG", "report.NodePoolsUp", report.NodePoolsUp, "report.JobSetNodesUp", report.JobSetNodesUp, "report.JobSetsUp", report.JobSetsUp)
 
-	jsEvents, err := a.reconcileEvents(ctx, "jobsets.json", report.JobSetsUp)
+	jobsetContext := logf.IntoContext(ctx, log.WithValues("type", "jobsets"))
+	jobsetNodesContext := logf.IntoContext(ctx, log.WithValues("type", "jobset-nodes"))
+	nodePoolsContxt := logf.IntoContext(ctx, log.WithValues("type", "nodepools"))
+
+	jsEvents, err := a.reconcileEvents(jobsetContext, "jobsets.json", report.JobSetsUp)
 	if err != nil {
 		return fmt.Errorf("reconciling jobset events: %w", err)
 	}
-	jsNodeEvents, err := a.reconcileEvents(ctx, "jobset-nodes.json", report.JobSetNodesUp)
+	jsNodeEvents, err := a.reconcileEvents(jobsetNodesContext, "jobset-nodes.json", report.JobSetNodesUp)
 	if err != nil {
 		return fmt.Errorf("reconciling jobset node events: %w", err)
 	}
-	nodePoolEvents, err := a.reconcileEvents(ctx, "node-pools.json", report.NodePoolsUp)
+	nodePoolEvents, err := a.reconcileEvents(nodePoolsContxt, "node-pools.json", report.NodePoolsUp)
 	if err != nil {
 		return fmt.Errorf("reconciling nodepool events: %w", err)
 	}
 
-	jobsetContext := logf.IntoContext(ctx, log.WithValues("type", "jobsets"))
 	for key, events := range jsEvents {
 		eventSummary := events.Summarize(jobsetContext, now)
 		report.JobSetsUpSummaries[key] = records.UpnessSummaryWithAttrs{
@@ -242,7 +245,6 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 			EventSummary: eventSummary,
 		}
 	}
-	jobsetNodesContext := logf.IntoContext(ctx, log.WithValues("type", "jobset-nodes"))
 	for key, events := range jsNodeEvents {
 		eventSummary := events.Summarize(jobsetNodesContext, now)
 		report.JobSetNodesUpSummaries[key] = records.UpnessSummaryWithAttrs{
@@ -250,7 +252,6 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 			EventSummary: eventSummary,
 		}
 	}
-	nodePoolsContxt := logf.IntoContext(ctx, log.WithValues("type", "nodepools"))
 	for key, events := range nodePoolEvents {
 		eventSummary := events.Summarize(nodePoolsContxt, now)
 		report.NodePoolsUpSummaries[key] = records.UpnessSummaryWithAttrs{
@@ -277,7 +278,7 @@ func (a *Aggregator) reconcileEvents(ctx context.Context, filename string, ups m
 		return nil, fmt.Errorf("failed to get %q: %w", filename, err)
 	}
 
-	if changed := records.ReconcileEvents(time.Now(), ups, recs); changed {
+	if changed := records.ReconcileEvents(ctx, time.Now(), ups, recs); changed {
 		if err := a.GCS.PutRecords(ctx, a.EventsBucketName, path, recs); err != nil {
 			return nil, fmt.Errorf("failed to put %q: %w", filename, err)
 		}
