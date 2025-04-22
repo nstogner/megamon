@@ -67,6 +67,7 @@ var testCfg = manager.Config{
 	EventsBucketPath:           "test-path",
 	MetricsAddr:                "127.0.0.1:28080",
 	ProbeAddr:                  "127.0.0.1:28081",
+	UnknownCountThreshold:      0.1,
 }
 
 func TestControllers(t *testing.T) {

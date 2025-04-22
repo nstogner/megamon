@@ -80,6 +80,9 @@ type Config struct {
 
 	// GKE client options
 	GKE GKEConfig
+
+	// Controller runtime thresholds
+	UnknownCountThreshold float64
 }
 
 type GKEConfig struct {
@@ -127,10 +130,16 @@ func MustConfigure() Config {
 		ProbeAddr:                   ":8081",
 		SecureMetrics:               true,
 		EnableHTTP2:                 false,
+		UnknownCountThreshold:       1.0,
 	}
 
 	if err := json.Unmarshal(cfgFile, &cfg); err != nil {
 		setupLog.Error(err, "unable to unmarshal config file")
+		os.Exit(1)
+	}
+
+	if cfg.UnknownCountThreshold < 0 || cfg.UnknownCountThreshold > 1 {
+		setupLog.Error(nil, "unknown count threshold must be between 0 and 1", "threshold", cfg.UnknownCountThreshold)
 		os.Exit(1)
 	}
 
@@ -305,13 +314,14 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 	}
 
 	agg := &aggregator.Aggregator{
-		Interval:         time.Duration(cfg.AggregationIntervalSeconds) * time.Second,
-		Client:           mgr.GetClient(),
-		Exporters:        map[string]aggregator.Exporter{},
-		GKE:              gkeClient,
-		GCS:              gcsClient,
-		EventsBucketName: cfg.EventsBucketName,
-		EventsBucketPath: cfg.EventsBucketPath,
+		Interval:              time.Duration(cfg.AggregationIntervalSeconds) * time.Second,
+		Client:                mgr.GetClient(),
+		Exporters:             map[string]aggregator.Exporter{},
+		GKE:                   gkeClient,
+		GCS:                   gcsClient,
+		EventsBucketName:      cfg.EventsBucketName,
+		EventsBucketPath:      cfg.EventsBucketPath,
+		UnknownCountThreshold: cfg.UnknownCountThreshold,
 	}
 
 	availableExporters := map[string]aggregator.Exporter{
@@ -331,7 +341,7 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 		}
 	}
 
-	shutdownMetricsFunc := metrics.Init(ctx, agg, time.Duration(cfg.AggregationIntervalSeconds)*time.Second)
+	shutdownMetricsFunc := metrics.Init(ctx, agg, time.Duration(cfg.AggregationIntervalSeconds)*time.Second, cfg.UnknownCountThreshold)
 
 	if err = (&controller.JobSetReconciler{
 		Disabled: false,

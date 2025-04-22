@@ -23,7 +23,8 @@ type Aggregator struct {
 	EventsBucketName string
 	EventsBucketPath string
 
-	Interval time.Duration
+	Interval              time.Duration
+	UnknownCountThreshold float64
 
 	reportMtx   sync.RWMutex
 	report      records.Report
@@ -166,7 +167,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	}
 
 	for _, node := range nodeList.Items {
-		ready := k8sutils.IsNodeReady(&node)
+		nodeStatus := k8sutils.IsNodeReady(&node, a.UnknownCountThreshold)
 
 		// Node pool mapping:
 
@@ -188,8 +189,10 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 						return
 					}
 				}
-				if ready {
+				if nodeStatus == corev1.ConditionTrue {
 					up.ReadyCount++
+				} else if nodeStatus == corev1.ConditionUnknown {
+					up.UnknownCount++
 				}
 				report.NodePoolsUp[npName] = up
 			}()
@@ -211,8 +214,10 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 				if !ok {
 					return
 				}
-				if ready {
+				if nodeStatus == corev1.ConditionTrue {
 					up.ReadyCount++
+				} else if nodeStatus == corev1.ConditionUnknown {
+					up.UnknownCount++
 				}
 				report.JobSetNodesUp[uid] = up
 			}()
@@ -278,7 +283,7 @@ func (a *Aggregator) reconcileEvents(ctx context.Context, filename string, ups m
 		return nil, fmt.Errorf("failed to get %q: %w", filename, err)
 	}
 
-	if changed := records.ReconcileEvents(ctx, time.Now(), ups, recs); changed {
+	if changed := records.ReconcileEvents(ctx, time.Now(), ups, recs, a.UnknownCountThreshold); changed {
 		if err := a.GCS.PutRecords(ctx, a.EventsBucketName, path, recs); err != nil {
 			return nil, fmt.Errorf("failed to put %q: %w", filename, err)
 		}

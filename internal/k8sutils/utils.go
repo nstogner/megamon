@@ -84,24 +84,31 @@ func GetExpectedNodeCount(js *jobset.JobSet) int32 {
 	return count
 }
 
-func IsNodeReady(node *corev1.Node) bool {
+func IsNodeReady(node *corev1.Node, unknownThreshold float64) corev1.ConditionStatus {
 	for _, c := range node.Status.Conditions {
 		if c.Type == corev1.NodeReady {
 			switch c.Status {
 			case corev1.ConditionTrue:
-				return true
+				return corev1.ConditionTrue
+			case corev1.ConditionFalse:
+				return corev1.ConditionFalse
 			case corev1.ConditionUnknown:
 				// At large scale a given Node may be in an unknown state for a short period of time.
 				// However the workloads running on that Node could still be functioning.
 				if time.Since(c.LastTransitionTime.Time) < 3*time.Minute {
-					return true
+					// special case, if unknownThreshold == 1.0
+					if unknownThreshold == 1.0 {
+						return corev1.ConditionTrue
+					} else {
+						return corev1.ConditionUnknown
+					}
 				}
 			default:
-				return false
+				return corev1.ConditionUnknown
 			}
 		}
 	}
-	return false
+	return corev1.ConditionUnknown
 }
 
 func GetExpectedTPUNodePoolSize(node *corev1.Node) (int32, error) {

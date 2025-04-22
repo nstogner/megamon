@@ -2,6 +2,7 @@ package k8sutils_test
 
 import (
 	"testing"
+	"time"
 
 	"example.com/megamon/internal/k8sutils"
 	"github.com/stretchr/testify/require"
@@ -133,6 +134,88 @@ func TestGetTpuTopologyToChipCount(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
+			require.Equal(t, c.want, got)
+		})
+	}
+}
+
+func nodeStatusBuilder(condType corev1.NodeConditionType, status corev1.ConditionStatus, lastTransitionTime time.Time) corev1.NodeStatus {
+	return corev1.NodeStatus{
+		Conditions: []corev1.NodeCondition{
+			{
+				Type:               condType,
+				Status:             status,
+				LastTransitionTime: metav1.NewTime(lastTransitionTime),
+			},
+		},
+	}
+}
+func nodeBuilder(condType corev1.NodeConditionType, status corev1.ConditionStatus, lastTransitionTime time.Time) *corev1.Node {
+	return &corev1.Node{
+		Status: nodeStatusBuilder(condType, status, lastTransitionTime),
+	}
+}
+
+func TestIsNodeReady(t *testing.T) {
+	cases := map[string]struct {
+		node             *corev1.Node
+		want             corev1.ConditionStatus
+		unknownThreshold float64
+	}{
+		// unknownThreshold == 1.0 behavior (og megamon)
+		"empty, unknownThreshold 1.0": {
+			node:             &corev1.Node{},
+			want:             corev1.ConditionUnknown,
+			unknownThreshold: 1.0,
+		},
+		"ready, unknownThreshold 1.0": {
+			node:             nodeBuilder(corev1.NodeReady, corev1.ConditionTrue, time.Now()),
+			unknownThreshold: 1.0,
+			want:             corev1.ConditionTrue,
+		},
+		"not ready, unknownThreshold 1.0": {
+			node:             nodeBuilder(corev1.NodeReady, corev1.ConditionFalse, time.Now()),
+			unknownThreshold: 1.0,
+			want:             corev1.ConditionFalse,
+		},
+		"unknown, unknownThreshold 1.0": {
+			node:             nodeBuilder(corev1.NodeReady, corev1.ConditionUnknown, time.Now()),
+			unknownThreshold: 1.0,
+			want:             corev1.ConditionTrue,
+		},
+		"unknown status older than 3 minutes, unknownThreshold 1.0": {
+			node: &corev1.Node{
+				Status: nodeStatusBuilder(corev1.NodeReady, corev1.ConditionUnknown, time.Now().Add(-5*time.Minute)),
+			},
+			unknownThreshold: 1.0,
+			want:             corev1.ConditionUnknown,
+		},
+		// unknownThreshold == 0.1
+		"unknownThreshold 0.1, unknown status older than 3 minutes with NodeUnknownAsReady enabled": {
+			node:             nodeBuilder(corev1.NodeReady, corev1.ConditionUnknown, time.Now().Add(-5*time.Minute)),
+			unknownThreshold: 0.1,
+			want:             corev1.ConditionUnknown,
+		},
+		"unknownThreshold 0.1, unknown status with NodeUnknownAsReady enabled, last transition < 3 minutes": {
+			node:             nodeBuilder(corev1.NodeReady, corev1.ConditionUnknown, time.Now().Add(-1*time.Minute)),
+			unknownThreshold: 0.1,
+			want:             corev1.ConditionUnknown,
+		},
+		"unknownThreshold 0.1 ready": {
+			node:             nodeBuilder(corev1.NodeReady, corev1.ConditionTrue, time.Now()),
+			unknownThreshold: 0.1,
+			want:             corev1.ConditionTrue,
+		},
+		"unknownThreshold 0.1 not ready": {
+			node:             nodeBuilder(corev1.NodeReady, corev1.ConditionFalse, time.Now()),
+			unknownThreshold: 0.1,
+			want:             corev1.ConditionFalse,
+		},
+	}
+
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := k8sutils.IsNodeReady(c.node, c.unknownThreshold)
 			require.Equal(t, c.want, got)
 		})
 	}

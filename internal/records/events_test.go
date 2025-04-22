@@ -357,16 +357,18 @@ func TestReconcileEvents(t *testing.T) {
 
 	now := time.Now()
 	cases := map[string]struct {
-		inputUps    map[string]Upness
-		inputEvents map[string]EventRecords
-		expEvents   map[string]EventRecords
-		expChanged  bool
+		inputUps         map[string]Upness
+		inputEvents      map[string]EventRecords
+		expEvents        map[string]EventRecords
+		expChanged       bool
+		unknownThreshold float64
 	}{
 		"empty": {
-			inputUps:    map[string]Upness{},
-			inputEvents: map[string]EventRecords{},
-			expEvents:   map[string]EventRecords{},
-			expChanged:  false,
+			inputUps:         map[string]Upness{},
+			inputEvents:      map[string]EventRecords{},
+			expEvents:        map[string]EventRecords{},
+			unknownThreshold: 1.0,
+			expChanged:       false,
 		},
 		"first event up": {
 			inputUps: map[string]Upness{
@@ -384,7 +386,8 @@ func TestReconcileEvents(t *testing.T) {
 					},
 				},
 			},
-			expChanged: true,
+			unknownThreshold: 1.0,
+			expChanged:       true,
 		},
 		"first event down": {
 			inputUps: map[string]Upness{
@@ -401,7 +404,59 @@ func TestReconcileEvents(t *testing.T) {
 					},
 				},
 			},
-			expChanged: true,
+			unknownThreshold: 1.0,
+			expChanged:       true,
+		},
+		"down to up 10 expected, 9 ready, 1 unknown unknown threshold 0.1": {
+			inputUps: map[string]Upness{
+				"abc": {
+					ExpectedCount: 10,
+					ReadyCount:    9,
+					UnknownCount:  1,
+				},
+			},
+			inputEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: false, Timestamp: now.Add(-time.Minute)},
+					},
+				},
+			},
+			expEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: false, Timestamp: now.Add(-time.Minute)},
+						{Up: true, Timestamp: now},
+					},
+				},
+			},
+			unknownThreshold: 0.1,
+			expChanged:       true,
+		},
+		"stay down, 10 expected, 8 ready, 2 unknown unknown threshold 0.1": {
+			inputUps: map[string]Upness{
+				"abc": {
+					ExpectedCount: 10,
+					ReadyCount:    8,
+					UnknownCount:  2,
+				},
+			},
+			inputEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: false, Timestamp: now},
+					},
+				},
+			},
+			expEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: false, Timestamp: now},
+					},
+				},
+			},
+			unknownThreshold: 0.1,
+			expChanged:       false,
 		},
 		"down to up": {
 			inputUps: map[string]Upness{
@@ -425,7 +480,8 @@ func TestReconcileEvents(t *testing.T) {
 					},
 				},
 			},
-			expChanged: true,
+			unknownThreshold: 1.0,
+			expChanged:       true,
 		},
 		"up to down": {
 			inputUps: map[string]Upness{
@@ -451,7 +507,8 @@ func TestReconcileEvents(t *testing.T) {
 					},
 				},
 			},
-			expChanged: true,
+			unknownThreshold: 1.0,
+			expChanged:       true,
 		},
 		"still down": {
 			inputUps: map[string]Upness{
@@ -474,7 +531,8 @@ func TestReconcileEvents(t *testing.T) {
 					},
 				},
 			},
-			expChanged: false,
+			unknownThreshold: 1.0,
+			expChanged:       false,
 		},
 		"still up": {
 			inputUps: map[string]Upness{
@@ -499,7 +557,8 @@ func TestReconcileEvents(t *testing.T) {
 					},
 				},
 			},
-			expChanged: false,
+			unknownThreshold: 1.0,
+			expChanged:       false,
 		},
 	}
 
@@ -508,7 +567,7 @@ func TestReconcileEvents(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			events := c.inputEvents
-			gotChanged := ReconcileEvents(ctx, now, c.inputUps, events)
+			gotChanged := ReconcileEvents(ctx, now, c.inputUps, events, c.unknownThreshold)
 			require.Equal(t, c.expEvents, events)
 			require.Equal(t, c.expChanged, gotChanged)
 		})

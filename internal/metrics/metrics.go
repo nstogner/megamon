@@ -68,7 +68,7 @@ type Reporter interface {
 	Report() records.Report
 }
 
-func Init(ctx context.Context, r Reporter, interval time.Duration) func() {
+func Init(ctx context.Context, r Reporter, interval time.Duration, unknownThreshold float64) func() {
 	// Initialize the OpenTelemetry Prometheus exporter and meter provider.
 	provider := initMeterProvider(ctx, interval)
 
@@ -87,9 +87,9 @@ func Init(ctx context.Context, r Reporter, interval time.Duration) func() {
 	)
 	fatal(err)
 
-	jobsetObservables, observeJobset := mustRegisterUpnessMetrics(Prefix+".jobset", meter)
-	jobsetNodeObservables, observeJobsetNodes := mustRegisterUpnessMetrics(Prefix+".jobset.nodes", meter)
-	nodePoolObservables, observeNodePools := mustRegisterUpnessMetrics(Prefix+".nodepool", meter)
+	jobsetObservables, observeJobset := mustRegisterUpnessMetrics(Prefix+".jobset", meter, unknownThreshold)
+	jobsetNodeObservables, observeJobsetNodes := mustRegisterUpnessMetrics(Prefix+".jobset.nodes", meter, unknownThreshold)
+	nodePoolObservables, observeNodePools := mustRegisterUpnessMetrics(Prefix+".nodepool", meter, unknownThreshold)
 
 	observables := append(jobsetObservables, jobsetNodeObservables...)
 	observables = append(observables, nodePoolObservables...)
@@ -160,7 +160,7 @@ func OTELAttrs(attrs records.Attrs) []attribute.KeyValue {
 type reportObserveFunc func(ctx context.Context, o metric.Observer, ups map[string]records.Upness, summaries map[string]records.UpnessSummaryWithAttrs)
 
 // mustRegisterUpnessMetrics registers a set of metrics for observing the upness of something.
-func mustRegisterUpnessMetrics(prefix string, meter metric.Meter) ([]metric.Observable, reportObserveFunc) {
+func mustRegisterUpnessMetrics(prefix string, meter metric.Meter, unknownThreshold float64) ([]metric.Observable, reportObserveFunc) {
 	up, err := meter.Int64ObservableGauge(prefix+".up",
 		metric.WithDescription("Whether all replicas are in a Ready status (0 or 1)."),
 	)
@@ -242,7 +242,7 @@ func mustRegisterUpnessMetrics(prefix string, meter metric.Meter) ([]metric.Obse
 	observeFunc := func(ctx context.Context, o metric.Observer, upnesses map[string]records.Upness, summaries map[string]records.UpnessSummaryWithAttrs) {
 		for _, upness := range upnesses {
 			val := int64(0)
-			if upness.Up() {
+			if upness.Up(unknownThreshold) {
 				val = 1
 			}
 			o.ObserveInt64(up, val, metric.WithAttributes(
