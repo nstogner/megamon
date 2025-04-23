@@ -200,13 +200,26 @@ var _ = Describe("Nodepool metrics", func() {
 				},
 			}
 			Expect(k8sClient.Status().Update(ctx, node)).To(Succeed())
+
+			// nodepool_up should be 0; 16x16 topology expects 256
+			By("rechecking the metrics for nodepool_up")
+			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
+			assertMetrics(
+				nodepool.job_scheduled.WithValue(1),
+				nodepool.down_time_seconds,
+				nodepool.interruption_count.WithValue(0),
+				nodepool.recovery_count.WithValue(0),
+				nodepool.up.WithValue(0),
+				nodepool.up_time_seconds,
+				nodepool.tpu_chip_count.WithValue(256),
+			)
 		})
 
-		// add in remaining 255 nodes
+		// add in remaining 63 nodes
 		nodeList := []*corev1.Node{}
 		It("should succeed in adding all nodes", func() {
 			var npErr error
-			for i := range 255 {
+			for i := range 63 {
 				node := &corev1.Node{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: fmt.Sprintf("node-%d", i),
@@ -251,9 +264,9 @@ var _ = Describe("Nodepool metrics", func() {
 		})
 
 		It("should update nodepool_up metric to 0 when too many node status become Unknown", func() {
-			By("updating 27 node status to Unknown")
+			By("updating 10 node status to Unknown")
 			var updateErr error
-			for i := range 27 {
+			for i := range 10 {
 				node := nodeList[i]
 				node.Status = corev1.NodeStatus{
 					Conditions: []corev1.NodeCondition{
@@ -282,11 +295,11 @@ var _ = Describe("Nodepool metrics", func() {
 			)
 		})
 
-		// update nodepool to have +7 more nodes in READY state, so we have 20 nodes in UNKNOWN
+		// update nodepool to have +4 more nodes in READY state, so we have 6 nodes in UNKNOWN
 		It("should update nodepool_up metric to 1 when less than 10% of node status become Unknown", func() {
-			By("updating 10 node status to Ready")
+			By("updating 4 node status to Ready")
 			var updateErr error
-			for i := range 10 {
+			for i := range 4 {
 				node := nodeList[i]
 				node.Status = corev1.NodeStatus{
 					Conditions: []corev1.NodeCondition{

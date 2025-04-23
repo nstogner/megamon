@@ -153,7 +153,7 @@ func createStubNodePool() *containerv1beta1.NodePool {
 	return &containerv1beta1.NodePool{
 		Name: nodePoolName,
 		Config: &containerv1beta1.NodeConfig{
-			MachineType: "n1-standard-1",
+			MachineType: "ct5lp-hightpu-4t",
 			DiskSizeGb:  100,
 		},
 		Autoscaling: &containerv1beta1.NodePoolAutoscaling{
