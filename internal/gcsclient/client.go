@@ -12,13 +12,12 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var log = logf.Log.WithName("gcsclient")
-
 type Client struct {
 	StorageClient *storage.Client
 }
 
 func (c *Client) GetRecords(ctx context.Context, bucket, path string) (map[string]records.EventRecords, error) {
+	log := logf.FromContext(ctx).WithName("gcsclient")
 	rc, err := c.StorageClient.Bucket(bucket).Object(path).NewReader(ctx)
 	if err != nil {
 		if errors.Is(err, storage.ErrObjectNotExist) {
@@ -42,6 +41,7 @@ func (c *Client) GetRecords(ctx context.Context, bucket, path string) (map[strin
 }
 
 func (c *Client) PutRecords(ctx context.Context, bucket, path string, recs map[string]records.EventRecords) error {
+	log := logf.FromContext(ctx).WithName("gcsclient")
 	log.V(3).Info("putting records", "count", len(recs), "bucket", bucket, "path", path)
 	data, err := json.Marshal(recs)
 	if err != nil {
