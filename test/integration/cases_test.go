@@ -201,8 +201,9 @@ var _ = Describe("Nodepool metrics", func() {
 			}
 			Expect(k8sClient.Status().Update(ctx, node)).To(Succeed())
 
-			// nodepool_up should be 0; 16x16 topology expects 256
+			// nodepool_up should still be 0; 16x16 topology expects 256
 			By("rechecking the metrics for nodepool_up")
+			time.Sleep(3 * time.Second)
 			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
 			assertMetrics(
 				nodepool.job_scheduled.WithValue(1),
