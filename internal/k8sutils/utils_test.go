@@ -158,64 +158,36 @@ func nodeBuilder(condType corev1.NodeConditionType, status corev1.ConditionStatu
 
 func TestIsNodeReady(t *testing.T) {
 	cases := map[string]struct {
-		node             *corev1.Node
-		want             corev1.ConditionStatus
-		unknownThreshold float64
+		node *corev1.Node
+		want corev1.ConditionStatus
 	}{
-		// unknownThreshold == 1.0 behavior (og megamon)
-		"empty, unknownThreshold 1.0": {
-			node:             &corev1.Node{},
-			want:             corev1.ConditionUnknown,
-			unknownThreshold: 1.0,
+		"empty": {
+			node: &corev1.Node{},
+			want: corev1.ConditionUnknown,
 		},
-		"ready, unknownThreshold 1.0": {
-			node:             nodeBuilder(corev1.NodeReady, corev1.ConditionTrue, time.Now()),
-			unknownThreshold: 1.0,
-			want:             corev1.ConditionTrue,
+		"ready": {
+			node: nodeBuilder(corev1.NodeReady, corev1.ConditionTrue, time.Now()),
+			want: corev1.ConditionTrue,
 		},
-		"not ready, unknownThreshold 1.0": {
-			node:             nodeBuilder(corev1.NodeReady, corev1.ConditionFalse, time.Now()),
-			unknownThreshold: 1.0,
-			want:             corev1.ConditionFalse,
+		"not ready": {
+			node: nodeBuilder(corev1.NodeReady, corev1.ConditionFalse, time.Now()),
+			want: corev1.ConditionFalse,
 		},
-		"unknown, unknownThreshold 1.0": {
-			node:             nodeBuilder(corev1.NodeReady, corev1.ConditionUnknown, time.Now()),
-			unknownThreshold: 1.0,
-			want:             corev1.ConditionTrue,
+		"unknown": {
+			node: nodeBuilder(corev1.NodeReady, corev1.ConditionUnknown, time.Now()),
+			want: corev1.ConditionUnknown,
 		},
-		"unknown status older than 3 minutes, unknownThreshold 1.0": {
+		"unknown status older than 3 minutes": {
 			node: &corev1.Node{
 				Status: nodeStatusBuilder(corev1.NodeReady, corev1.ConditionUnknown, time.Now().Add(-5*time.Minute)),
 			},
-			unknownThreshold: 1.0,
-			want:             corev1.ConditionUnknown,
-		},
-		// unknownThreshold == 0.1
-		"unknownThreshold 0.1, unknown status older than 3 minutes with NodeUnknownAsReady enabled": {
-			node:             nodeBuilder(corev1.NodeReady, corev1.ConditionUnknown, time.Now().Add(-5*time.Minute)),
-			unknownThreshold: 0.1,
-			want:             corev1.ConditionUnknown,
-		},
-		"unknownThreshold 0.1, unknown status with NodeUnknownAsReady enabled, last transition < 3 minutes": {
-			node:             nodeBuilder(corev1.NodeReady, corev1.ConditionUnknown, time.Now().Add(-1*time.Minute)),
-			unknownThreshold: 0.1,
-			want:             corev1.ConditionUnknown,
-		},
-		"unknownThreshold 0.1 ready": {
-			node:             nodeBuilder(corev1.NodeReady, corev1.ConditionTrue, time.Now()),
-			unknownThreshold: 0.1,
-			want:             corev1.ConditionTrue,
-		},
-		"unknownThreshold 0.1 not ready": {
-			node:             nodeBuilder(corev1.NodeReady, corev1.ConditionFalse, time.Now()),
-			unknownThreshold: 0.1,
-			want:             corev1.ConditionFalse,
+			want: corev1.ConditionUnknown,
 		},
 	}
 
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := k8sutils.IsNodeReady(c.node, c.unknownThreshold)
+			got := k8sutils.IsNodeReady(c.node)
 			require.Equal(t, c.want, got)
 		})
 	}

@@ -84,7 +84,7 @@ func GetExpectedNodeCount(js *jobset.JobSet) int32 {
 	return count
 }
 
-func IsNodeReady(node *corev1.Node, unknownThreshold float64) corev1.ConditionStatus {
+func IsNodeReady(node *corev1.Node) corev1.ConditionStatus {
 	for _, c := range node.Status.Conditions {
 		if c.Type == corev1.NodeReady {
 			switch c.Status {
@@ -96,12 +96,7 @@ func IsNodeReady(node *corev1.Node, unknownThreshold float64) corev1.ConditionSt
 				// At large scale a given Node may be in an unknown state for a short period of time.
 				// However the workloads running on that Node could still be functioning.
 				if time.Since(c.LastTransitionTime.Time) < 3*time.Minute {
-					// special case, if unknownThreshold == 1.0
-					if unknownThreshold == 1.0 {
-						return corev1.ConditionTrue
-					} else {
-						return corev1.ConditionUnknown
-					}
+					return corev1.ConditionUnknown
 				}
 			default:
 				return corev1.ConditionUnknown
