@@ -1,5 +1,7 @@
 package records
 
+import "math"
+
 func NewReport() Report {
 	return Report{
 		JobSetsUp:              make(map[string]Upness),
@@ -37,11 +39,21 @@ type Attrs struct {
 type Upness struct {
 	ReadyCount    int32 `json:"readyCount"`
 	ExpectedCount int32 `json:"expectedCount"`
+	UnknownCount  int32 `json:"unknownCount"`
 	Attrs
 }
 
-func (up Upness) Up() bool {
-	return up.ReadyCount == up.ExpectedCount
+// Up determines if a component is considered "up" based on its ready, expected, and unknown counts.
+// It allows for a configurable threshold (unknownThreshold) of unknown instances to still be considered "up".
+func (up Upness) Up(unknownThreshold float64) bool {
+	maxUnknown := int32(math.RoundToEven(float64(up.ExpectedCount) * unknownThreshold))
+	if up.UnknownCount > maxUnknown {
+		return false
+	}
+	if up.ReadyCount+up.UnknownCount == up.ExpectedCount {
+		return true
+	}
+	return false
 }
 
 type ScheduledJob struct {

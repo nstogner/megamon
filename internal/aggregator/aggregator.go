@@ -3,7 +3,6 @@ package aggregator
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 	"time"
@@ -14,6 +13,7 @@ import (
 	containerv1beta1 "google.golang.org/api/container/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 )
 
@@ -23,7 +23,8 @@ type Aggregator struct {
 	EventsBucketName string
 	EventsBucketPath string
 
-	Interval time.Duration
+	Interval              time.Duration
+	UnknownCountThreshold float64
 
 	reportMtx   sync.RWMutex
 	report      records.Report
@@ -38,6 +39,8 @@ type Aggregator struct {
 	GKE GKEClient
 	GCS GCSClient
 }
+
+var log = logf.Log.WithName("aggregator")
 
 type GKEClient interface {
 	ListNodePools(ctx context.Context) ([]*containerv1beta1.NodePool, error)
@@ -66,19 +69,19 @@ func (a *Aggregator) Start(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-t.C:
-			log.Println("aggregating")
+			log.Info("aggregating")
 		}
 
 		start := time.Now()
 		if err := a.Aggregate(ctx); err != nil {
-			log.Printf("failed to aggregate: %v", err)
+			log.Error(err, "failed to aggregate")
 			continue
 		}
 		metrics.AggregationDuration.Record(ctx, time.Since(start).Seconds())
 
 		for name, exporter := range a.Exporters {
 			if err := exporter.Export(ctx, a.Report()); err != nil {
-				log.Printf("failed to export %s: %v", name, err)
+				log.Error(err, "failed to export", "exporter", name)
 			}
 		}
 	}
@@ -107,8 +110,11 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	uidMap := map[string]string{}
 
 	for _, js := range jobsetList.Items {
+		if js.Status.TerminalState != "" {
+			log.Info("jobset terminal state", "jobset", js.Name, "state", js.Status.TerminalState)
+		}
 		if !k8sutils.IsJobSetActive(&js) {
-			log.Printf("Skipping inactive jobset: %s", js.Name) // log at more verbose level later
+			log.V(1).Info("Skipping inactive jobset", "jobset", js.Name)
 			continue
 		}
 
@@ -147,12 +153,12 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 			}
 			expectedCount, err := getExpectedTPUNodePoolSize(np)
 			if err != nil {
-				log.Printf("ERROR: failed to get expected TPU node pool size for node pool %q: %v", np.Name, err)
+				log.Error(err, "failed to get expected TPU node pool size", "nodepool", np.Name)
 				return
 			}
 			up.ExpectedCount = expectedCount
 			if tpuChipCount, err := k8sutils.GetTpuTopologyToChipCount(up.TPUTopology); err != nil {
-				log.Printf("WARNING: failed to convert TPU topology to chip count for node pool %q: %v", np.Name, err)
+				log.Error(err, "failed to convert TPU topology to chip count", "nodepool", np.Name)
 			} else {
 				up.TPUChipCount = int32(tpuChipCount)
 			}
@@ -161,7 +167,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	}
 
 	for _, node := range nodeList.Items {
-		ready := k8sutils.IsNodeReady(&node)
+		nodeStatus := k8sutils.IsNodeReady(&node)
 
 		// Node pool mapping:
 
@@ -172,19 +178,21 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 				}
 				up, ok := report.NodePoolsUp[npName]
 				if !ok {
-					log.Printf("WARNING: found Node (%q) for node pool (%q) that was not parsed", node.Name, npName)
+					log.Info("WARNING: found Node for node pool that was not parsed", "node", node.Name, "nodepool", npName)
 					return
 				}
 				if up.ExpectedCount == 0 {
 					var err error
 					up.ExpectedCount, err = k8sutils.GetExpectedTPUNodePoolSize(&node)
 					if err != nil {
-						log.Printf("failed to get expected TPU node pool size for node %q: %v", node.Name, err)
+						log.Error(err, "failed to get expected TPU node pool size", "node", node.Name)
 						return
 					}
 				}
-				if ready {
+				if nodeStatus == corev1.ConditionTrue {
 					up.ReadyCount++
+				} else if nodeStatus == corev1.ConditionUnknown {
+					up.UnknownCount++
 				}
 				report.NodePoolsUp[npName] = up
 			}()
@@ -206,43 +214,51 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 				if !ok {
 					return
 				}
-				if ready {
+				if nodeStatus == corev1.ConditionTrue {
 					up.ReadyCount++
+				} else if nodeStatus == corev1.ConditionUnknown {
+					up.UnknownCount++
 				}
 				report.JobSetNodesUp[uid] = up
 			}()
 		}
 	}
 
-	jsEvents, err := a.reconcileEvents(ctx, "jobsets.json", report.JobSetsUp)
+	log.V(3).Info("DEBUG", "report.NodePoolsUp", report.NodePoolsUp, "report.JobSetNodesUp", report.JobSetNodesUp, "report.JobSetsUp", report.JobSetsUp)
+
+	jobsetContext := logf.IntoContext(ctx, log.WithValues("type", "jobsets"))
+	jobsetNodesContext := logf.IntoContext(ctx, log.WithValues("type", "jobset-nodes"))
+	nodePoolsContxt := logf.IntoContext(ctx, log.WithValues("type", "nodepools"))
+
+	jsEvents, err := a.reconcileEvents(jobsetContext, "jobsets.json", report.JobSetsUp)
 	if err != nil {
 		return fmt.Errorf("reconciling jobset events: %w", err)
 	}
-	jsNodeEvents, err := a.reconcileEvents(ctx, "jobset-nodes.json", report.JobSetNodesUp)
+	jsNodeEvents, err := a.reconcileEvents(jobsetNodesContext, "jobset-nodes.json", report.JobSetNodesUp)
 	if err != nil {
 		return fmt.Errorf("reconciling jobset node events: %w", err)
 	}
-	nodePoolEvents, err := a.reconcileEvents(ctx, "node-pools.json", report.NodePoolsUp)
+	nodePoolEvents, err := a.reconcileEvents(nodePoolsContxt, "node-pools.json", report.NodePoolsUp)
 	if err != nil {
 		return fmt.Errorf("reconciling nodepool events: %w", err)
 	}
 
 	for key, events := range jsEvents {
-		eventSummary := events.Summarize(now)
+		eventSummary := events.Summarize(jobsetContext, now)
 		report.JobSetsUpSummaries[key] = records.UpnessSummaryWithAttrs{
 			Attrs:        report.JobSetsUp[key].Attrs,
 			EventSummary: eventSummary,
 		}
 	}
 	for key, events := range jsNodeEvents {
-		eventSummary := events.Summarize(now)
+		eventSummary := events.Summarize(jobsetNodesContext, now)
 		report.JobSetNodesUpSummaries[key] = records.UpnessSummaryWithAttrs{
 			Attrs:        report.JobSetNodesUp[key].Attrs,
 			EventSummary: eventSummary,
 		}
 	}
 	for key, events := range nodePoolEvents {
-		eventSummary := events.Summarize(now)
+		eventSummary := events.Summarize(nodePoolsContxt, now)
 		report.NodePoolsUpSummaries[key] = records.UpnessSummaryWithAttrs{
 			Attrs:        report.NodePoolsUp[key].Attrs,
 			EventSummary: eventSummary,
@@ -267,7 +283,7 @@ func (a *Aggregator) reconcileEvents(ctx context.Context, filename string, ups m
 		return nil, fmt.Errorf("failed to get %q: %w", filename, err)
 	}
 
-	if changed := records.ReconcileEvents(time.Now(), ups, recs); changed {
+	if changed := records.ReconcileEvents(ctx, time.Now(), ups, recs, a.UnknownCountThreshold); changed {
 		if err := a.GCS.PutRecords(ctx, a.EventsBucketName, path, recs); err != nil {
 			return nil, fmt.Errorf("failed to put %q: %w", filename, err)
 		}

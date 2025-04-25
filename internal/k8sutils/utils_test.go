@@ -2,6 +2,7 @@ package k8sutils_test
 
 import (
 	"testing"
+	"time"
 
 	"example.com/megamon/internal/k8sutils"
 	"github.com/stretchr/testify/require"
@@ -133,6 +134,60 @@ func TestGetTpuTopologyToChipCount(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
+			require.Equal(t, c.want, got)
+		})
+	}
+}
+
+func nodeStatusBuilder(condType corev1.NodeConditionType, status corev1.ConditionStatus, lastTransitionTime time.Time) corev1.NodeStatus {
+	return corev1.NodeStatus{
+		Conditions: []corev1.NodeCondition{
+			{
+				Type:               condType,
+				Status:             status,
+				LastTransitionTime: metav1.NewTime(lastTransitionTime),
+			},
+		},
+	}
+}
+func nodeBuilder(condType corev1.NodeConditionType, status corev1.ConditionStatus, lastTransitionTime time.Time) *corev1.Node {
+	return &corev1.Node{
+		Status: nodeStatusBuilder(condType, status, lastTransitionTime),
+	}
+}
+
+func TestIsNodeReady(t *testing.T) {
+	cases := map[string]struct {
+		node *corev1.Node
+		want corev1.ConditionStatus
+	}{
+		"empty": {
+			node: &corev1.Node{},
+			want: corev1.ConditionUnknown,
+		},
+		"ready": {
+			node: nodeBuilder(corev1.NodeReady, corev1.ConditionTrue, time.Now()),
+			want: corev1.ConditionTrue,
+		},
+		"not ready": {
+			node: nodeBuilder(corev1.NodeReady, corev1.ConditionFalse, time.Now()),
+			want: corev1.ConditionFalse,
+		},
+		"unknown": {
+			node: nodeBuilder(corev1.NodeReady, corev1.ConditionUnknown, time.Now()),
+			want: corev1.ConditionUnknown,
+		},
+		"unknown status older than 3 minutes": {
+			node: &corev1.Node{
+				Status: nodeStatusBuilder(corev1.NodeReady, corev1.ConditionUnknown, time.Now().Add(-5*time.Minute)),
+			},
+			want: corev1.ConditionUnknown,
+		},
+	}
+
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := k8sutils.IsNodeReady(c.node)
 			require.Equal(t, c.want, got)
 		})
 	}
