@@ -155,6 +155,9 @@ func createStubNodePool() *containerv1beta1.NodePool {
 		Config: &containerv1beta1.NodeConfig{
 			MachineType: "ct5lp-hightpu-4t",
 			DiskSizeGb:  100,
+			Labels: map[string]string{
+				"cloud.google.com/gke-tpu-accelerator": "tpu-v5p",
+			},
 		},
 		Autoscaling: &containerv1beta1.NodePoolAutoscaling{
 			Enabled:      true,

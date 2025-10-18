@@ -130,7 +130,14 @@ func extractNodePoolAttrs(np *containerv1beta1.NodePool) records.Attrs {
 	}
 	if np.Config != nil {
 		attrs.Spot = np.Config.Spot
+		if np.Config.Labels != nil {
+			if v, ok := np.Config.Labels[k8sutils.NodeLabelGKETPUAccelerator]; ok && v != "" {
+				attrs.TPUAccelerator = v
+			}
+
+		}
 	}
+
 	// TODO: TPUAccelerator
 
 	return attrs

@@ -189,6 +189,10 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 						return
 					}
 				}
+
+				nodeAttrs := extractNodeAttrs(&node)
+				up.Attrs.TPUAccelerator = nodeAttrs.TPUAccelerator
+				up.Attrs.TPUTopology = nodeAttrs.TPUTopology
 				if nodeStatus == corev1.ConditionTrue {
 					up.ReadyCount++
 				} else if nodeStatus == corev1.ConditionUnknown {
@@ -228,7 +232,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 
 	jobsetContext := logf.IntoContext(ctx, log.WithValues("type", "jobsets"))
 	jobsetNodesContext := logf.IntoContext(ctx, log.WithValues("type", "jobset-nodes"))
-	nodePoolsContxt := logf.IntoContext(ctx, log.WithValues("type", "nodepools"))
+	nodePoolsContext := logf.IntoContext(ctx, log.WithValues("type", "nodepools"))
 
 	jsEvents, err := a.reconcileEvents(jobsetContext, "jobsets.json", report.JobSetsUp)
 	if err != nil {
@@ -238,7 +242,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("reconciling jobset node events: %w", err)
 	}
-	nodePoolEvents, err := a.reconcileEvents(nodePoolsContxt, "node-pools.json", report.NodePoolsUp)
+	nodePoolEvents, err := a.reconcileEvents(nodePoolsContext, "node-pools.json", report.NodePoolsUp)
 	if err != nil {
 		return fmt.Errorf("reconciling nodepool events: %w", err)
 	}
@@ -258,7 +262,13 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 		}
 	}
 	for key, events := range nodePoolEvents {
-		eventSummary := events.Summarize(nodePoolsContxt, now)
+		npAttrs := report.NodePoolsUp[key].Attrs
+		// Get the logger from the parent context and add new values to it.
+		nodepoolLogger := logf.FromContext(nodePoolsContext).WithValues(
+			"nodepool_name", npAttrs.NodePoolName,
+			"tpu_accelerator", npAttrs.TPUAccelerator)
+		// Create a new context with the enriched logger.
+		eventSummary := events.Summarize(logf.IntoContext(ctx, nodepoolLogger), now)
 		report.NodePoolsUpSummaries[key] = records.UpnessSummaryWithAttrs{
 			Attrs:        report.NodePoolsUp[key].Attrs,
 			EventSummary: eventSummary,

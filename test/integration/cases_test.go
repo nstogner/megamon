@@ -490,6 +490,13 @@ func expectedMetricsForNodePool(np *containerv1beta1.NodePool, jobSetName string
 		"nodepool_name": np.Name,
 		"tpu_topology":  tpuTopology,
 	}
+	// If the nodepool has a TPU accelerator label, include it in expected labels.
+	if np.Config != nil && np.Config.Labels != nil {
+		if v, ok := np.Config.Labels["cloud.google.com/gke-tpu-accelerator"]; ok && v != "" {
+			nodepoolLabels["tpu_accelerator"] = v
+
+		}
+	}
 	nodepoolJobLabels := map[string]interface{}{
 		"job_name":      jobName,
 		"jobset_name":   jobSetName,
