@@ -134,7 +134,6 @@ func extractNodePoolAttrs(np *containerv1beta1.NodePool) records.Attrs {
 			if v, ok := np.Config.Labels[k8sutils.NodeLabelGKETPUAccelerator]; ok && v != "" {
 				attrs.TPUAccelerator = v
 			}
-
 		}
 	}
 
