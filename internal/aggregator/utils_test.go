@@ -68,6 +68,17 @@ func TestGetExpectedTPUNodePoolSize(t *testing.T) {
 			},
 			want: 128,
 		},
+		"v7x 2x2x2": {
+			np: &containerv1beta1.NodePool{
+				PlacementPolicy: &containerv1beta1.PlacementPolicy{
+					TpuTopology: "2x2x2",
+				},
+				Config: &containerv1beta1.NodeConfig{
+					MachineType: "tpu7x-standard-4t",
+				},
+			},
+			want: 2,
+		},
 	}
 
 	for name, c := range cases {
