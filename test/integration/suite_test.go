@@ -25,6 +25,7 @@ import (
 
 	containerv1beta1 "google.golang.org/api/container/v1beta1"
 
+	"example.com/megamon/internal/k8sutils"
 	"example.com/megamon/internal/manager"
 	"example.com/megamon/internal/records"
 	. "github.com/onsi/ginkgo/v2"
@@ -156,7 +157,7 @@ func createStubNodePool() *containerv1beta1.NodePool {
 			MachineType: "ct5lp-hightpu-4t",
 			DiskSizeGb:  100,
 			Labels: map[string]string{
-				"cloud.google.com/gke-tpu-accelerator": "tpu-v5p",
+				k8sutils.NodePoolLabelGKEAcceleratorType: "tpu-v5p",
 			},
 		},
 		Autoscaling: &containerv1beta1.NodePoolAutoscaling{

@@ -190,6 +190,7 @@ var _ = Describe("Nodepool metrics", func() {
 				nodepool.up.WithValue(0),
 				nodepool.up_time_seconds.WithValue(0),
 				nodepool.tpu_chip_count.WithValue(256),
+				nodepool.tpu_accelerator.WithValue(1),
 			)
 		})
 
@@ -214,6 +215,7 @@ var _ = Describe("Nodepool metrics", func() {
 				nodepool.up.WithValue(0),
 				nodepool.up_time_seconds,
 				nodepool.tpu_chip_count.WithValue(256),
+				nodepool.tpu_accelerator.WithValue(1),
 			)
 		})
 
@@ -262,6 +264,7 @@ var _ = Describe("Nodepool metrics", func() {
 				nodepool.up.WithValue(1),
 				nodepool.up_time_seconds,
 				nodepool.tpu_chip_count.WithValue(256),
+				nodepool.tpu_accelerator.WithValue(1),
 			)
 		})
 
@@ -294,6 +297,7 @@ var _ = Describe("Nodepool metrics", func() {
 				nodepool.up.WithValue(0),
 				nodepool.up_time_seconds,
 				nodepool.tpu_chip_count.WithValue(256),
+				nodepool.tpu_accelerator.WithValue(1),
 			)
 		})
 
@@ -327,6 +331,7 @@ var _ = Describe("Nodepool metrics", func() {
 				nodepool.up.WithValue(1),
 				nodepool.up_time_seconds,
 				nodepool.tpu_chip_count.WithValue(256),
+				nodepool.tpu_accelerator.WithValue(1),
 			)
 
 		})
@@ -481,6 +486,7 @@ type utilizationMetrics struct {
 	up                 metric
 	up_time_seconds    metric
 	tpu_chip_count     metric
+	tpu_accelerator    metric
 
 	// Present after events occur
 	job_scheduled metric
@@ -488,12 +494,13 @@ type utilizationMetrics struct {
 
 func expectedMetricsForNodePool(np *containerv1beta1.NodePool, jobSetName string, jobName string) utilizationMetrics {
 	nodepoolLabels := map[string]interface{}{
-		"nodepool_name": np.Name,
-		"tpu_topology":  tpuTopology,
+		"nodepool_name":   np.Name,
+		"tpu_topology":    tpuTopology,
+		"tpu_accelerator": "tpu-v5p",
 	}
 	// If the nodepool has a TPU accelerator label, include it in expected labels.
 	if np.Config != nil && np.Config.Labels != nil {
-		if v, ok := np.Config.Labels["cloud.google.com/gke-tpu-accelerator"]; ok && v != "" {
+		if v, ok := np.Config.Labels["goog-gke-accelerator-type"]; ok && v != "" {
 			nodepoolLabels["tpu_accelerator"] = v
 
 		}
@@ -530,6 +537,10 @@ func expectedMetricsForNodePool(np *containerv1beta1.NodePool, jobSetName string
 		},
 		tpu_chip_count: metric{
 			name:   "nodepool_tpu_chip_count",
+			labels: nodepoolLabels,
+		},
+		tpu_accelerator: metric{
+			name:   "nodepool_tpu_accelerator",
 			labels: nodepoolLabels,
 		},
 	}
