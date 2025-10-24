@@ -10,7 +10,7 @@ const (
 	NodeLabelTPUProvisionerJobSetNamespace = "google.com/tpu-provisioner-jobset-namespace"
 	NodeLabelTPUProvisionerJobSetName      = "google.com/tpu-provisioner-jobset-name"
 
-	NodePoolLabelGKEAcceleratorType = "goog-gke-accelerator-type"
+	NodePoolResourceLabelGKEAcceleratorType = "goog-gke-accelerator-type"
 
 	PodLabelJobName    = "batch.kubernetes.io/job-name"
 	PodLabelJobSetName = "jobset.sigs.k8s.io/jobset-name"

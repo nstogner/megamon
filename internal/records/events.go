@@ -165,7 +165,7 @@ func ReconcileEvents(ctx context.Context, now time.Time, ups map[string]Upness, 
 		} else {
 			keyName = "key"
 		}
-		reconcileLog.Info("ReconcileEvents", keyName, key, "tpu_accelerator", up.Attrs.TPUAccelerator, "expected", up.ExpectedCount, "ready", up.ReadyCount, "unknownCount", up.UnknownCount, "unknownThreshold", unknownThreshold)
+		reconcileLog.Info("ReconcileEvents", keyName, key, "expected", up.ExpectedCount, "ready", up.ReadyCount, "unknownCount", up.UnknownCount, "unknownThreshold", unknownThreshold)
 		if AppendUpEvent(now, &rec, up.Up(unknownThreshold)) {
 			events[key] = rec
 			changed = true

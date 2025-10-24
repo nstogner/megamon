@@ -157,7 +157,7 @@ func createStubNodePool() *containerv1beta1.NodePool {
 			MachineType: "ct5lp-hightpu-4t",
 			DiskSizeGb:  100,
 			Labels: map[string]string{
-				k8sutils.NodePoolLabelGKEAcceleratorType: "tpu-v5p",
+				k8sutils.NodePoolResourceLabelGKEAcceleratorType: "tpu-v5p",
 			},
 		},
 		Autoscaling: &containerv1beta1.NodePoolAutoscaling{
