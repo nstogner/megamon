@@ -135,7 +135,6 @@ var _ = Describe("Nodepool metrics", func() {
 				Labels: map[string]string{
 					"cloud.google.com/gke-nodepool":     nodePoolName,
 					"cloud.google.com/gke-tpu-topology": "2x4",
-					k8sutils.NodeLabelGKETPUAccelerator: "tpu-v5p-slice",
 				},
 			},
 		}
@@ -226,9 +225,8 @@ var _ = Describe("Nodepool metrics", func() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: fmt.Sprintf("node-%d", i),
 						Labels: map[string]string{
-							"cloud.google.com/gke-nodepool":                  nodePoolName,
-							"cloud.google.com/gke-tpu-topology":              tpuTopology,
-							k8sutils.NodePoolResourceLabelGKEAcceleratorType: tpuAccelerator,
+							"cloud.google.com/gke-nodepool":     nodePoolName,
+							"cloud.google.com/gke-tpu-topology": tpuTopology,
 						},
 					},
 					Status: corev1.NodeStatus{
