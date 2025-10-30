@@ -259,13 +259,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 		}
 	}
 	for key, events := range nodePoolEvents {
-		npAttrs := report.NodePoolsUp[key].Attrs
-		// Get the logger from the parent context and add new values to it.
-		nodepoolLogger := logf.FromContext(nodePoolsContext).WithValues(
-			"nodepool_name", npAttrs.NodePoolName,
-			"tpu_accelerator", npAttrs.TPUAccelerator)
-		// Create a new context with the enriched logger.
-		eventSummary := events.Summarize(logf.IntoContext(ctx, nodepoolLogger), now)
+		eventSummary := events.Summarize(nodePoolsContext, now)
 		report.NodePoolsUpSummaries[key] = records.UpnessSummaryWithAttrs{
 			Attrs:        report.NodePoolsUp[key].Attrs,
 			EventSummary: eventSummary,
