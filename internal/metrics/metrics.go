@@ -236,8 +236,7 @@ func mustRegisterUpnessMetrics(prefix string, meter metric.Meter, unknownThresho
 	fatal(err)
 
 	tpuChipCount, err := meter.Int64ObservableGauge(prefix+".tpu.chip.count",
-		metric.WithDescription("Total number of TPU chips."),
-	)
+		metric.WithDescription("Total number of TPU chips."))
 	fatal(err)
 
 	observeFunc := func(ctx context.Context, o metric.Observer, upnesses map[string]records.Upness, summaries map[string]records.UpnessSummaryWithAttrs) {
