@@ -130,7 +130,7 @@ func extractNodePoolAttrs(np *containerv1beta1.NodePool) records.Attrs {
 	}
 	if np.Config != nil {
 		attrs.Spot = np.Config.Spot
-		if np.Config.Labels != nil {
+		if np.Config.ResourceLabels != nil {
 			// Check for the goog-gke-accelerator-type label
 			if v, ok := np.Config.ResourceLabels[k8sutils.NodePoolResourceLabelGKEAcceleratorType]; ok && v != "" {
 				attrs.TPUAccelerator = v

@@ -190,14 +190,6 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 					}
 				}
 
-				// Only overwrite attributes if the node provides a non-empty value.
-				// This prevents a correct value from the NodePool API object from being
-				// overwritten by a blank value from a single Node object.
-				nodeAttrs := extractNodeAttrs(&node)
-				if nodeAttrs.TPUAccelerator != "" {
-					up.Attrs.TPUAccelerator = nodeAttrs.TPUAccelerator
-				}
-
 				if nodeStatus == corev1.ConditionTrue {
 					up.ReadyCount++
 				} else if nodeStatus == corev1.ConditionUnknown {

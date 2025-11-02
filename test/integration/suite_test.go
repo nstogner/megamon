@@ -57,6 +57,7 @@ const (
 	testMetricsPrefix = "megamon.test"
 	nodePoolName      = "test-nodepool"
 	tpuTopology       = "16x16"
+	tpuAccelerator    = "tpu-v5p-slice"
 )
 
 var expectedMetricPrefix = strings.ReplaceAll(testCfg.MetricsPrefix, ".", "_")
@@ -156,8 +157,8 @@ func createStubNodePool() *containerv1beta1.NodePool {
 		Config: &containerv1beta1.NodeConfig{
 			MachineType: "ct5lp-hightpu-4t",
 			DiskSizeGb:  100,
-			Labels: map[string]string{
-				k8sutils.NodePoolResourceLabelGKEAcceleratorType: "tpu-v5p",
+			ResourceLabels: map[string]string{
+				k8sutils.NodePoolResourceLabelGKEAcceleratorType: "tpu-v5p-slice",
 			},
 		},
 		Autoscaling: &containerv1beta1.NodePoolAutoscaling{
