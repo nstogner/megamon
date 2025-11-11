@@ -156,16 +156,7 @@ func ReconcileEvents(ctx context.Context, now time.Time, ups map[string]Upness, 
 
 	for key, up := range ups {
 		rec := events[key]
-		var keyName string
-
-		if up.Attrs.NodePoolName != "" {
-			keyName = "nodepool_name"
-		} else if up.Attrs.JobSetUID != "" {
-			keyName = "jobset_uid"
-		} else {
-			keyName = "key"
-		}
-		reconcileLog.Info("ReconcileEvents", keyName, key, "expected", up.ExpectedCount, "ready", up.ReadyCount, "unknownCount", up.UnknownCount, "unknownThreshold", unknownThreshold)
+		reconcileLog.Info("ReconcileEvents", "key", key, "expected", up.ExpectedCount, "ready", up.ReadyCount, "unknownCount", up.UnknownCount, "unknownThreshold", unknownThreshold)
 		if AppendUpEvent(now, &rec, up.Up(unknownThreshold)) {
 			events[key] = rec
 			changed = true

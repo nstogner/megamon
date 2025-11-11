@@ -435,13 +435,13 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 			}
 		}
 	}()
-
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
-		os.Exit(1)
 	}
-
-	// The manager has stopped, so we can now shut down the metrics server.
 	metricsServer.Shutdown(context.Background())
+
+	setupLog.Info("waiting for all goroutines to stop")
+	wg.Wait()
+	setupLog.Info("all goroutines stopped, exiting")
 }
