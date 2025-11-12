@@ -189,6 +189,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 						return
 					}
 				}
+
 				if nodeStatus == corev1.ConditionTrue {
 					up.ReadyCount++
 				} else if nodeStatus == corev1.ConditionUnknown {
@@ -228,7 +229,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 
 	jobsetContext := logf.IntoContext(ctx, log.WithValues("type", "jobsets"))
 	jobsetNodesContext := logf.IntoContext(ctx, log.WithValues("type", "jobset-nodes"))
-	nodePoolsContxt := logf.IntoContext(ctx, log.WithValues("type", "nodepools"))
+	nodePoolsContext := logf.IntoContext(ctx, log.WithValues("type", "nodepools"))
 
 	jsEvents, err := a.reconcileEvents(jobsetContext, "jobsets.json", report.JobSetsUp)
 	if err != nil {
@@ -238,7 +239,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("reconciling jobset node events: %w", err)
 	}
-	nodePoolEvents, err := a.reconcileEvents(nodePoolsContxt, "node-pools.json", report.NodePoolsUp)
+	nodePoolEvents, err := a.reconcileEvents(nodePoolsContext, "node-pools.json", report.NodePoolsUp)
 	if err != nil {
 		return fmt.Errorf("reconciling nodepool events: %w", err)
 	}
@@ -258,7 +259,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 		}
 	}
 	for key, events := range nodePoolEvents {
-		eventSummary := events.Summarize(nodePoolsContxt, now)
+		eventSummary := events.Summarize(nodePoolsContext, now)
 		report.NodePoolsUpSummaries[key] = records.UpnessSummaryWithAttrs{
 			Attrs:        report.NodePoolsUp[key].Attrs,
 			EventSummary: eventSummary,

@@ -435,7 +435,6 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 			}
 		}
 	}()
-
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")

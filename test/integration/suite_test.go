@@ -25,6 +25,7 @@ import (
 
 	containerv1beta1 "google.golang.org/api/container/v1beta1"
 
+	"example.com/megamon/internal/k8sutils"
 	"example.com/megamon/internal/manager"
 	"example.com/megamon/internal/records"
 	. "github.com/onsi/ginkgo/v2"
@@ -56,6 +57,7 @@ const (
 	testMetricsPrefix = "megamon.test"
 	nodePoolName      = "test-nodepool"
 	tpuTopology       = "16x16"
+	tpuAccelerator    = "tpu-v5p-slice"
 )
 
 var expectedMetricPrefix = strings.ReplaceAll(testCfg.MetricsPrefix, ".", "_")
@@ -155,6 +157,9 @@ func createStubNodePool() *containerv1beta1.NodePool {
 		Config: &containerv1beta1.NodeConfig{
 			MachineType: "ct5lp-hightpu-4t",
 			DiskSizeGb:  100,
+			ResourceLabels: map[string]string{
+				k8sutils.NodePoolResourceLabelGKEAcceleratorType: tpuAccelerator,
+			},
 		},
 		Autoscaling: &containerv1beta1.NodePoolAutoscaling{
 			Enabled:      true,
