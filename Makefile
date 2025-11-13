@@ -21,6 +21,14 @@ CONTAINER_TOOL ?= docker
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
+GIT_VERSION ?= $(shell git describe --tags --always --match "v*" 2>/dev/null || echo "dev")
+GIT_COMMIT ?= $(shell git rev-parse HEAD 2>/dev/null || echo "unknown")
+GIT_DATE ?= $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
+
+LDFLAGS := -X example.com/megamon/pkg/version.Version=$(GIT_VERSION) \
+           -X example.com/megamon/pkg/version.Commit=$(GIT_COMMIT) \
+           -X example.com/megamon/pkg/version.Date=$(GIT_DATE)
+
 .PHONY: all
 all: build
 
@@ -79,18 +87,18 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 
 .PHONY: build
 build: manifests generate fmt vet ## Build manager binary.
-	go build -o bin/manager cmd/main.go
+	go build -ldflags "$(LDFLAGS)" -o bin/manager cmd/main.go
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./cmd/main.go
+	go run -ldflags "$(LDFLAGS)" ./cmd/main.go
 
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
-	$(CONTAINER_TOOL) build --platform linux/amd64 -t ${IMG} .
+	$(CONTAINER_TOOL) build --build-arg LDFLAGS="$(LDFLAGS)" --platform linux/amd64 -t ${IMG} .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.

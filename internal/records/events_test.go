@@ -330,6 +330,31 @@ func TestSummarize(t *testing.T) {
 			now:             t0.Add(time.Hour),
 			expectedSummary: EventSummary{},
 		},
+		"planned downtime interruption": {
+			records: EventRecords{
+				// up:         _____
+				// down:   ____|   |
+				// event:  0   1   2
+				// hrs:      1   1
+				UpEvents: []UpEvent{
+					{Up: false, Timestamp: t0},
+					// 1 hr to come up
+					{Up: true, Timestamp: t0.Add(time.Hour)},
+					// 1 of uptime before PLANNED interruption 0
+					{Up: false, Timestamp: t0.Add(2 * time.Hour), PlannedDown: true},
+				},
+			},
+			now: t0.Add(2 * time.Hour),
+			expectedSummary: EventSummary{
+				DownTimeInitial:                 time.Hour,
+				UpTime:                          time.Hour,
+				DownTime:                        time.Hour,
+				InterruptionCount:               0, // Should be 0 because it's planned
+				TotalUpTimeBetweenInterruption:  time.Hour,
+				MeanUpTimeBetweenInterruption:   0, // No interruptions
+				LatestUpTimeBetweenInterruption: time.Hour,
+			},
+		},
 	}
 
 	ctx := context.Background()
@@ -378,16 +403,9 @@ func TestReconcileEvents(t *testing.T) {
 				},
 			},
 			inputEvents: map[string]EventRecords{},
-			expEvents: map[string]EventRecords{
-				"abc": {
-					UpEvents: []UpEvent{
-						{Up: false, Timestamp: now},
-						{Up: true, Timestamp: now},
-					},
-				},
-			},
+			expEvents:   map[string]EventRecords{},
 			unknownThreshold: 1.0,
-			expChanged:       true,
+			expChanged:       false,
 		},
 		"first event down": {
 			inputUps: map[string]Upness{
@@ -457,6 +475,58 @@ func TestReconcileEvents(t *testing.T) {
 			},
 			unknownThreshold: 0.1,
 			expChanged:       false,
+		},
+		"planned downtime": {
+			inputUps: map[string]Upness{
+				"abc": {
+					ExpectedCount:   1,
+					ReadyCount:      0,
+					PlannedDowntime: true,
+				},
+			},
+			inputEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: true, Timestamp: now.Add(-time.Minute)},
+					},
+				},
+			},
+			expEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: true, Timestamp: now.Add(-time.Minute)},
+						{Up: false, Timestamp: now, PlannedDown: true},
+					},
+				},
+			},
+			unknownThreshold: 1.0,
+			expChanged:       true,
+		},
+		"unplanned downtime (failed/suspended)": {
+			inputUps: map[string]Upness{
+				"abc": {
+					ExpectedCount:   1,
+					ReadyCount:      0,
+					PlannedDowntime: false,
+				},
+			},
+			inputEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: true, Timestamp: now.Add(-time.Minute)},
+					},
+				},
+			},
+			expEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: true, Timestamp: now.Add(-time.Minute)},
+						{Up: false, Timestamp: now},
+					},
+				},
+			},
+			unknownThreshold: 1.0,
+			expChanged:       true,
 		},
 		"down to up": {
 			inputUps: map[string]Upness{

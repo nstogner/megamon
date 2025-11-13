@@ -14,8 +14,9 @@ type EventRecords struct {
 }
 
 type UpEvent struct {
-	Up        bool      `json:"up"`
-	Timestamp time.Time `json:"ts"`
+	Up          bool      `json:"up"`
+	PlannedDown bool      `json:"plannedDowntime,omitempty"`
+	Timestamp   time.Time `json:"ts"`
 }
 
 type UpnessSummaryWithAttrs struct {
@@ -104,8 +105,14 @@ func (r *EventRecords) Summarize(ctx context.Context, now time.Time) EventSummar
 			summary.LatestUpTimeBetweenInterruption = r.UpEvents[i].Timestamp.Sub(r.UpEvents[i-1].Timestamp)
 			summary.UpTime += summary.LatestUpTimeBetweenInterruption
 			summary.TotalUpTimeBetweenInterruption += summary.LatestUpTimeBetweenInterruption
-			summary.InterruptionCount++
-			summaryLog.V(5).Info("interruption event found, incrementing count")
+			
+			// Only increment interruption count if it's NOT planned downtime.
+			if !r.UpEvents[i].PlannedDown {
+				summary.InterruptionCount++
+				summaryLog.V(5).Info("interruption event found, incrementing count")
+			} else {
+				summaryLog.V(5).Info("planned downtime event found, skipping interruption count")
+			}
 		}
 	}
 
@@ -129,20 +136,22 @@ func (r *EventRecords) Summarize(ctx context.Context, now time.Time) EventSummar
 	return summary
 }
 
-func AppendUpEvent(now time.Time, rec *EventRecords, isUp bool) bool {
+func AppendUpEvent(now time.Time, rec *EventRecords, isUp bool, plannedDown bool) bool {
 	var changed bool
 	if len(rec.UpEvents) == 0 {
 		rec.UpEvents = append(rec.UpEvents, UpEvent{
-			Up:        false,
-			Timestamp: now,
+			Up:          false,
+			PlannedDown: plannedDown,
+			Timestamp:   now,
 		})
 		changed = true
 	}
 	last := rec.UpEvents[len(rec.UpEvents)-1]
 	if last.Up != isUp {
 		rec.UpEvents = append(rec.UpEvents, UpEvent{
-			Up:        isUp,
-			Timestamp: now,
+			Up:          isUp,
+			PlannedDown: plannedDown,
+			Timestamp:   now,
 		})
 		changed = true
 	}
@@ -156,10 +165,19 @@ func ReconcileEvents(ctx context.Context, now time.Time, ups map[string]Upness, 
 
 	for key, up := range ups {
 		rec := events[key]
-		reconcileLog.Info("ReconcileEvents", "key", key, "expected", up.ExpectedCount, "ready", up.ReadyCount, "unknownCount", up.UnknownCount, "unknownThreshold", unknownThreshold)
-		if AppendUpEvent(now, &rec, up.Up(unknownThreshold)) {
-			events[key] = rec
-			changed = true
+		reconcileLog.Info("ReconcileEvents", "key", key, "expected", up.ExpectedCount, "ready", up.ReadyCount, "unknownCount", up.UnknownCount, "unknownThreshold", unknownThreshold, "status", up.Status)
+
+		isUp := up.Up(unknownThreshold)
+		lastIsUp := true // Default to true if no events exist yet, so the first 'down' event is always recorded.
+		if len(rec.UpEvents) > 0 {
+			lastIsUp = rec.UpEvents[len(rec.UpEvents)-1].Up
+		}
+
+		if isUp != lastIsUp {
+			if AppendUpEvent(now, &rec, isUp, up.PlannedDowntime) {
+				events[key] = rec
+				changed = true
+			}
 		}
 	}
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"example.com/megamon/internal/records"
+	"example.com/megamon/pkg/version"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
@@ -87,6 +88,12 @@ func Init(ctx context.Context, r Reporter, interval time.Duration, unknownThresh
 	)
 	fatal(err)
 
+	// New build info metric (Task 3)
+	buildInfo, err := meter.Int64ObservableGauge(Prefix+".build.info",
+		metric.WithDescription("Build information with version and commit."),
+	)
+	fatal(err)
+
 	jobsetObservables, observeJobset := mustRegisterUpnessMetrics(Prefix+".jobset", meter, unknownThreshold)
 	jobsetNodeObservables, observeJobsetNodes := mustRegisterUpnessMetrics(Prefix+".jobset.nodes", meter, unknownThreshold)
 	nodePoolObservables, observeNodePools := mustRegisterUpnessMetrics(Prefix+".nodepool", meter, unknownThreshold)
@@ -94,8 +101,16 @@ func Init(ctx context.Context, r Reporter, interval time.Duration, unknownThresh
 	observables := append(jobsetObservables, jobsetNodeObservables...)
 	observables = append(observables, nodePoolObservables...)
 	observables = append(observables, nodePoolJobScheduled)
+	observables = append(observables, buildInfo)
 
 	_, err = meter.RegisterCallback(func(ctx context.Context, o metric.Observer) error {
+		// Emit build info (always 1, attributes carry the data)
+		o.ObserveInt64(buildInfo, 1, metric.WithAttributes(
+			attribute.String("version", version.Version),
+			attribute.String("commit", version.Commit),
+			attribute.String("date", version.Date),
+		))
+
 		if !r.ReportReady() {
 			return nil
 		}
