@@ -46,6 +46,7 @@ import (
 
 	// +kubebuilder:scaffold:imports
 
+	slice "example.com/megamon/slice-api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 )
@@ -57,6 +58,7 @@ var (
 func init() {
 	//utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(jobset.AddToScheme(scheme.Scheme))
+	utilruntime.Must(slice.AddToScheme(scheme.Scheme))
 }
 
 type Config struct {
@@ -84,6 +86,9 @@ type Config struct {
 
 	// Controller runtime thresholds
 	UnknownCountThreshold float64
+
+	// HyperComputer features
+	SliceEnabled bool
 }
 
 type GKEConfig struct {
@@ -333,6 +338,7 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 		EventsBucketName:      cfg.EventsBucketName,
 		EventsBucketPath:      cfg.EventsBucketPath,
 		UnknownCountThreshold: cfg.UnknownCountThreshold,
+		SliceEnabled:          cfg.SliceEnabled,
 	}
 
 	availableExporters := map[string]aggregator.Exporter{
@@ -377,6 +383,15 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Pod")
 		os.Exit(1)
+	}
+	if cfg.SliceEnabled {
+		if err = (&controller.SliceReconciler{
+			Client: mgr.GetClient(),
+			Scheme: mgr.GetScheme(),
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Slice")
+			os.Exit(1)
+		}
 	}
 	// +kubebuilder:scaffold:builder
 

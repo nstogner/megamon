@@ -10,6 +10,8 @@ func NewReport() Report {
 		JobSetNodesUpSummaries: make(map[string]UpnessSummaryWithAttrs),
 		NodePoolsUp:            make(map[string]Upness),
 		NodePoolsUpSummaries:   make(map[string]UpnessSummaryWithAttrs),
+		SlicesUp:               make(map[string]Upness),
+		SlicesUpSummaries:      make(map[string]UpnessSummaryWithAttrs),
 	}
 }
 
@@ -20,6 +22,8 @@ type Report struct {
 	JobSetNodesUpSummaries map[string]UpnessSummaryWithAttrs `json:"jobSetNodesUpSummaries"`
 	NodePoolsUp            map[string]Upness                 `json:"nodePoolsUp"`
 	NodePoolsUpSummaries   map[string]UpnessSummaryWithAttrs `json:"nodePoolsUpSummaries"`
+	SlicesUp               map[string]Upness                 `json:"slicesUp"`
+	SlicesUpSummaries      map[string]UpnessSummaryWithAttrs `json:"slicesUpSummaries"`
 	NodePoolScheduling     map[string]ScheduledJob           `json:"nodePoolScheduling"`
 }
 
@@ -34,6 +38,10 @@ type Attrs struct {
 	Spot           bool   `json:"spot"`
 
 	NodePoolName string `json:"nodePoolName"`
+
+	SliceName      string `json:"sliceName"`
+	SliceOwner     string `json:"sliceOwner"`
+	SliceOwnerKind string `json:"sliceOwnerKind"`
 }
 
 type Upness struct {

@@ -10,8 +10,10 @@ import (
 	"example.com/megamon/internal/k8sutils"
 	"example.com/megamon/internal/metrics"
 	"example.com/megamon/internal/records"
+	slice "example.com/megamon/slice-api/v1beta1"
 	containerv1beta1 "google.golang.org/api/container/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
@@ -25,6 +27,7 @@ type Aggregator struct {
 
 	Interval              time.Duration
 	UnknownCountThreshold float64
+	SliceEnabled          bool
 
 	reportMtx   sync.RWMutex
 	report      records.Report
@@ -139,6 +142,43 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 		return fmt.Errorf("listing nodes: %w", err)
 	}
 
+	var sliceList slice.SliceList
+	if a.SliceEnabled {
+		if err := a.List(ctx, &sliceList); err != nil {
+			return fmt.Errorf("listing slices: %w", err)
+		}
+		for _, s := range sliceList.Items {
+			attrs := records.Attrs{
+				SliceName:      s.Name,
+				SliceOwner:     s.Labels["tpu-provisioner.cloud.google.com/owner-name"],
+				SliceOwnerKind: s.Labels["tpu-provisioner.cloud.google.com/owner-kind"],
+				TPUAccelerator: string(s.Spec.Type),
+				TPUTopology:    s.Spec.Topology,
+			}
+
+			if chipCount, err := k8sutils.GetTpuTopologyToChipCount(s.Spec.Topology); err != nil {
+				log.Error(err, "failed to convert TPU topology to chip count", "slice", s.Name)
+			} else {
+				attrs.TPUChipCount = int32(chipCount)
+			}
+
+			up := records.Upness{
+				Attrs:         attrs,
+				ExpectedCount: 1,
+			}
+
+			// Determine status
+			for _, cond := range s.Status.Conditions {
+				if cond.Type == slice.SliceStateConditionType && cond.Status == metav1.ConditionTrue {
+					up.ReadyCount = 1
+					break
+				}
+			}
+
+			report.SlicesUp[s.Name] = up
+		}
+	}
+
 	npList, err := a.GKE.ListNodePools(ctx)
 	if err != nil {
 		return fmt.Errorf("listing node pools: %w", err)
@@ -230,6 +270,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	jobsetContext := logf.IntoContext(ctx, log.WithValues("type", "jobsets"))
 	jobsetNodesContext := logf.IntoContext(ctx, log.WithValues("type", "jobset-nodes"))
 	nodePoolsContext := logf.IntoContext(ctx, log.WithValues("type", "nodepools"))
+	slicesContext := logf.IntoContext(ctx, log.WithValues("type", "slices"))
 
 	jsEvents, err := a.reconcileEvents(jobsetContext, "jobsets.json", report.JobSetsUp)
 	if err != nil {
@@ -242,6 +283,10 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	nodePoolEvents, err := a.reconcileEvents(nodePoolsContext, "node-pools.json", report.NodePoolsUp)
 	if err != nil {
 		return fmt.Errorf("reconciling nodepool events: %w", err)
+	}
+	sliceEvents, err := a.reconcileEvents(slicesContext, "slices.json", report.SlicesUp)
+	if err != nil {
+		return fmt.Errorf("reconciling slice events: %w", err)
 	}
 
 	for key, events := range jsEvents {
@@ -262,6 +307,13 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 		eventSummary := events.Summarize(nodePoolsContext, now)
 		report.NodePoolsUpSummaries[key] = records.UpnessSummaryWithAttrs{
 			Attrs:        report.NodePoolsUp[key].Attrs,
+			EventSummary: eventSummary,
+		}
+	}
+	for key, events := range sliceEvents {
+		eventSummary := events.Summarize(slicesContext, now)
+		report.SlicesUpSummaries[key] = records.UpnessSummaryWithAttrs{
+			Attrs:        report.SlicesUp[key].Attrs,
 			EventSummary: eventSummary,
 		}
 	}
