@@ -11,6 +11,7 @@ import (
 	"example.com/megamon/internal/k8sutils"
 	"example.com/megamon/internal/metrics"
 	"example.com/megamon/internal/records"
+	slice "example.com/megamon/slice-api/v1beta1"
 	containerv1beta1 "google.golang.org/api/container/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -338,7 +339,12 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("reconciling nodepool events: %w", err)
 	}
+<<<<<<< HEAD
 	sliceEvents, err := a.reconcileEvents(slicesContext, now, "slices.json", report.SlicesUp)
+||||||| parent of 5a7b71f (Add in slice reconciler and metrics)
+=======
+	sliceEvents, err := a.reconcileEvents(slicesContext, "slices.json", report.SlicesUp)
+>>>>>>> 5a7b71f (Add in slice reconciler and metrics)
 	if err != nil {
 		return fmt.Errorf("reconciling slice events: %w", err)
 	}
