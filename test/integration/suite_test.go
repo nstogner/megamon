@@ -230,7 +230,8 @@ func (m *mockGCSClient) GetRecords(ctx context.Context, bucket, path string) (ma
 	return rec, nil
 }
 
-func (m *mockGCSClient) PutRecords(ctx context.Context, bucket, path string, recs map[string]records.EventRecords) error {
+func (m *mockGCSClient) PutRecords(ctx context.Context, bucket, path string,
+	recs map[string]records.EventRecords) error {
 	m.records[path] = recs
 	return nil
 }
