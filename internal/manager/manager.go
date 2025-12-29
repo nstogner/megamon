@@ -65,6 +65,8 @@ func init() {
 type Config struct {
 	MetricsPrefix string
 
+	OptionalControllerSuffix string
+
 	AggregationIntervalSeconds int64
 	Exporters                  []string
 
@@ -368,7 +370,15 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 
 	shutdownMetricsFunc := metrics.Init(ctx, agg, time.Duration(cfg.AggregationIntervalSeconds)*time.Second, cfg.UnknownCountThreshold)
 
+	controllerName := func(base string) string {
+		if cfg.OptionalControllerSuffix != "" {
+			return fmt.Sprintf("%s-%s", base, cfg.OptionalControllerSuffix)
+		}
+		return base
+	}
+
 	if err = (&controller.JobSetReconciler{
+		Name:     controllerName("jobset"),
 		Disabled: false,
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
@@ -377,6 +387,7 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 		os.Exit(1)
 	}
 	if err = (&controller.NodeReconciler{
+		Name:   controllerName("node"),
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
@@ -384,6 +395,7 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 		os.Exit(1)
 	}
 	if err = (&controller.PodReconciler{
+		Name:                        controllerName("pod"),
 		Client:                      mgr.GetClient(),
 		Scheme:                      mgr.GetScheme(),
 		Aggregator:                  agg,

@@ -21,6 +21,7 @@ const (
 // PodReconciler watches for JobSet Job leader Pods and labels the Job once Node scheduling
 // has occurred to keep track of dynamic Job-to-NodePool relationships.
 type PodReconciler struct {
+	Name string
 	client.Client
 	Aggregator                  *aggregator.Aggregator
 	Scheme                      *runtime.Scheme
@@ -99,7 +100,12 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	name := "pod"
+	if r.Name != "" {
+		name = r.Name
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{}).
+		Named(name).
 		Complete(r)
 }
