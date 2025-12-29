@@ -201,14 +201,7 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 		time.Sleep(5 * time.Second)
 
 		It("should publish nodepool metrics", func() {
-<<<<<<< HEAD
 			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name, "")
-||||||| parent of 7938273 (Enable parallel testing of integration tests)
-			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
-			assertMetrics(
-=======
-			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
->>>>>>> 7938273 (Enable parallel testing of integration tests)
 			assertMetrics(metricsAddr,
 				// Depends on node and jobset pod being created
 				nodepool.job_scheduled.WithValue(1),
@@ -234,14 +227,7 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 			// nodepool_up should still be 0; 16x16 topology expects 256
 			By("rechecking the metrics for nodepool_up")
 			time.Sleep(3 * time.Second)
-<<<<<<< HEAD
 			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name, "")
-||||||| parent of 7938273 (Enable parallel testing of integration tests)
-			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
-			assertMetrics(
-=======
-			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
->>>>>>> 7938273 (Enable parallel testing of integration tests)
 			assertMetrics(metricsAddr,
 				nodepool.job_scheduled.WithValue(1),
 				nodepool.down_time_seconds,
@@ -289,14 +275,7 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 			time.Sleep(3 * time.Second)
 
 			By("rechecking the metrics for nodepool_up")
-<<<<<<< HEAD
 			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name, "")
-||||||| parent of 7938273 (Enable parallel testing of integration tests)
-			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
-			assertMetrics(
-=======
-			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
->>>>>>> 7938273 (Enable parallel testing of integration tests)
 			assertMetrics(metricsAddr,
 				nodepool.job_scheduled.WithValue(1),
 				nodepool.down_time_seconds,
@@ -328,14 +307,7 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 			time.Sleep(3 * time.Second)
 
 			By("rechecking the metrics for nodepool_up")
-<<<<<<< HEAD
 			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name, "")
-||||||| parent of 7938273 (Enable parallel testing of integration tests)
-			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
-			assertMetrics(
-=======
-			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
->>>>>>> 7938273 (Enable parallel testing of integration tests)
 			assertMetrics(metricsAddr,
 				nodepool.job_scheduled.WithValue(1),
 				nodepool.down_time_seconds,
@@ -368,14 +340,7 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 			time.Sleep(3 * time.Second)
 
 			By("rechecking the metrics for nodepool_up")
-<<<<<<< HEAD
 			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name, "")
-||||||| parent of 7938273 (Enable parallel testing of integration tests)
-			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
-			assertMetrics(
-=======
-			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
->>>>>>> 7938273 (Enable parallel testing of integration tests)
 			assertMetrics(metricsAddr,
 				nodepool.job_scheduled.WithValue(1),
 				nodepool.down_time_seconds,
@@ -386,7 +351,6 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 				nodepool.tpu_chip_count.WithValue(256),
 			)
 		})
-<<<<<<< HEAD
 
 		It("should update slice_name in nodepool metrics when a node has the slice label", func() {
 			By("adding the slice label to a node")
@@ -407,10 +371,6 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 				nodepool.up.WithValue(1),
 			)
 		})
-||||||| parent of 7938273 (Enable parallel testing of integration tests)
-
-=======
->>>>>>> 7938273 (Enable parallel testing of integration tests)
 	})
 })
 
