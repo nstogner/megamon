@@ -18,10 +18,14 @@ package integration
 
 import (
 	"context"
+	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	containerv1beta1 "google.golang.org/api/container/v1beta1"
 
@@ -45,9 +49,6 @@ import (
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
-var restCfg *rest.Config
-var k8sClient client.Client
-var testEnv *envtest.Environment
 var ctx context.Context
 var cancel context.CancelFunc
 
@@ -81,11 +82,12 @@ func TestControllers(t *testing.T) {
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 	format.MaxLength = 30000 // Gomega default is 4000, anything past "MaxLength" will get truncateed in output
-
 	ctx, cancel = context.WithCancel(context.TODO())
+})
 
+func startTestEnv() (*envtest.Environment, *rest.Config, client.Client) {
 	By("bootstrapping test environment")
-	testEnv = &envtest.Environment{
+	testEnv := &envtest.Environment{
 		CRDDirectoryPaths:     []string{filepath.Join("..", "crds")},
 		ErrorIfCRDPathMissing: true,
 	}
@@ -95,30 +97,66 @@ var _ = BeforeSuite(func() {
 		testEnv.BinaryAssetsDirectory = getFirstFoundEnvTestBinaryDir()
 	}
 
-	var err error
-	// cfg is defined in this file globally.
-	restCfg, err = testEnv.Start()
+	cfg, err := testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
-	Expect(restCfg).NotTo(BeNil())
+	Expect(cfg).NotTo(BeNil())
 
-	k8sClient, err = client.New(restCfg, client.Options{Scheme: scheme.Scheme})
+	k8sClient, err := client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
+	return testEnv, cfg, k8sClient
+}
+
+func startManager(ctx context.Context, enableSlice bool, restCfg *rest.Config) string {
+	cfg := testCfg
+	cfg.MetricsPrefix = fmt.Sprintf("megamon.test.%d", time.Now().UnixNano())
+	cfg.OptionalControllerSuffix = cfg.MetricsPrefix
+	expectedMetricPrefix = strings.ReplaceAll(cfg.MetricsPrefix, ".", "_")
+	cfg.SliceEnabled = enableSlice
+
+	// Use dynamic ports to avoid conflicts
+	cfg.MetricsAddr = fmt.Sprintf("127.0.0.1:%d", findFreePort())
+	cfg.ProbeAddr = fmt.Sprintf("127.0.0.1:%d", findFreePort())
+
 	go func() {
-		manager.MustRun(ctx, testCfg, restCfg,
+		manager.MustRun(ctx, cfg, restCfg,
 			gkeClient,
 			&mockGCSClient{records: map[string]map[string]records.EventRecords{}},
 		)
 	}()
-})
+	// Wait for readiness
+	Eventually(func() error {
+		resp, err := http.Get("http://" + cfg.ProbeAddr + "/readyz")
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("status %d", resp.StatusCode)
+		}
+		return nil
+	}, "10s", "100ms").Should(Succeed())
+
+	return cfg.MetricsAddr
+}
+
+func findFreePort() int {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	Expect(err).NotTo(HaveOccurred())
+	defer l.Close()
+	return l.Addr().(*net.TCPAddr).Port
+}
 
 var _ = AfterSuite(func() {
-	By("tearing down the test environment")
 	cancel()
+})
+
+func stopTestEnv(testEnv *envtest.Environment) {
+	By("tearing down the test environment")
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
-})
+}
 
 // getFirstFoundEnvTestBinaryDir locates the first binary in the specified path.
 // ENVTEST-based tests depend on specific binaries, usually located in paths set by
