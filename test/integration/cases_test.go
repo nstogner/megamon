@@ -40,6 +40,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
+
+	slice "example.com/megamon/copied-slice-api/v1beta1"
 )
 
 var (
@@ -661,6 +663,168 @@ func expectedMetricsForJobSet(js *jobset.JobSet, tpuTopology string) upnessMetri
 	}
 }
 
+var _ = Describe("Slice Metrics Scenarios", func() {
+	sliceLifecycleTest := func(enableSlice bool) {
+		var ctx context.Context
+		var cancel context.CancelFunc
+		var metricsAddr string
+		var s *slice.Slice
+		var testEnv *envtest.Environment
+		var restCfg *rest.Config
+		var k8sClient client.Client
+
+		BeforeEach(func() {
+			ctx, cancel = context.WithCancel(context.Background())
+			testEnv, restCfg, k8sClient = startTestEnv()
+			metricsAddr = startManager(ctx, enableSlice, restCfg)
+			s = &slice.Slice{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: fmt.Sprintf("test-slice-%v", enableSlice),
+					Labels: map[string]string{
+						"tpu-provisioner.cloud.google.com/owner-name": "test-owner",
+						"tpu-provisioner.cloud.google.com/owner-kind": "test-kind",
+					},
+				},
+				Spec: slice.SliceSpec{
+					Type:         slice.TypeTpu7x,
+					Topology:     "2x2x2",
+					PartitionIds: []string{"p1"},
+				},
+			}
+		})
+
+		AfterEach(func() {
+			cancel()
+			time.Sleep(3 * time.Second) // Wait for manager shutdown
+			stopTestEnv(testEnv)
+		})
+
+		It("should verify slice lifecycle", func() {
+			By("watching a Slice")
+			Expect(k8sClient.Create(ctx, s)).To(Succeed())
+
+			time.Sleep(3 * time.Second)
+			sliceMetrics := expectedMetricsForSlice(s)
+			if enableSlice {
+				assertMetrics(metricsAddr, sliceMetrics.up.WithValue(0), sliceMetrics.tpu_chip_count)
+			} else {
+				assertMetricsAbsent(metricsAddr, sliceMetrics.tpu_chip_count)
+			}
+
+			By("updating the slice status to ready")
+			s.Status.Conditions = []metav1.Condition{
+				{
+					Type:               slice.SliceStateConditionType,
+					Status:             metav1.ConditionTrue,
+					Reason:             "SliceReady",
+					LastTransitionTime: metav1.Now(),
+				},
+			}
+			Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
+			time.Sleep(3 * time.Second)
+
+			if enableSlice {
+				assertMetrics(metricsAddr, sliceMetrics.up.WithValue(1), sliceMetrics.tpu_chip_count, sliceMetrics.down_time_initial_seconds)
+			} else {
+				assertMetricsAbsent(metricsAddr, sliceMetrics.up)
+			}
+
+			By("updating the slice status to interrupted")
+			s.Status.Conditions = []metav1.Condition{
+				{
+					Type:               slice.SliceStateConditionType,
+					Status:             metav1.ConditionFalse,
+					Reason:             "SliceInterrupted",
+					LastTransitionTime: metav1.Now(),
+				},
+			}
+			Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
+			time.Sleep(3 * time.Second)
+
+			if enableSlice {
+				assertMetrics(metricsAddr, sliceMetrics.up.WithValue(0), sliceMetrics.interruption_count.WithValue(1))
+			} else {
+				assertMetricsAbsent(metricsAddr, sliceMetrics.interruption_count)
+			}
+
+			By("updating the slice status to recovered")
+			s.Status.Conditions = []metav1.Condition{
+				{
+					Type:               slice.SliceStateConditionType,
+					Status:             metav1.ConditionTrue,
+					Reason:             "SliceRecovered",
+					LastTransitionTime: metav1.Now(),
+				},
+			}
+			Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
+			time.Sleep(3 * time.Second)
+
+			if enableSlice {
+				assertMetrics(metricsAddr, sliceMetrics.up.WithValue(1), sliceMetrics.interruption_count.WithValue(1), sliceMetrics.recovery_count.WithValue(1), sliceMetrics.down_time_between_recovery_seconds, sliceMetrics.down_time_between_recovery_latest_seconds, sliceMetrics.tpu_chip_count)
+			} else {
+				assertMetricsAbsent(metricsAddr, sliceMetrics.recovery_count)
+			}
+
+			By("deleting the slice")
+			s.Finalizers = append(s.Finalizers, "megamon.test/finalizer")
+			Expect(k8sClient.Update(ctx, s)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, s)).To(Succeed())
+
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: s.Name, Namespace: s.Namespace}, s)).To(Succeed())
+			s.Status.Conditions = []metav1.Condition{
+				{
+					Type:               slice.SliceStateConditionType,
+					Status:             metav1.ConditionFalse,
+					Reason:             "SliceDeleted",
+					LastTransitionTime: metav1.Now(),
+				},
+			}
+			Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
+			time.Sleep(3 * time.Second)
+
+			if enableSlice {
+				assertMetrics(metricsAddr, sliceMetrics.up.WithValue(0))
+			} else {
+				assertMetricsAbsent(metricsAddr, sliceMetrics.up)
+			}
+		})
+	}
+
+	Context("With Slice Disabled", func() {
+		sliceLifecycleTest(false)
+	})
+
+	Context("With Slice Enabled", func() {
+		sliceLifecycleTest(true)
+	})
+})
+
+func expectedMetricsForSlice(s *slice.Slice) upnessMetrics {
+	sLabels := map[string]interface{}{
+		"slice_name":       s.Name,
+		"slice_owner_name": s.Labels["tpu-provisioner.cloud.google.com/owner-name"],
+		"slice_owner_kind": s.Labels["tpu-provisioner.cloud.google.com/owner-kind"],
+		"tpu_accelerator":  string(s.Spec.Type),
+		"tpu_topology":     s.Spec.Topology,
+	}
+	chipCount, _ := k8sutils.GetTpuTopologyToChipCount(s.Spec.Topology)
+	return upnessMetrics{
+		up:                                   metric{name: "slice_up", labels: sLabels},
+		interruption_count:                   metric{name: "slice_interruption_count", labels: sLabels},
+		recovery_count:                       metric{name: "slice_recovery_count", labels: sLabels},
+		up_time_seconds:                      metric{name: "slice_up_time_seconds", labels: sLabels},
+		down_time_seconds:                    metric{name: "slice_down_time_seconds", labels: sLabels},
+		tpu_chip_count:                       metric{name: "slice_tpu_chip_count", labels: sLabels}.WithValue(chipCount),
+		up_time_between_interruption_seconds: metric{name: "slice_up_time_between_interruption_seconds", labels: sLabels},
+		up_time_between_interruption_mean_seconds:   metric{name: "slice_up_time_between_interruption_mean_seconds", labels: sLabels},
+		up_time_between_interruption_latest_seconds: metric{name: "slice_up_time_between_interruption_latest_seconds", labels: sLabels},
+		down_time_initial_seconds:                   metric{name: "slice_down_time_initial_seconds", labels: sLabels},
+		down_time_between_recovery_seconds:          metric{name: "slice_down_time_between_recovery_seconds", labels: sLabels},
+		down_time_between_recovery_mean_seconds:     metric{name: "slice_down_time_between_recovery_mean_seconds", labels: sLabels},
+		down_time_between_recovery_latest_seconds:   metric{name: "slice_down_time_between_recovery_latest_seconds", labels: sLabels},
+	}
+}
+
 func fetchMetrics(addr string) (string, error) {
 	resp, err := http.Get("http://" + addr + "/metrics")
 	if err != nil {
@@ -689,6 +853,17 @@ func assertMetrics(addr string, expected ...metric) {
 		//fmt.Println(metrics)
 		Expect(metrics).To(ContainSubstring(exp.String()), "full metric does not match: "+line)
 	}
+}
+
+func assertMetricsAbsent(addr string, expected ...metric) {
+	GinkgoHelper()
+	Consistently(func() (string, error) {
+		metrics, err := fetchMetrics(addr)
+		if err != nil {
+			return "", err
+		}
+		return metrics, nil
+	}, "3s", "1s").ShouldNot(ContainSubstring(expected[0].name+"{"), "metric found but should be absent")
 }
 
 func findMatchingLine(lines, match string) string {
