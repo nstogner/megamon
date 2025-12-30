@@ -156,7 +156,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 
 			if s.Labels != nil {
 				if val, ok := s.Labels["tpu-provisioner.cloud.google.com/owner-name"]; !ok {
-					attrs.SliceOwner = val
+					attrs.SliceOwnerName = val
 				}
 				if val, ok := s.Labels["tpu-provisioner.cloud.google.com/owner-kind"]; !ok {
 					attrs.SliceOwnerKind = val
