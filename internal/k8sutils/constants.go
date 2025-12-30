@@ -4,6 +4,7 @@ const (
 	NodeLabelGKETPUAccelerator   = "cloud.google.com/gke-tpu-accelerator"
 	NodeLabelGKEAcceleratorCount = "cloud.google.com/gke-accelerator-count"
 	NodeLabelGKETPUTopology      = "cloud.google.com/gke-tpu-topology"
+	NodeLabelGKETPUSlice         = "cloud.google.com/gke-tpu-slice"
 	NodeLabelGKESpot             = "cloud.google.com/gke-spot"
 	NodeLabelGKENodepool         = "cloud.google.com/gke-nodepool"
 
