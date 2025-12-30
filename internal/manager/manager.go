@@ -46,7 +46,7 @@ import (
 
 	// +kubebuilder:scaffold:imports
 
-	slice "example.com/megamon/slice-api/v1beta1"
+	slice "example.com/megamon/copied-slice-api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 )

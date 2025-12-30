@@ -3,7 +3,7 @@ package controller
 import (
 	"context"
 
-	slice "example.com/megamon/slice-api/v1beta1"
+	slice "example.com/megamon/copied-slice-api/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"

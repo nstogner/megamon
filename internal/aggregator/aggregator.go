@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
+	slice "example.com/megamon/copied-slice-api/v1beta1"
 	"example.com/megamon/internal/k8sutils"
 	"example.com/megamon/internal/metrics"
 	"example.com/megamon/internal/records"
-	slice "example.com/megamon/slice-api/v1beta1"
 	containerv1beta1 "google.golang.org/api/container/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -150,10 +150,17 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 		for _, s := range sliceList.Items {
 			attrs := records.Attrs{
 				SliceName:      s.Name,
-				SliceOwner:     s.Labels["tpu-provisioner.cloud.google.com/owner-name"],
-				SliceOwnerKind: s.Labels["tpu-provisioner.cloud.google.com/owner-kind"],
 				TPUAccelerator: string(s.Spec.Type),
 				TPUTopology:    s.Spec.Topology,
+			}
+
+			if s.Labels != nil {
+				if val, ok := s.Labels["tpu-provisioner.cloud.google.com/owner-name"]; !ok {
+					attrs.SliceOwner = val
+				}
+				if val, ok := s.Labels["tpu-provisioner.cloud.google.com/owner-kind"]; !ok {
+					attrs.SliceOwnerKind = val
+				}
 			}
 
 			if chipCount, err := k8sutils.GetTpuTopologyToChipCount(s.Spec.Topology); err != nil {
