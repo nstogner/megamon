@@ -166,7 +166,6 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 			sliceUID := string(s.UID)
 			attrs := records.Attrs{
 				SliceName:      s.Name,
-				SliceUID:       sliceUID,
 				TPUAccelerator: string(s.Spec.Type),
 				TPUTopology:    s.Spec.Topology,
 			}
