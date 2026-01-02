@@ -155,11 +155,14 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 			}
 
 			if s.Labels != nil {
-				if val, ok := s.Labels["tpu-provisioner.cloud.google.com/owner-name"]; !ok {
+				if val, ok := s.Labels[k8sutils.LabelTPUProvisionerOwnerName]; !ok {
 					attrs.SliceOwnerName = val
 				}
-				if val, ok := s.Labels["tpu-provisioner.cloud.google.com/owner-kind"]; !ok {
+				if val, ok := s.Labels[k8sutils.LabelTPUProvisionerOwnerKind]; !ok {
 					attrs.SliceOwnerKind = val
+				}
+				if val, ok := s.Labels[k8sutils.LabelTPUProvisionerOwnerNamespace]; !ok {
+					attrs.SliceOwnerNamespace = val
 				}
 			}
 

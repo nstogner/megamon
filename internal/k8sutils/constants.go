@@ -14,4 +14,8 @@ const (
 
 	PodLabelJobName    = "batch.kubernetes.io/job-name"
 	PodLabelJobSetName = "jobset.sigs.k8s.io/jobset-name"
+
+	LabelTPUProvisionerOwnerKind      = "tpu-provisioner.cloud.google.com/owner-kind"
+	LabelTPUProvisionerOwnerName      = "tpu-provisioner.cloud.google.com/owner-name"
+	LabelTPUProvisionerOwnerNamespace = "tpu-provisioner.cloud.google.com/owner-namespace"
 )

@@ -39,9 +39,10 @@ type Attrs struct {
 
 	NodePoolName string `json:"nodePoolName"`
 
-	SliceName      string `json:"sliceName"`
-	SliceOwnerName string `json:"sliceOwner"`
-	SliceOwnerKind string `json:"sliceOwnerKind"`
+	SliceName           string `json:"sliceName"`
+	SliceOwnerKind      string `json:"sliceOwnerKind"`
+	SliceOwnerName      string `json:"sliceOwnerName"`
+	SliceOwnerNamespace string `json:"sliceOwnerNamespace"`
 }
 
 type Upness struct {
