@@ -63,7 +63,7 @@ vet: ## Run go vet against code.
 test-unit: ## Run unit tests.
 	go test ./internal/... -coverprofile cover.out
 
-.PHONY: test-integration test-integration-verbose test-integration-parallel test-integration-parallel-verbose
+.PHONY: test-integration test-integration-verbose
 INTEGRATION_TEST_DEPS := manifests generate fmt vet envtest ginkgo
 INTEGRATION_TEST_CMD = KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" $(GINKGO)
 
@@ -72,12 +72,6 @@ test-integration: $(INTEGRATION_TEST_DEPS) ## Run tests.
 
 test-integration-verbose: $(INTEGRATION_TEST_DEPS) ## Run tests.
 	$(INTEGRATION_TEST_CMD) -v --output-interceptor-mode=none ./test/integration
-
-test-integration-parallel: $(INTEGRATION_TEST_DEPS) ## Run tests.
-	$(INTEGRATION_TEST_CMD) -p ./test/integration
-
-test-integration-parallel-verbose: $(INTEGRATION_TEST_DEPS) ## Run tests.
-	$(INTEGRATION_TEST_CMD) -v -p ./test/integration
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter
