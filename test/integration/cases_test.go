@@ -760,6 +760,10 @@ func expectedMetricsForJobSetWithSlice(js *jobset.JobSet, tpuTopology string, sl
 	}
 }
 
+func expectedMetricsForJobSet(js *jobset.JobSet, tpuTopology string) upnessMetrics {
+	return expectedMetricsForJobSetWithSlice(js, tpuTopology, nil)
+}
+
 var _ = Describe("Slice Metrics Scenarios", func() {
 	sliceLifecycleTest := func(enableSlice bool) {
 		var ctx context.Context

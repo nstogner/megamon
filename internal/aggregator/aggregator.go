@@ -166,6 +166,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 			sliceUID := string(s.UID)
 			attrs := records.Attrs{
 				SliceName:      s.Name,
+				SliceUID:       sliceUID,
 				TPUAccelerator: string(s.Spec.Type),
 				TPUTopology:    s.Spec.Topology,
 			}
@@ -205,7 +206,6 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 
 			// update jobset attribute with slice attribute if found
 			if attrs.SliceOwnerKind == "jobset" {
-				fmt.Printf("uidkey: %s\n", uidMapKey(attrs.SliceOwnerNamespace, attrs.SliceOwnerName))
 				if uid, ok := sliceUidMap[uidMapKey(attrs.SliceOwnerNamespace, attrs.SliceOwnerName)]; ok {
 					if jsUp, ok := report.JobSetsUp[uid]; ok {
 						jsUp.Attrs.SliceName = s.Name
