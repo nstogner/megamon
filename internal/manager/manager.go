@@ -406,6 +406,7 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 	}
 	if cfg.SliceEnabled {
 		if err = (&controller.SliceReconciler{
+			Name:   controllerName("slice"),
 			Client: mgr.GetClient(),
 			Scheme: mgr.GetScheme(),
 		}).SetupWithManager(mgr); err != nil {
