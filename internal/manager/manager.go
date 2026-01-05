@@ -404,6 +404,16 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 		setupLog.Error(err, "unable to create controller", "controller", "Pod")
 		os.Exit(1)
 	}
+	if cfg.SliceEnabled {
+		if err = (&controller.SliceReconciler{
+			Name:   controllerName("slice"),
+			Client: mgr.GetClient(),
+			Scheme: mgr.GetScheme(),
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Slice")
+			os.Exit(1)
+		}
+	}
 	// +kubebuilder:scaffold:builder
 
 	//mgr.Add(agg)
