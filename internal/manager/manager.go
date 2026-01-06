@@ -113,7 +113,7 @@ func MustConfigure() Config {
 	flag.Parse()
 
 	if printVersion {
-		fmt.Println(version.String())
+		fmt.Printf("megamon %s\n", version.String())
 		os.Exit(0)
 	}
 
