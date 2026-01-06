@@ -440,6 +440,29 @@ var _ = Describe("JobSet metrics", func() {
 				jobset.tpu_chip_count.WithValue(8),
 			)
 		})
+		
+		It("should NOT increment interruption count when jobset completes (planned downtime)", func() {
+			By("setting the jobset status to Completed")
+			js.Status.TerminalState = string(jobset.JobSetCompleted)
+			js.Status.Conditions = []metav1.Condition{
+				{
+					Type:   string(jobset.JobSetCompleted),
+					Status: metav1.ConditionTrue,
+				},
+			}
+			Expect(k8sClient.Status().Update(ctx, js)).To(Succeed())
+
+			By("checking that interruption count is still 0")
+			// We iterate a few times to ensure the aggregator picks it up and DOES NOT increment
+			Eventually(func() error {
+				metrics := expectedMetricsForJobSet(js, "2x4")
+				// We expect Up=0 (Down), but InterruptionCount=0 (Planned)
+				return assertMetrics(
+					metrics.up.WithValue(0),
+					metrics.interruption_count.WithValue(1), 
+				)
+			}, 10*time.Second, 1*time.Second).Should(Succeed())
+		})
 
 		It("should watch a jobset with a two replicated jobs", func() {
 			Expect(k8sClient.Create(ctx, jobsetMultipleRJobs)).To(Succeed())
