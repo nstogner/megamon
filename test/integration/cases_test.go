@@ -455,7 +455,7 @@ var _ = Describe("JobSet metrics", func() {
 			By("checking that interruption count is still 0")
 			// We iterate a few times to ensure the aggregator picks it up and DOES NOT increment
 			metrics := expectedMetricsForJobSet(js, "2x4")
-			// We expect Up=0 (Down), but InterruptionCount=0 (Planned)
+			// We expect Up=0 (Down), but InterruptionCount=1 (Planned)
 			assertMetrics(
 				metrics.up.WithValue(0),
 				metrics.interruption_count.WithValue(1), 
