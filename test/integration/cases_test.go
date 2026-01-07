@@ -454,14 +454,12 @@ var _ = Describe("JobSet metrics", func() {
 
 			By("checking that interruption count is still 0")
 			// We iterate a few times to ensure the aggregator picks it up and DOES NOT increment
-			Eventually(func() error {
-				metrics := expectedMetricsForJobSet(js, "2x4")
-				// We expect Up=0 (Down), but InterruptionCount=0 (Planned)
-				return assertMetrics(
-					metrics.up.WithValue(0),
-					metrics.interruption_count.WithValue(1), 
-				)
-			}, 10*time.Second, 1*time.Second).Should(Succeed())
+			metrics := expectedMetricsForJobSet(js, "2x4")
+			// We expect Up=0 (Down), but InterruptionCount=0 (Planned)
+			assertMetrics(
+				metrics.up.WithValue(0),
+				metrics.interruption_count.WithValue(1), 
+			)
 		})
 
 		It("should watch a jobset with a two replicated jobs", func() {
