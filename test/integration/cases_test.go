@@ -446,8 +446,11 @@ var _ = Describe("JobSet metrics", func() {
 			js.Status.TerminalState = string(jobset.JobSetCompleted)
 			js.Status.Conditions = []metav1.Condition{
 				{
-					Type:   string(jobset.JobSetCompleted),
-					Status: metav1.ConditionTrue,
+					Type:               string(jobset.JobSetCompleted),
+					Status:             metav1.ConditionTrue,
+					LastTransitionTime: metav1.Now(),
+					Reason:             "AllJobsCompleted",
+					Message:            "jobset completed",
 				},
 			}
 			Expect(k8sClient.Status().Update(ctx, js)).To(Succeed())
