@@ -465,12 +465,17 @@ var _ = Describe("JobSet metrics", func() {
 			// We iterate a few times to ensure the aggregator picks it up and DOES NOT increment
 			metrics := expectedMetricsForJobSet(js, "2x4")
 			
-			// We expect Up=0 (Down), but InterruptionCount=1 (Planned)
-			// Use Consistently to ensure the value doesn't change (proving no increment happened)
-			Consistently(func(g Gomega) {
+			// 1. Wait for the aggregator to pick up the "Completed" state (Up -> 0)
+			Eventually(func(g Gomega) {
 				m, err := fetchMetrics()
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(m).To(ContainSubstring(metrics.up.WithValue(0).String()))
+			}, "10s", "1s").Should(Succeed())
+
+			// 2. Ensure Interruption Count remains 1 (Planned Downtime should NOT increment it)
+			Consistently(func(g Gomega) {
+				m, err := fetchMetrics()
+				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(m).To(ContainSubstring(metrics.interruption_count.WithValue(1).String()))
 			}, "5s", "1s").Should(Succeed())
 		})
