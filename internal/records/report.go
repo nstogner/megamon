@@ -48,6 +48,9 @@ type Upness struct {
 // Up determines if a component is considered "up" based on its ready, expected, and unknown counts.
 // It allows for a configurable threshold (unknownThreshold) of unknown instances to still be considered "up".
 func (up Upness) Up(unknownThreshold float64) bool {
+	if up.PlannedDowntime {
+		return false
+	}
 	maxUnknown := int32(math.RoundToEven(float64(up.ExpectedCount) * unknownThreshold))
 	if up.UnknownCount > maxUnknown {
 		return false
