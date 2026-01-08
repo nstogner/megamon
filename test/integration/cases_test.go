@@ -441,6 +441,12 @@ var _ = Describe("JobSet metrics", func() {
 			)
 		})
 		
+		It("should publish build info metric", func() {
+			By("checking for megamon_build_info metric")
+			metrics := expectedMetricPrefix + "_build_info{commit=\"none\",date=\"unknown\",otel_scope_name=\"megamon\",otel_scope_version=\"\",version=\"dev\"} 1"
+			Eventually(fetchMetrics, "5s", "1s").Should(ContainSubstring(metrics))
+		})
+
 		It("should NOT increment interruption count when jobset completes (planned downtime)", func() {
 			By("setting the jobset status to Completed")
 			js.Status.TerminalState = string(jobset.JobSetCompleted)
@@ -455,14 +461,18 @@ var _ = Describe("JobSet metrics", func() {
 			}
 			Expect(k8sClient.Status().Update(ctx, js)).To(Succeed())
 
-			By("checking that interruption count is still 0")
+			By("checking that interruption count is still 1")
 			// We iterate a few times to ensure the aggregator picks it up and DOES NOT increment
 			metrics := expectedMetricsForJobSet(js, "2x4")
+			
 			// We expect Up=0 (Down), but InterruptionCount=1 (Planned)
-			assertMetrics(
-				metrics.up.WithValue(0),
-				metrics.interruption_count.WithValue(1), 
-			)
+			// Use Consistently to ensure the value doesn't change (proving no increment happened)
+			Consistently(func(g Gomega) {
+				m, err := fetchMetrics()
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(m).To(ContainSubstring(metrics.up.WithValue(0).String()))
+				g.Expect(m).To(ContainSubstring(metrics.interruption_count.WithValue(1).String()))
+			}, "5s", "1s").Should(Succeed())
 		})
 
 		It("should watch a jobset with a two replicated jobs", func() {
