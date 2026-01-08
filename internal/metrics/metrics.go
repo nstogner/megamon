@@ -257,7 +257,7 @@ func mustRegisterUpnessMetrics(prefix string, meter metric.Meter, unknownThresho
 	observeFunc := func(ctx context.Context, o metric.Observer, upnesses map[string]records.Upness, summaries map[string]records.UpnessSummaryWithAttrs) {
 		for _, upness := range upnesses {
 			val := int64(0)
-			if upness.Up(unknownThreshold) {
+			if upness.Up(unknownThreshold) && !upness.PlannedDowntime {
 				val = 1
 			}
 			o.ObserveInt64(up, val, metric.WithAttributes(

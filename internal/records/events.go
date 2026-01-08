@@ -168,6 +168,14 @@ func ReconcileEvents(ctx context.Context, now time.Time, ups map[string]Upness, 
 		reconcileLog.Info("ReconcileEvents", "key", key, "expected", up.ExpectedCount, "ready", up.ReadyCount, "unknownCount", up.UnknownCount, "unknownThreshold", unknownThreshold, "status", up.Status)
 
 		isUp := up.Up(unknownThreshold)
+		
+		// If PlannedDowntime is true (e.g. JobSet Completed), force isUp to false.
+		// This ensures we stop the UpTime clock and record a Down event (Planned),
+		// regardless of whether the Pod counts (Ready vs Expected) technically imply Up.
+		if up.PlannedDowntime {
+			isUp = false
+		}
+
 		lastIsUp := true // Default to true if no events exist yet, so the first 'down' event is always recorded.
 		if len(rec.UpEvents) > 0 {
 			lastIsUp = rec.UpEvents[len(rec.UpEvents)-1].Up
