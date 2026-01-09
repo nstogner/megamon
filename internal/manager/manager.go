@@ -312,7 +312,7 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 	}
 
 	if cfg.EnableSimulation {
-		gkeClient = gkeclient.CreateStubGKEClient()
+		gkeClient = gkeclient.CreateStubGKEClient(mgr.GetClient())
 		gcsClient = gcsclient.CreateStubGCSClient()
 	}
 
