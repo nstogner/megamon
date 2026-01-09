@@ -201,7 +201,7 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 		time.Sleep(5 * time.Second)
 
 		It("should publish nodepool metrics", func() {
-			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
+			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name, "")
 			assertMetrics(metricsAddr,
 				// Depends on node and jobset pod being created
 				nodepool.job_scheduled.WithValue(1),
@@ -227,7 +227,7 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 			// nodepool_up should still be 0; 16x16 topology expects 256
 			By("rechecking the metrics for nodepool_up")
 			time.Sleep(3 * time.Second)
-			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
+			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name, "")
 			assertMetrics(metricsAddr,
 				nodepool.job_scheduled.WithValue(1),
 				nodepool.down_time_seconds,
@@ -275,7 +275,7 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 			time.Sleep(3 * time.Second)
 
 			By("rechecking the metrics for nodepool_up")
-			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
+			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name, "")
 			assertMetrics(metricsAddr,
 				nodepool.job_scheduled.WithValue(1),
 				nodepool.down_time_seconds,
@@ -307,7 +307,7 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 			time.Sleep(3 * time.Second)
 
 			By("rechecking the metrics for nodepool_up")
-			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
+			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name, "")
 			assertMetrics(metricsAddr,
 				nodepool.job_scheduled.WithValue(1),
 				nodepool.down_time_seconds,
@@ -340,7 +340,7 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 			time.Sleep(3 * time.Second)
 
 			By("rechecking the metrics for nodepool_up")
-			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
+			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name, "")
 			assertMetrics(metricsAddr,
 				nodepool.job_scheduled.WithValue(1),
 				nodepool.down_time_seconds,
@@ -349,6 +349,26 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 				nodepool.up.WithValue(1),
 				nodepool.up_time_seconds,
 				nodepool.tpu_chip_count.WithValue(256),
+			)
+		})
+
+		It("should update slice_name in nodepool metrics when a node has the slice label", func() {
+			By("adding the slice label to a node")
+			const testSliceName = "test-slice-name"
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: node.Name}, node)).To(Succeed())
+			if node.Labels == nil {
+				node.Labels = make(map[string]string)
+			}
+			node.Labels[k8sutils.NodeLabelGKETPUSlice] = testSliceName
+			Expect(k8sClient.Update(ctx, node)).To(Succeed())
+
+			// Allow time for aggregation
+			time.Sleep(3 * time.Second)
+
+			By("rechecking the metrics for nodepool_up with slice_name")
+			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name, testSliceName)
+			assertMetrics(metricsAddr,
+				nodepool.up.WithValue(1),
 			)
 		})
 	})
@@ -556,11 +576,14 @@ type utilizationMetrics struct {
 	job_scheduled metric
 }
 
-func expectedMetricsForNodePool(np *containerv1beta1.NodePool, jobSetName string, jobName string) utilizationMetrics {
+func expectedMetricsForNodePool(np *containerv1beta1.NodePool, jobSetName string, jobName string, sliceName string) utilizationMetrics {
 	nodepoolLabels := map[string]interface{}{
 		"nodepool_name":   np.Name,
 		"tpu_topology":    tpuTopology,
 		"tpu_accelerator": tpuAccelerator,
+	}
+	if sliceName != "" {
+		nodepoolLabels["slice_name"] = sliceName
 	}
 	nodepoolJobLabels := map[string]interface{}{
 		"job_name":      jobName,

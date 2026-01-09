@@ -255,6 +255,12 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 					}
 				}
 
+				if sliceName, ok := node.Labels[k8sutils.NodeLabelGKETPUSlice]; ok && sliceName != "" {
+					if up.Attrs.SliceName == "" {
+						up.Attrs.SliceName = sliceName
+					}
+				}
+
 				if nodeStatus == corev1.ConditionTrue {
 					up.ReadyCount++
 				} else if nodeStatus == corev1.ConditionUnknown {
