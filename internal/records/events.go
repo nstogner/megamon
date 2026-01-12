@@ -138,14 +138,21 @@ func (r *EventRecords) Summarize(ctx context.Context, now time.Time) EventSummar
 
 func AppendUpEvent(now time.Time, rec *EventRecords, isUp bool, plannedDown bool) bool {
 	var changed bool
+	// If there are no events and the system is Up, we assume it started healthy.
+	// We do NOT record an event in this case to avoid spurious downtime records on startup.
 	if len(rec.UpEvents) == 0 {
+		if isUp {
+			return false
+		}
 		rec.UpEvents = append(rec.UpEvents, UpEvent{
 			Up:          false,
 			PlannedDown: plannedDown,
 			Timestamp:   now,
 		})
 		changed = true
+		return changed
 	}
+	
 	last := rec.UpEvents[len(rec.UpEvents)-1]
 	if last.Up != isUp {
 		rec.UpEvents = append(rec.UpEvents, UpEvent{
@@ -176,16 +183,9 @@ func ReconcileEvents(ctx context.Context, now time.Time, ups map[string]Upness, 
 			isUp = false
 		}
 
-		lastIsUp := true // Default to true if no events exist yet, so the first 'down' event is always recorded.
-		if len(rec.UpEvents) > 0 {
-			lastIsUp = rec.UpEvents[len(rec.UpEvents)-1].Up
-		}
-
-		if isUp != lastIsUp {
-			if AppendUpEvent(now, &rec, isUp, up.PlannedDowntime) {
-				events[key] = rec
-				changed = true
-			}
+		if AppendUpEvent(now, &rec, isUp, up.PlannedDowntime) {
+			events[key] = rec
+			changed = true
 		}
 	}
 
