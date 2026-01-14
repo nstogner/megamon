@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -111,7 +112,7 @@ func MustConfigure() Config {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	cfgFile, err := os.ReadFile(configPath)
+	cfgFile, err := os.ReadFile(filepath.Clean(configPath))
 	if err != nil {
 		setupLog.Error(err, "unable to read config file")
 		os.Exit(1)
