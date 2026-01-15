@@ -14,9 +14,9 @@ type EventRecords struct {
 }
 
 type UpEvent struct {
-	Up          bool      `json:"up"`
-	PlannedDown bool      `json:"plannedDowntime,omitempty"`
-	Timestamp   time.Time `json:"ts"`
+	Up           bool      `json:"up"`
+	ExpectedDown bool      `json:"ed,omitempty"`
+	Timestamp    time.Time `json:"ts"`
 }
 
 type UpnessSummaryWithAttrs struct {
@@ -105,13 +105,13 @@ func (r *EventRecords) Summarize(ctx context.Context, now time.Time) EventSummar
 			summary.LatestUpTimeBetweenInterruption = r.UpEvents[i].Timestamp.Sub(r.UpEvents[i-1].Timestamp)
 			summary.UpTime += summary.LatestUpTimeBetweenInterruption
 			summary.TotalUpTimeBetweenInterruption += summary.LatestUpTimeBetweenInterruption
-			
-			// Only increment interruption count if it's NOT planned downtime.
-			if !r.UpEvents[i].PlannedDown {
+
+			// Only increment interruption count if it's NOT expected downtime.
+			if !r.UpEvents[i].ExpectedDown {
 				summary.InterruptionCount++
 				summaryLog.V(5).Info("interruption event found, incrementing count")
 			} else {
-				summaryLog.V(5).Info("planned downtime event found, skipping interruption count")
+				summaryLog.V(5).Info("expected downtime event found, skipping interruption count")
 			}
 		}
 	}
@@ -136,7 +136,7 @@ func (r *EventRecords) Summarize(ctx context.Context, now time.Time) EventSummar
 	return summary
 }
 
-func AppendUpEvent(now time.Time, rec *EventRecords, isUp bool, plannedDown bool) bool {
+func AppendUpEvent(now time.Time, rec *EventRecords, isUp bool, expectedDown bool) bool {
 	var changed bool
 	// If there are no events and the system is Up, we assume it started healthy.
 	// We do NOT record an event in this case to avoid spurious downtime records on startup.
@@ -145,20 +145,20 @@ func AppendUpEvent(now time.Time, rec *EventRecords, isUp bool, plannedDown bool
 			return false
 		}
 		rec.UpEvents = append(rec.UpEvents, UpEvent{
-			Up:          false,
-			PlannedDown: plannedDown,
-			Timestamp:   now,
+			Up:           false,
+			ExpectedDown: expectedDown,
+			Timestamp:    now,
 		})
 		changed = true
 		return changed
 	}
-	
+
 	last := rec.UpEvents[len(rec.UpEvents)-1]
 	if last.Up != isUp {
 		rec.UpEvents = append(rec.UpEvents, UpEvent{
-			Up:          isUp,
-			PlannedDown: plannedDown,
-			Timestamp:   now,
+			Up:           isUp,
+			ExpectedDown: expectedDown,
+			Timestamp:    now,
 		})
 		changed = true
 	}
@@ -175,15 +175,15 @@ func ReconcileEvents(ctx context.Context, now time.Time, ups map[string]Upness, 
 		reconcileLog.Info("ReconcileEvents", "key", key, "expected", up.ExpectedCount, "ready", up.ReadyCount, "unknownCount", up.UnknownCount, "unknownThreshold", unknownThreshold, "status", up.Status)
 
 		isUp := up.Up(unknownThreshold)
-		
-		// If PlannedDowntime is true (e.g. JobSet Completed), force isUp to false.
-		// This ensures we stop the UpTime clock and record a Down event (Planned),
+
+		// If ExpectedDown is true (e.g. JobSet Completed), force isUp to false.
+		// This ensures we stop the UpTime clock and record a Down event (Expected),
 		// regardless of whether the Pod counts (Ready vs Expected) technically imply Up.
-		if up.PlannedDowntime {
+		if up.ExpectedDown {
 			isUp = false
 		}
 
-		if AppendUpEvent(now, &rec, isUp, up.PlannedDowntime) {
+		if AppendUpEvent(now, &rec, isUp, up.ExpectedDown) {
 			events[key] = rec
 			changed = true
 		}

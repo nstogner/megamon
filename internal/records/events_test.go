@@ -330,7 +330,7 @@ func TestSummarize(t *testing.T) {
 			now:             t0.Add(time.Hour),
 			expectedSummary: EventSummary{},
 		},
-		"planned downtime interruption": {
+		"expected downtime interruption": {
 			records: EventRecords{
 				// up:         _____
 				// down:   ____|   |
@@ -340,8 +340,8 @@ func TestSummarize(t *testing.T) {
 					{Up: false, Timestamp: t0},
 					// 1 hr to come up
 					{Up: true, Timestamp: t0.Add(time.Hour)},
-					// 1 of uptime before PLANNED interruption 0
-					{Up: false, Timestamp: t0.Add(2 * time.Hour), PlannedDown: true},
+					// 1 of uptime before EXPECTED interruption 0
+					{Up: false, Timestamp: t0.Add(2 * time.Hour), ExpectedDown: true},
 				},
 			},
 			now: t0.Add(2 * time.Hour),
@@ -349,7 +349,7 @@ func TestSummarize(t *testing.T) {
 				DownTimeInitial:                 time.Hour,
 				UpTime:                          time.Hour,
 				DownTime:                        time.Hour,
-				InterruptionCount:               0, // Should be 0 because it's planned
+				InterruptionCount:               0, // Should be 0 because it's expected
 				TotalUpTimeBetweenInterruption:  time.Hour,
 				MeanUpTimeBetweenInterruption:   0, // No interruptions
 				LatestUpTimeBetweenInterruption: time.Hour,
@@ -403,7 +403,10 @@ func TestReconcileEvents(t *testing.T) {
 				},
 			},
 			inputEvents: map[string]EventRecords{},
-			expEvents:   map[string]EventRecords{},
+			// The first event is Up. We intentionally do not record an initial Up event
+			// if we have no prior history, as we assume it started healthy.
+			// This avoids assuming a prior Down state.
+			expEvents:        map[string]EventRecords{},
 			unknownThreshold: 1.0,
 			expChanged:       false,
 		},
@@ -476,12 +479,12 @@ func TestReconcileEvents(t *testing.T) {
 			unknownThreshold: 0.1,
 			expChanged:       false,
 		},
-		"planned downtime": {
+		"expected downtime": {
 			inputUps: map[string]Upness{
 				"abc": {
-					ExpectedCount:   1,
-					ReadyCount:      0,
-					PlannedDowntime: true,
+					ExpectedCount: 1,
+					ReadyCount:    0,
+					ExpectedDown:  true,
 				},
 			},
 			inputEvents: map[string]EventRecords{
@@ -495,7 +498,7 @@ func TestReconcileEvents(t *testing.T) {
 				"abc": {
 					UpEvents: []UpEvent{
 						{Up: true, Timestamp: now.Add(-time.Minute)},
-						{Up: false, Timestamp: now, PlannedDown: true},
+						{Up: false, Timestamp: now, ExpectedDown: true},
 					},
 				},
 			},
@@ -505,9 +508,9 @@ func TestReconcileEvents(t *testing.T) {
 		"unplanned downtime (failed/suspended)": {
 			inputUps: map[string]Upness{
 				"abc": {
-					ExpectedCount:   1,
-					ReadyCount:      0,
-					PlannedDowntime: false,
+					ExpectedCount: 1,
+					ReadyCount:    0,
+					ExpectedDown:  false,
 				},
 			},
 			inputEvents: map[string]EventRecords{

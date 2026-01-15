@@ -27,7 +27,6 @@ func IsTPUNode(node *corev1.Node) bool {
 	return ok
 }
 
-
 // GetJobSetTerminalState checks the JobSet's status conditions for a terminal state.
 // It returns the terminal state condition type (Completed, Failed, Suspended)
 // and a boolean indicating if a terminal state was found.

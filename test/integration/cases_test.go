@@ -440,14 +440,14 @@ var _ = Describe("JobSet metrics", func() {
 				jobset.tpu_chip_count.WithValue(8),
 			)
 		})
-		
+
 		It("should publish build info metric", func() {
 			By("checking for megamon_build_info metric")
 			metrics := expectedMetricPrefix + "_build_info{commit=\"none\",date=\"unknown\",otel_scope_name=\"megamon\",otel_scope_version=\"\",version=\"dev\"} 1"
 			Eventually(fetchMetrics, "5s", "1s").Should(ContainSubstring(metrics))
 		})
 
-		It("should NOT increment interruption count when jobset completes (planned downtime)", func() {
+		It("should NOT increment interruption count when jobset completes (expected downtime)", func() {
 			By("setting the jobset status to Completed")
 			js.Status.TerminalState = string(jobset.JobSetCompleted)
 			js.Status.Conditions = []metav1.Condition{
@@ -464,7 +464,7 @@ var _ = Describe("JobSet metrics", func() {
 			By("checking that interruption count is still 1")
 			// We iterate a few times to ensure the aggregator picks it up and DOES NOT increment
 			metrics := expectedMetricsForJobSet(js, "2x4")
-			
+
 			// 1. Wait for the aggregator to pick up the "Completed" state (Up -> 0)
 			Eventually(func(g Gomega) {
 				m, err := fetchMetrics()
@@ -472,7 +472,7 @@ var _ = Describe("JobSet metrics", func() {
 				g.Expect(m).To(ContainSubstring(metrics.up.WithValue(0).String()))
 			}, "10s", "1s").Should(Succeed())
 
-			// 2. Ensure Interruption Count remains 1 (Planned Downtime should NOT increment it)
+			// 2. Ensure Interruption Count remains 1 (Expected Downtime should NOT increment it)
 			Consistently(func(g Gomega) {
 				m, err := fetchMetrics()
 				g.Expect(err).NotTo(HaveOccurred())
@@ -719,10 +719,10 @@ func (m metric) valuelessString() string {
 }
 
 var _ = Describe("Event Summarization Logic", func() {
-	It("should correctly summarize a flow with planned downtime", func() {
+	It("should correctly summarize a flow with expected downtime", func() {
 		// This uses the internal/records logic directly, effectively a unit test
 		// but placed here as requested by feedback.
-		
+
 		// Start time: T0
 		t0, _ := time.Parse(time.RFC3339, "2024-01-01T00:00:00Z")
 		ctx := context.Background()
@@ -737,10 +737,10 @@ var _ = Describe("Event Summarization Logic", func() {
 		t1 := t0.Add(10 * time.Minute)
 		records.AppendUpEvent(t1, &rec, true, false)
 
-		// 4. T+30m: Component goes into PLANNED maintenance
+		// 4. T+30m: Component goes into EXPECTED maintenance
 		// This should NOT count as an interruption.
 		t2 := t0.Add(30 * time.Minute)
-		records.AppendUpEvent(t2, &rec, false, true) // isUp=false, planned=true
+		records.AppendUpEvent(t2, &rec, false, true) // isUp=false, expected=true
 
 		// 5. T+60m: Component comes back Up
 		t3 := t0.Add(60 * time.Minute)
@@ -749,7 +749,7 @@ var _ = Describe("Event Summarization Logic", func() {
 		// 6. T+90m: Component crashes (UNPLANNED down)
 		// This SHOULD count as an interruption.
 		t4 := t0.Add(90 * time.Minute)
-		records.AppendUpEvent(t4, &rec, false, false) // isUp=false, planned=false
+		records.AppendUpEvent(t4, &rec, false, false) // isUp=false, expected=false
 
 		// 7. T+100m: Component recovers
 		t5 := t0.Add(100 * time.Minute)
