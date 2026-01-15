@@ -119,6 +119,10 @@ func (r *EventRecords) Summarize(ctx context.Context, now time.Time) EventSummar
 	// Calculate means.
 	if summary.InterruptionCount > 0 {
 		summary.MeanUpTimeBetweenInterruption = summary.TotalUpTimeBetweenInterruption / time.Duration(summary.InterruptionCount)
+	} else {
+		// If there are no interruptions, semantically "Time Between Interruption" is undefined/zero.
+		// We zero it out to avoid redundancy with UpTime and confusion.
+		summary.TotalUpTimeBetweenInterruption = 0
 	}
 	if summary.RecoveryCount > 0 {
 		summary.MeanDownTimeBetweenRecovery = summary.TotalDownTimeBetweenRecovery / time.Duration(summary.RecoveryCount)

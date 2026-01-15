@@ -350,7 +350,7 @@ func TestSummarize(t *testing.T) {
 				UpTime:                          time.Hour,
 				DownTime:                        time.Hour,
 				InterruptionCount:               0, // Should be 0 because it's expected
-				TotalUpTimeBetweenInterruption:  time.Hour,
+				TotalUpTimeBetweenInterruption:  0, // Should be 0 because there are no interruptions
 				MeanUpTimeBetweenInterruption:   0, // No interruptions
 				LatestUpTimeBetweenInterruption: time.Hour,
 			},
