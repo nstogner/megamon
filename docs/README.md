@@ -35,7 +35,10 @@ MegaMon was created to address shortcoming of using [kube-state-metrics](https:/
 
 ## Runtime config
 * Set log level via `-zap-log-level 3` flag on manager binary
-* Set "EnableSimulation" in config file to run megamon without access to GKE 
-and GCS. The GKE simulated client is just a mock and will require more work to 
-be functional. GCS simulated client is in memory and has no persistence.
 * Set "SliceEnabled" to support slice metrics
+* Set "EnableSimulation" in config file to run megamon without access to GKE and
+  GCS.
+    * **GCS Mock**: Data is stored in-memory and will be lost on restart.
+    * **GKE Mock**: Node pools are inferred from existing nodes using a naming
+      convention (`[nodepool_name]-n-n-n`). Machine type is hardcoded to
+      `tpu7x-standard-4t` and disk size to `100GB`.
