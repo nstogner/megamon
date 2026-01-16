@@ -18,7 +18,6 @@ type SliceReconciler struct {
 	Scheme   *runtime.Scheme
 }
 
-// TODO: Is this correct?
 // +kubebuilder:rbac:groups=accelerator.gke.io,resources=slices,verbs=get;list;watch
 // +kubebuilder:rbac:groups=accelerator.gke.io,resources=slices/status,verbs=get
 
@@ -31,7 +30,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 	var slice slice.Slice
 	if err := r.Get(ctx, req.NamespacedName, &slice); err != nil {
-		rlog.Error(err, "Error getting slice", "name", slice.Name)
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 	rlog.V(5).Info("Debug slice", "slice", slice)
 
