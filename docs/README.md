@@ -35,5 +35,6 @@ MegaMon was created to address shortcoming of using [kube-state-metrics](https:/
 
 ## Runtime config
 * Set log level via `-zap-log-level 3` flag on manager binary
-* Set "EnableSimulation" in config file to run megamon without access to GKE and
-  GCS
+* Set "EnableSimulation" in config file to run megamon without access to GKE 
+and GCS. The GKE simulated client is just a mock and will require more work to 
+be functional. GCS simulated client is in memory and has no persistence.
