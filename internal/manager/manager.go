@@ -77,6 +77,7 @@ type Config struct {
 	ProbeAddr            string
 	SecureMetrics        bool
 	EnableHTTP2          bool
+	EnableSimulation     bool
 
 	// GKE client options
 	GKE GKEConfig
@@ -131,6 +132,7 @@ func MustConfigure() Config {
 		SecureMetrics:               true,
 		EnableHTTP2:                 false,
 		UnknownCountThreshold:       1.0,
+		EnableSimulation:            false,
 	}
 
 	if err := json.Unmarshal(cfgFile, &cfg); err != nil {
@@ -150,6 +152,10 @@ func MustConfigure() Config {
 
 	if cfg.EventsBucketPath == "" {
 		cfg.EventsBucketPath = fmt.Sprintf("megamon/clusters/%s", cfg.GKE.ClusterName)
+	}
+
+	if cfg.EnableSimulation {
+		setupLog.Info("*** SIMULATION MODE Enabled ***")
 	}
 
 	return cfg
@@ -288,6 +294,11 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
+	}
+
+	if cfg.EnableSimulation {
+		gkeClient = gkeclient.CreateStubGKEClient()
+		gcsClient = gcsclient.CreateStubGCSClient()
 	}
 
 	if gkeClient == nil {
