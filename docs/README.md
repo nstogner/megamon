@@ -38,3 +38,4 @@ MegaMon was created to address shortcoming of using [kube-state-metrics](https:/
 * Set "EnableSimulation" in config file to run megamon without access to GKE 
 and GCS. The GKE simulated client is just a mock and will require more work to 
 be functional. GCS simulated client is in memory and has no persistence.
+* Set "SliceEnabled" to support slice metrics
