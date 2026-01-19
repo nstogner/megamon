@@ -155,13 +155,13 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 			}
 
 			if s.Labels != nil {
-				if val, ok := s.Labels[k8sutils.LabelTPUProvisionerOwnerName]; !ok {
+				if val, ok := s.Labels[k8sutils.LabelTPUProvisionerOwnerName]; ok {
 					attrs.SliceOwnerName = val
 				}
-				if val, ok := s.Labels[k8sutils.LabelTPUProvisionerOwnerKind]; !ok {
+				if val, ok := s.Labels[k8sutils.LabelTPUProvisionerOwnerKind]; ok {
 					attrs.SliceOwnerKind = val
 				}
-				if val, ok := s.Labels[k8sutils.LabelTPUProvisionerOwnerNamespace]; !ok {
+				if val, ok := s.Labels[k8sutils.LabelTPUProvisionerOwnerNamespace]; ok {
 					attrs.SliceOwnerNamespace = val
 				}
 			}
