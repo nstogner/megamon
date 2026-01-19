@@ -13,7 +13,7 @@ RUN go mod download
 
 # Copy the go source
 COPY cmd/main.go cmd/main.go
-COPY slice-api/ slice-api/
+COPY copied-slice-api/ copied-slice-api/
 COPY internal/ internal/
 
 # Build
