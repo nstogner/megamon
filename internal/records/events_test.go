@@ -403,12 +403,16 @@ func TestReconcileEvents(t *testing.T) {
 				},
 			},
 			inputEvents: map[string]EventRecords{},
-			// The first event is Up. We intentionally do not record an initial Up event
-			// if we have no prior history, as we assume it started healthy.
-			// This avoids assuming a prior Down state.
-			expEvents:        map[string]EventRecords{},
+			// The first event is Up. We now record it even if we have no prior history.
+			expEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: true, Timestamp: now},
+					},
+				},
+			},
 			unknownThreshold: 1.0,
-			expChanged:       false,
+			expChanged:       true,
 		},
 		"first event down": {
 			inputUps: map[string]Upness{

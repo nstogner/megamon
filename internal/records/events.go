@@ -143,19 +143,18 @@ func (r *EventRecords) Summarize(ctx context.Context, now time.Time) EventSummar
 func AppendUpEvent(now time.Time, rec *EventRecords, isUp bool, expectedDown bool) bool {
 	var changed bool
 	// If there are no events and the system is Up, we assume it started healthy.
-	// We do NOT record an event in this case to avoid spurious downtime records on startup.
+	// We used to skip recording an event in this case to avoid spurious downtime records on startup.
+	// However, per PR feedback, we now record it to ensure we capture the state, even if it resets the uptime clock.
 	if len(rec.UpEvents) == 0 {
-		if isUp {
-			return false
-		}
 		rec.UpEvents = append(rec.UpEvents, UpEvent{
-			Up:           false,
+			Up:           isUp,
 			ExpectedDown: expectedDown,
 			Timestamp:    now,
 		})
 		changed = true
 		return changed
 	}
+
 
 	last := rec.UpEvents[len(rec.UpEvents)-1]
 	if last.Up != isUp {
