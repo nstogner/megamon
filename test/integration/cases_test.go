@@ -544,6 +544,69 @@ var _ = Describe("JobSet metrics", Ordered, func() {
 	})
 })
 
+var _ = Describe("JobSet Metrics with slice attributes", Ordered, func() {
+	var ctx context.Context
+	var cancel context.CancelFunc
+	var metricsAddr string
+	var testEnv *envtest.Environment
+	var restCfg *rest.Config
+	var k8sClient client.Client
+
+	BeforeAll(func() {
+		ctx, cancel = context.WithCancel(context.Background())
+		testEnv, restCfg, k8sClient = startTestEnv()
+		metricsAddr = startManager(ctx, true, restCfg)
+	})
+
+	AfterAll(func() {
+		cancel()
+		time.Sleep(3 * time.Second) // Wait for manager shutdown
+		stopTestEnv(testEnv)
+	})
+
+	Context("When reconciling a JobSet and a Slice linked by owner labels", func() {
+		js := &jobset.JobSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "js-linked-slice",
+				Namespace: "default",
+			},
+			Spec: jobset.JobSetSpec{
+				ReplicatedJobs: []jobset.ReplicatedJob{
+					*replicatedJob_2x4_r1,
+				},
+			},
+		}
+
+		sl := &slice.Slice{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "slice001",
+				Namespace: "default",
+				Labels: map[string]string{
+					k8sutils.LabelTPUProvisionerOwnerKind:      "jobset",
+					k8sutils.LabelTPUProvisionerOwnerName:      js.Name,
+					k8sutils.LabelTPUProvisionerOwnerNamespace: "default",
+				},
+			},
+			Spec: slice.SliceSpec{
+				Type:         "tpu7x",
+				Topology:     "2x2x1",
+				PartitionIds: []string{"test-partition"},
+			},
+		}
+
+		It("should update the JobSet metrics with the slice name", func() {
+			Expect(k8sClient.Create(ctx, js)).To(Succeed())
+			Expect(k8sClient.Create(ctx, sl)).To(Succeed())
+
+			// Allow aggregation
+			time.Sleep(3 * time.Second)
+
+			metrics := expectedMetricsForJobSetWithSlice(js, "2x4", sl)
+			assertMetrics(metricsAddr, metrics.up.WithValue(0))
+		})
+	})
+})
+
 type upnessMetrics struct {
 	// Always present
 	up                 metric
@@ -623,12 +686,23 @@ func expectedMetricsForNodePool(np *containerv1beta1.NodePool, jobSetName string
 }
 
 func expectedMetricsForJobSet(js *jobset.JobSet, tpuTopology string) upnessMetrics {
-	// megamon_test_jobset_up{jobset_name="test-js",jobset_namespace="default",jobset_uid="a9876d7f-4639-41a3-9961-9ac68e0fcb7b",otel_scope_name="megamon",otel_scope_version=""} 0
+	return expectedMetricsForJobSetWithSlice(js, tpuTopology, nil)
+}
+
+func expectedMetricsForJobSetWithSlice(js *jobset.JobSet, tpuTopology string, sl *slice.Slice) upnessMetrics {
 	jsLabels := map[string]interface{}{
 		"jobset_name":      js.Name,
 		"jobset_namespace": js.Namespace,
 		"jobset_uid":       js.UID,
 		"tpu_topology":     tpuTopology,
+	}
+	if sl != nil {
+		if sl.Name != "" {
+			jsLabels["slice_name"] = sl.Name
+		}
+		if sl.UID != "" {
+			jsLabels["slice_uid"] = string(sl.UID)
+		}
 	}
 	return upnessMetrics{
 		up: metric{
@@ -825,6 +899,7 @@ var _ = Describe("Slice Metrics Scenarios", func() {
 func expectedMetricsForSlice(s *slice.Slice) upnessMetrics {
 	sLabels := map[string]interface{}{
 		"slice_name":       s.Name,
+		"slice_uid":        s.UID,
 		"slice_owner_name": s.Labels["tpu-provisioner.cloud.google.com/owner-name"],
 		"slice_owner_kind": s.Labels["tpu-provisioner.cloud.google.com/owner-kind"],
 		"tpu_accelerator":  string(s.Spec.Type),
