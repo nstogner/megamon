@@ -40,6 +40,7 @@ type Attrs struct {
 	NodePoolName string `json:"nodePoolName"`
 
 	SliceName           string `json:"sliceName"`
+	SliceUID            string `json:"sliceUID"`
 	SliceOwnerKind      string `json:"sliceOwnerKind"`
 	SliceOwnerName      string `json:"sliceOwnerName"`
 	SliceOwnerNamespace string `json:"sliceOwnerNamespace"`

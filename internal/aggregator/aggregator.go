@@ -114,6 +114,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	}
 	// map[<ns>/<name>]<uid>
 	uidMap := map[string]string{}
+	sliceUidMap := map[string]string{}
 
 	for _, js := range jobsetList.Items {
 		if js.Status.TerminalState != "" {
@@ -122,6 +123,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 
 		uid := string(js.UID)
 		uidMap[uidMapKey(js.Namespace, js.Name)] = uid
+		sliceUidMap[uidMapKey(js.Namespace, js.Name)] = uid
 
 		attrs := extractJobSetAttrs(&js)
 		specReplicas, readyReplicas := k8sutils.GetJobSetReplicas(&js)
@@ -161,8 +163,10 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 			return fmt.Errorf("listing slices: %w", err)
 		}
 		for _, s := range sliceList.Items {
+			sliceUID := string(s.UID)
 			attrs := records.Attrs{
 				SliceName:      s.Name,
+				SliceUID:       sliceUID,
 				TPUAccelerator: string(s.Spec.Type),
 				TPUTopology:    s.Spec.Topology,
 			}
@@ -199,6 +203,24 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 			}
 
 			report.SlicesUp[s.Name] = up
+
+			// update jobset attribute with slice attribute if found
+			if attrs.SliceOwnerKind == "jobset" {
+				if uid, ok := sliceUidMap[uidMapKey(attrs.SliceOwnerNamespace, attrs.SliceOwnerName)]; ok {
+					if jsUp, ok := report.JobSetsUp[uid]; ok {
+						jsUp.Attrs.SliceName = s.Name
+						jsUp.Attrs.SliceUID = sliceUID
+						report.JobSetsUp[uid] = jsUp
+					} else {
+						log.Info("Cannot find jobset for slice", "slice", s.Name, "jobset", attrs.SliceOwnerName)
+					}
+				} else {
+					log.Info("Warning cannot find jobset UID for jobset", "slice", s.Name, "jobset", attrs.SliceOwnerName)
+				}
+			} else {
+				log.V(3).Info("slice is owned by non-jobset", "slice", s.Name, "owner", attrs.SliceOwnerName, "ownerKind", attrs.SliceOwnerKind)
+			}
+
 		}
 	}
 
