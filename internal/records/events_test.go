@@ -30,7 +30,10 @@ func TestSummarize(t *testing.T) {
 					{Up: true, Timestamp: t0},
 				},
 			},
-			expectedSummary: EventSummary{},
+			now: t0.Add(time.Hour),
+			expectedSummary: EventSummary{
+				UpTime: time.Hour,
+			},
 		},
 		"not up yet": {
 			records: EventRecords{
@@ -306,8 +309,35 @@ func TestSummarize(t *testing.T) {
 					{Up: true, Timestamp: t0},
 				},
 			},
-			now:             t0.Add(time.Hour),
-			expectedSummary: EventSummary{},
+			now: t0.Add(time.Hour),
+			expectedSummary: EventSummary{
+				UpTime: time.Hour,
+			},
+		},
+		"start up then down then up": {
+			records: EventRecords{
+				// up:     _____       _____
+				// down:       |_______|
+				// event:  0   1       2
+				// hrs:      1     2     1
+				UpEvents: []UpEvent{
+					{Up: true, Timestamp: t0},
+					{Up: false, Timestamp: t0.Add(time.Hour)},
+					{Up: true, Timestamp: t0.Add(3 * time.Hour)},
+				},
+			},
+			now: t0.Add(4 * time.Hour),
+			expectedSummary: EventSummary{
+				// T0-T1: 1h UP
+				// T1-T2: 2h DOWN
+				// T2-Now: 1h UP
+				UpTime:                        2 * time.Hour,
+				DownTime:                      2 * time.Hour,
+				RecoveryCount:                 1,
+				TotalDownTimeBetweenRecovery:  2 * time.Hour,
+				LatestDownTimeBetweenRecovery: 2 * time.Hour,
+				MeanDownTimeBetweenRecovery:   2 * time.Hour,
+			},
 		},
 		"up0 then down1": {
 			records: EventRecords{
@@ -320,8 +350,10 @@ func TestSummarize(t *testing.T) {
 					{Up: false, Timestamp: t0.Add(time.Hour)},
 				},
 			},
-			now:             t0.Add(time.Hour),
-			expectedSummary: EventSummary{},
+			now: t0.Add(time.Hour),
+			expectedSummary: EventSummary{
+				UpTime: time.Hour,
+			},
 		},
 		"no events": {
 			records: EventRecords{
