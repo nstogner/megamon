@@ -69,33 +69,16 @@ func (r *EventRecords) Summarize(ctx context.Context, now time.Time) EventSummar
 			summary.UpTime = now.Sub(r.UpEvents[0].Timestamp)
 			return summary
 		}
+		// If we started Up, the first segment is UpTime.
+		summary.UpTime = r.UpEvents[1].Timestamp.Sub(r.UpEvents[0].Timestamp)
 	} else {
 		// Standard case: Starts Down.
 		if n == 1 {
 			summary.DownTime = now.Sub(r.UpEvents[0].Timestamp)
 			return summary
 		}
-	}
-
-	// Validate second event based on the first event's state
-	if r.UpEvents[0].Up {
-		if r.UpEvents[1].Up {
-			summaryLog.V(3).Info("invalid data: second event is up (but started up)")
-			return summary
-		}
-	} else {
-		if !r.UpEvents[1].Up {
-			summaryLog.V(3).Info("invalid data: second event is not up (and started down)")
-			return summary
-		}
-	}
-
-	if !r.UpEvents[0].Up {
 		summary.DownTime = r.UpEvents[1].Timestamp.Sub(r.UpEvents[0].Timestamp)
 		summary.DownTimeInitial = r.UpEvents[1].Timestamp.Sub(r.UpEvents[0].Timestamp)
-	} else {
-		// If we started Up, the first segment is UpTime.
-		summary.UpTime = r.UpEvents[1].Timestamp.Sub(r.UpEvents[0].Timestamp)
 	}
 	// up:    ____      OR    up:        ____
 	// down:      |____       down:  ____|
@@ -116,9 +99,9 @@ func (r *EventRecords) Summarize(ctx context.Context, now time.Time) EventSummar
 		return summary
 	}
 
-	// up:        _____
-	// down:  ____|   |
-	// event: 0   1   2
+	// up:        _____               OR  up:        ____      ____
+	// down:  ____|   |               down:  ____|   |____|
+	// event: 0   1   2               event: 0   1   2    3
 	for i := 2; i < len(r.UpEvents); i++ {
 		if r.UpEvents[i].Up {
 			// Just transitioned down to up.
