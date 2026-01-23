@@ -97,9 +97,9 @@ func (r *EventRecords) Summarize(ctx context.Context, now time.Time) EventSummar
 		// If we started Up, the first segment is UpTime.
 		summary.UpTime = r.UpEvents[1].Timestamp.Sub(r.UpEvents[0].Timestamp)
 	}
-	// up:        ___
-	// down:  ____|
-	// event: 0   1
+	// up:    ____      OR    up:        ____
+	// down:      |____       down:  ____|
+	// event: 0   1           event: 0   1
 	if len(r.UpEvents) == 2 {
 		if r.UpEvents[0].Up {
 			// Case U -> D
