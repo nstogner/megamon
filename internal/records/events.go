@@ -92,6 +92,7 @@ func (r *EventRecords) Summarize(ctx context.Context, now time.Time) EventSummar
 	// up:        _____
 	// down:  ____|   |
 	// event: 0   1   2
+	// (Down events with ExpectedDown=true don't increment InterruptionCount)
 	for i := 2; i < len(r.UpEvents); i++ {
 		if r.UpEvents[i].Up {
 			// Just transitioned down to up.
