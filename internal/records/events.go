@@ -62,46 +62,36 @@ func (r *EventRecords) Summarize(ctx context.Context, now time.Time) EventSummar
 	if n == 0 {
 		return summary
 	}
-	// Handle the case where the timeline starts with an Up event (e.g. attached to running system).
 	if r.UpEvents[0].Up {
-		summary.DownTimeInitial = 0
-		if n == 1 {
-			summary.UpTime = now.Sub(r.UpEvents[0].Timestamp)
-			return summary
-		}
-		// If we started Up, the first segment is UpTime.
-		summary.UpTime = r.UpEvents[1].Timestamp.Sub(r.UpEvents[0].Timestamp)
-	} else {
-		// Standard case: Starts Down.
-		if n == 1 {
-			summary.DownTime = now.Sub(r.UpEvents[0].Timestamp)
-			return summary
-		}
-		summary.DownTime = r.UpEvents[1].Timestamp.Sub(r.UpEvents[0].Timestamp)
-		summary.DownTimeInitial = r.UpEvents[1].Timestamp.Sub(r.UpEvents[0].Timestamp)
+		// Invalid data.
+		summaryLog.V(3).Info("invalid data: first event is up")
+		return summary
 	}
-	// up:    ____      OR    up:        ____
-	// down:      |____       down:  ____|
-	// event: 0   1           event: 0   1
-	if len(r.UpEvents) == 2 {
-		if r.UpEvents[0].Up {
-			// Case U -> D
-			// UpTime was the duration of the first segment
-			summary.UpTime = r.UpEvents[1].Timestamp.Sub(r.UpEvents[0].Timestamp)
-
-			// Current state is Down
-			summary.DownTime = now.Sub(r.UpEvents[1].Timestamp)
-		} else {
-			// Case D -> U (Standard)
-			// UpTime is current duration
-			summary.UpTime = now.Sub(r.UpEvents[1].Timestamp)
-		}
+	if n == 1 {
+		summary.DownTime = now.Sub(r.UpEvents[0].Timestamp)
+		return summary
+	}
+	// Invalid or missing data:
+	if !r.UpEvents[1].Up {
+		summaryLog.V(3).Info("invalid data: second event is not up")
 		return summary
 	}
 
-	// up:        _____               OR  up:        ____      ____
-	// down:  ____|   |               down:  ____|   |____|
-	// event: 0   1   2               event: 0   1   2    3
+	summary.DownTime = r.UpEvents[1].Timestamp.Sub(r.UpEvents[0].Timestamp)
+	summary.DownTimeInitial = r.UpEvents[1].Timestamp.Sub(r.UpEvents[0].Timestamp)
+
+	// up:        ___
+	// down:  ____|
+	// event: 0   1
+
+	if len(r.UpEvents) == 2 {
+		summary.UpTime = now.Sub(r.UpEvents[1].Timestamp)
+		return summary
+	}
+
+	// up:        _____
+	// down:  ____|   |
+	// event: 0   1   2
 	for i := 2; i < len(r.UpEvents); i++ {
 		if r.UpEvents[i].Up {
 			// Just transitioned down to up.
@@ -152,16 +142,13 @@ func (r *EventRecords) Summarize(ctx context.Context, now time.Time) EventSummar
 
 func AppendUpEvent(now time.Time, rec *EventRecords, isUp bool, expectedDown bool) bool {
 	var changed bool
-	// If there are no events and the system is Up, we still record it to ensure we capture the state.
-	// This ensures consistency even if it implies a fresh start for an existing workload.
 	if len(rec.UpEvents) == 0 {
 		rec.UpEvents = append(rec.UpEvents, UpEvent{
-			Up:           isUp,
+			Up:           false,
 			ExpectedDown: expectedDown,
 			Timestamp:    now,
 		})
 		changed = true
-		return changed
 	}
 
 	last := rec.UpEvents[len(rec.UpEvents)-1]
