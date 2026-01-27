@@ -309,7 +309,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("reconciling nodepool events: %w", err)
 	}
-	sliceEvents, err := a.reconcileEvents(slicesContext, "slices.json", report.SlicesUp)
+	sliceEvents, err := a.reconcileEvents(slicesContext, now, "slices.json", report.SlicesUp)
 	if err != nil {
 		return fmt.Errorf("reconciling slice events: %w", err)
 	}
