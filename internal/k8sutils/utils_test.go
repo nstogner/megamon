@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 )
 
 func TestGetExpectedTPUNodePoolSize(t *testing.T) {
@@ -189,6 +190,100 @@ func TestIsNodeReady(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			got := k8sutils.IsNodeReady(c.node)
 			require.Equal(t, c.want, got)
+		})
+	}
+}
+
+func TestGetJobSetTerminalState(t *testing.T) {
+	tests := []struct {
+		name          string
+		jobSet        *jobset.JobSet
+		expectedState jobset.JobSetConditionType
+		expectedFound bool
+	}{
+		{
+			name: "Completed",
+			jobSet: &jobset.JobSet{
+				Status: jobset.JobSetStatus{
+					Conditions: []metav1.Condition{
+						{
+							Type:   string(jobset.JobSetCompleted),
+							Status: metav1.ConditionTrue,
+						},
+					},
+				},
+			},
+			expectedState: jobset.JobSetCompleted,
+			expectedFound: true,
+		},
+		{
+			name: "Failed",
+			jobSet: &jobset.JobSet{
+				Status: jobset.JobSetStatus{
+					Conditions: []metav1.Condition{
+						{
+							Type:   string(jobset.JobSetFailed),
+							Status: metav1.ConditionTrue,
+						},
+					},
+				},
+			},
+			expectedState: jobset.JobSetFailed,
+			expectedFound: true,
+		},
+		{
+			name: "Suspended",
+			jobSet: &jobset.JobSet{
+				Status: jobset.JobSetStatus{
+					Conditions: []metav1.Condition{
+						{
+							Type:   string(jobset.JobSetSuspended),
+							Status: metav1.ConditionTrue,
+						},
+					},
+				},
+			},
+			expectedState: jobset.JobSetSuspended,
+			expectedFound: true,
+		},
+		{
+			name: "Active (No Terminal State)",
+			jobSet: &jobset.JobSet{
+				Status: jobset.JobSetStatus{
+					Conditions: []metav1.Condition{
+						{
+							Type:   string(jobset.JobSetStartupPolicyCompleted), // Not terminal
+							Status: metav1.ConditionTrue,
+						},
+					},
+				},
+			},
+			expectedState: "",
+			expectedFound: false,
+		},
+		{
+			name: "Completed False (Not in terminal state)",
+			jobSet: &jobset.JobSet{
+				Status: jobset.JobSetStatus{
+					Conditions: []metav1.Condition{
+						{
+							Type:   string(jobset.JobSetCompleted),
+							Status: metav1.ConditionFalse,
+						},
+					},
+				},
+			},
+			expectedState: "",
+			expectedFound: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			state, found := k8sutils.GetJobSetTerminalState(tt.jobSet)
+			if state != tt.expectedState || found != tt.expectedFound {
+				t.Errorf("GetJobSetTerminalState() = (%v, %v), want (%v, %v)", state, found, tt.expectedState, tt.expectedFound)
+			}
 		})
 	}
 }

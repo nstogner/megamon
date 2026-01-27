@@ -27,16 +27,19 @@ func IsTPUNode(node *corev1.Node) bool {
 	return ok
 }
 
-func IsJobSetActive(js *jobset.JobSet) bool {
+// GetJobSetTerminalState checks the JobSet's status conditions for a terminal state.
+// It returns the terminal state condition type (Completed, Failed, Suspended)
+// and a boolean indicating if a terminal state was found.
+func GetJobSetTerminalState(js *jobset.JobSet) (jobset.JobSetConditionType, bool) {
 	for _, c := range js.Status.Conditions {
 		if c.Status == metav1.ConditionTrue {
 			switch jobset.JobSetConditionType(c.Type) {
-			case jobset.JobSetFailed, jobset.JobSetCompleted, jobset.JobSetSuspended:
-				return false
+			case jobset.JobSetCompleted, jobset.JobSetFailed, jobset.JobSetSuspended:
+				return jobset.JobSetConditionType(c.Type), true
 			}
 		}
 	}
-	return true
+	return "", false
 }
 
 func GetJobSetReplicas(js *jobset.JobSet) (int32, int32) {

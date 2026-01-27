@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"example.com/megamon/internal/k8sutils"
+	"example.com/megamon/internal/records"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	containerv1beta1 "google.golang.org/api/container/v1beta1"
@@ -440,6 +441,45 @@ var _ = Describe("JobSet metrics", func() {
 			)
 		})
 
+		It("should publish build info metric", func() {
+			By("checking for megamon_build_info metric")
+			metrics := expectedMetricPrefix + "_build_info{commit=\"none\",date=\"unknown\",otel_scope_name=\"megamon\",otel_scope_version=\"\",version=\"dev\"} 1"
+			Eventually(fetchMetrics, "5s", "1s").Should(ContainSubstring(metrics))
+		})
+
+		It("should NOT increment interruption count when jobset completes (expected downtime)", func() {
+			By("setting the jobset status to Completed")
+			js.Status.TerminalState = string(jobset.JobSetCompleted)
+			js.Status.Conditions = []metav1.Condition{
+				{
+					Type:               string(jobset.JobSetCompleted),
+					Status:             metav1.ConditionTrue,
+					LastTransitionTime: metav1.Now(),
+					Reason:             "AllJobsCompleted",
+					Message:            "jobset completed",
+				},
+			}
+			Expect(k8sClient.Status().Update(ctx, js)).To(Succeed())
+
+			By("checking that interruption count is still 1")
+			// We iterate a few times to ensure the aggregator picks it up and DOES NOT increment
+			metrics := expectedMetricsForJobSet(js, "2x4")
+
+			// 1. Wait for the aggregator to pick up the "Completed" state (Up -> 0)
+			Eventually(func(g Gomega) {
+				m, err := fetchMetrics()
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(m).To(ContainSubstring(metrics.up.WithValue(0).String()))
+			}, "10s", "1s").Should(Succeed())
+
+			// 2. Ensure Interruption Count remains 1 (Expected Downtime should NOT increment it)
+			Consistently(func(g Gomega) {
+				m, err := fetchMetrics()
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(m).To(ContainSubstring(metrics.interruption_count.WithValue(1).String()))
+			}, "5s", "1s").Should(Succeed())
+		})
+
 		It("should watch a jobset with a two replicated jobs", func() {
 			Expect(k8sClient.Create(ctx, jobsetMultipleRJobs)).To(Succeed())
 		})
@@ -677,3 +717,62 @@ func (m metric) valuelessString() string {
 	str += "}"
 	return str
 }
+
+var _ = Describe("Event Summarization Logic", func() {
+	It("should correctly summarize a flow with expected downtime", func() {
+		// This uses the internal/records logic directly, effectively a unit test
+		// but placed here as requested by feedback.
+
+		// Start time: T0
+		t0, _ := time.Parse(time.RFC3339, "2024-01-01T00:00:00Z")
+		ctx := context.Background()
+
+		// 1. Initialize empty record
+		var rec records.EventRecords
+
+		// 2. T0: Component starts (Not Up yet)
+		records.AppendUpEvent(t0, &rec, false, false)
+
+		// 3. T+10m: Component becomes Ready (Up)
+		t1 := t0.Add(10 * time.Minute)
+		records.AppendUpEvent(t1, &rec, true, false)
+
+		// 4. T+30m: Component goes into EXPECTED maintenance
+		// This should NOT count as an interruption.
+		t2 := t0.Add(30 * time.Minute)
+		records.AppendUpEvent(t2, &rec, false, true) // isUp=false, expected=true
+
+		// 5. T+60m: Component comes back Up
+		t3 := t0.Add(60 * time.Minute)
+		records.AppendUpEvent(t3, &rec, true, false)
+
+		// 6. T+90m: Component crashes (UNPLANNED down)
+		// This SHOULD count as an interruption.
+		t4 := t0.Add(90 * time.Minute)
+		records.AppendUpEvent(t4, &rec, false, false) // isUp=false, expected=false
+
+		// 7. T+100m: Component recovers
+		t5 := t0.Add(100 * time.Minute)
+		records.AppendUpEvent(t5, &rec, true, false)
+
+		// Verify at T+120m
+		now := t0.Add(120 * time.Minute)
+		summary := rec.Summarize(ctx, now)
+
+		// 1. Interruption Count should be exactly 1 (the crash at T+90m).
+		Expect(summary.InterruptionCount).To(Equal(1), "InterruptionCount mismatch")
+
+		// 2. Recovery Count should be 2.
+		Expect(summary.RecoveryCount).To(Equal(2), "RecoveryCount mismatch")
+
+		// 3. Check Downtime Durations
+		// Initial Down: t0 -> t1 = 10m
+		Expect(summary.DownTimeInitial).To(Equal(10*time.Minute), "DownTimeInitial mismatch")
+
+		// Total Down Time: 10m + 30m + 10m = 50m
+		Expect(summary.DownTime).To(Equal(50*time.Minute), "Total DownTime mismatch")
+
+		// Total Up Time: 20m + 30m + 20m = 70m
+		Expect(summary.UpTime).To(Equal(70*time.Minute), "Total UpTime mismatch")
+	})
+})

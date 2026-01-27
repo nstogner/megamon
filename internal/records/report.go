@@ -37,9 +37,11 @@ type Attrs struct {
 }
 
 type Upness struct {
-	ReadyCount    int32 `json:"readyCount"`
-	ExpectedCount int32 `json:"expectedCount"`
-	UnknownCount  int32 `json:"unknownCount"`
+	ReadyCount    int32  `json:"readyCount"`
+	ExpectedCount int32  `json:"expectedCount"`
+	UnknownCount  int32  `json:"unknownCount"`
+	Status        string `json:"status"`
+	ExpectedDown  bool   `json:"ed"`
 	Attrs
 }
 

@@ -43,6 +43,7 @@ import (
 	"example.com/megamon/internal/gkeclient"
 	"example.com/megamon/internal/metrics"
 	"example.com/megamon/internal/records"
+	"example.com/megamon/pkg/version"
 
 	// +kubebuilder:scaffold:imports
 
@@ -106,9 +107,16 @@ func MustConfigure() Config {
 	opts := zap.Options{
 		Development: true,
 	}
+	var printVersion bool
+	flag.BoolVar(&printVersion, "version", false, "Print version information and exit")
 	opts.BindFlags(flag.CommandLine)
 
 	flag.Parse()
+
+	if printVersion {
+		fmt.Printf("megamon %s\n", version.String())
+		os.Exit(0)
+	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 

@@ -113,20 +113,30 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 		if js.Status.TerminalState != "" {
 			log.Info("jobset terminal state", "jobset", js.Name, "state", js.Status.TerminalState)
 		}
-		if !k8sutils.IsJobSetActive(&js) {
-			log.V(1).Info("Skipping inactive jobset", "jobset", js.Name)
-			continue
-		}
 
 		uid := string(js.UID)
 		uidMap[uidMapKey(js.Namespace, js.Name)] = uid
 
 		attrs := extractJobSetAttrs(&js)
 		specReplicas, readyReplicas := k8sutils.GetJobSetReplicas(&js)
+
+		state, isTerminal := k8sutils.GetJobSetTerminalState(&js)
+		expectedDown := false
+		if isTerminal {
+			// Completed -> Expected(Planned) Downtime (Not included in TBI)
+			// Failed -> Unplanned Downtime (Included in TBI)
+			// Suspended -> Unplanned Downtime (Included in TBI)
+			if state == jobset.JobSetCompleted {
+				expectedDown = true
+			}
+		}
+
 		report.JobSetsUp[uid] = records.Upness{
 			ExpectedCount: specReplicas,
 			ReadyCount:    readyReplicas,
 			Attrs:         attrs,
+			Status:        string(state),
+			ExpectedDown:  expectedDown,
 		}
 		report.JobSetNodesUp[uid] = records.Upness{
 			ExpectedCount: k8sutils.GetExpectedNodeCount(&js),
@@ -149,7 +159,9 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 				return
 			}
 			up := records.Upness{
-				Attrs: extractNodePoolAttrs(np),
+				Attrs:        extractNodePoolAttrs(np),
+				Status:       np.Status,
+				ExpectedDown: np.Status == "STOPPING" || np.Status == "DELETING",
 			}
 			expectedCount, err := getExpectedTPUNodePoolSize(np)
 			if err != nil {
