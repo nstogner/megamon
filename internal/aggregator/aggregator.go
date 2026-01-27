@@ -243,15 +243,15 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	jobsetNodesContext := logf.IntoContext(ctx, log.WithValues("type", "jobset-nodes"))
 	nodePoolsContext := logf.IntoContext(ctx, log.WithValues("type", "nodepools"))
 
-	jsEvents, err := a.reconcileEvents(jobsetContext, "jobsets.json", report.JobSetsUp)
+	jsEvents, err := a.reconcileEvents(jobsetContext, now, "jobsets.json", report.JobSetsUp)
 	if err != nil {
 		return fmt.Errorf("reconciling jobset events: %w", err)
 	}
-	jsNodeEvents, err := a.reconcileEvents(jobsetNodesContext, "jobset-nodes.json", report.JobSetNodesUp)
+	jsNodeEvents, err := a.reconcileEvents(jobsetNodesContext, now, "jobset-nodes.json", report.JobSetNodesUp)
 	if err != nil {
 		return fmt.Errorf("reconciling jobset node events: %w", err)
 	}
-	nodePoolEvents, err := a.reconcileEvents(nodePoolsContext, "node-pools.json", report.NodePoolsUp)
+	nodePoolEvents, err := a.reconcileEvents(nodePoolsContext, now, "node-pools.json", report.NodePoolsUp)
 	if err != nil {
 		return fmt.Errorf("reconciling nodepool events: %w", err)
 	}
@@ -289,14 +289,14 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	return nil
 }
 
-func (a *Aggregator) reconcileEvents(ctx context.Context, filename string, ups map[string]records.Upness) (map[string]records.EventRecords, error) {
+func (a *Aggregator) reconcileEvents(ctx context.Context, now time.Time, filename string, ups map[string]records.Upness) (map[string]records.EventRecords, error) {
 	path := strings.TrimSuffix(a.EventsBucketPath, "/") + "/" + filename
 	recs, err := a.GCS.GetRecords(ctx, a.EventsBucketName, path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get %q: %w", filename, err)
 	}
 
-	if changed := records.ReconcileEvents(ctx, time.Now(), ups, recs, a.UnknownCountThreshold); changed {
+	if changed := records.ReconcileEvents(ctx, now, ups, recs, a.UnknownCountThreshold); changed {
 		if err := a.GCS.PutRecords(ctx, a.EventsBucketName, path, recs); err != nil {
 			return nil, fmt.Errorf("failed to put %q: %w", filename, err)
 		}
