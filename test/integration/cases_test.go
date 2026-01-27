@@ -471,7 +471,9 @@ var _ = Describe("JobSet metrics", Ordered, func() {
 		It("should publish build info metric", func() {
 			By("checking for megamon_build_info metric")
 			metrics := expectedMetricPrefix + "_build_info{commit=\"none\",date=\"unknown\",otel_scope_name=\"megamon\",otel_scope_version=\"\",version=\"dev\"} 1"
-			Eventually(fetchMetrics, "5s", "1s").Should(ContainSubstring(metrics))
+			Eventually(func() (string, error) {
+				return fetchMetrics(metricsAddr)
+			}, "5s", "1s").Should(ContainSubstring(metrics))
 		})
 
 		It("should NOT increment interruption count when jobset completes (expected downtime)", func() {
@@ -494,14 +496,14 @@ var _ = Describe("JobSet metrics", Ordered, func() {
 
 			// 1. Wait for the aggregator to pick up the "Completed" state (Up -> 0)
 			Eventually(func(g Gomega) {
-				m, err := fetchMetrics()
+				m, err := fetchMetrics(metricsAddr)
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(m).To(ContainSubstring(metrics.up.WithValue(0).String()))
 			}, "10s", "1s").Should(Succeed())
 
 			// 2. Ensure Interruption Count remains 1 (Expected Downtime should NOT increment it)
 			Consistently(func(g Gomega) {
-				m, err := fetchMetrics()
+				m, err := fetchMetrics(metricsAddr)
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(m).To(ContainSubstring(metrics.interruption_count.WithValue(1).String()))
 			}, "5s", "1s").Should(Succeed())
