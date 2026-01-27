@@ -119,20 +119,30 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 		if js.Status.TerminalState != "" {
 			log.Info("jobset terminal state", "jobset", js.Name, "state", js.Status.TerminalState)
 		}
-		if !k8sutils.IsJobSetActive(&js) {
-			log.V(1).Info("Skipping inactive jobset", "jobset", js.Name)
-			continue
-		}
 
 		uid := string(js.UID)
 		uidMap[uidMapKey(js.Namespace, js.Name)] = uid
 
 		attrs := extractJobSetAttrs(&js)
 		specReplicas, readyReplicas := k8sutils.GetJobSetReplicas(&js)
+
+		state, isTerminal := k8sutils.GetJobSetTerminalState(&js)
+		expectedDown := false
+		if isTerminal {
+			// Completed -> Expected(Planned) Downtime (Not included in TBI)
+			// Failed -> Unplanned Downtime (Included in TBI)
+			// Suspended -> Unplanned Downtime (Included in TBI)
+			if state == jobset.JobSetCompleted {
+				expectedDown = true
+			}
+		}
+
 		report.JobSetsUp[uid] = records.Upness{
 			ExpectedCount: specReplicas,
 			ReadyCount:    readyReplicas,
 			Attrs:         attrs,
+			Status:        string(state),
+			ExpectedDown:  expectedDown,
 		}
 		report.JobSetNodesUp[uid] = records.Upness{
 			ExpectedCount: k8sutils.GetExpectedNodeCount(&js),
@@ -202,7 +212,9 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 				return
 			}
 			up := records.Upness{
-				Attrs: extractNodePoolAttrs(np),
+				Attrs:        extractNodePoolAttrs(np),
+				Status:       np.Status,
+				ExpectedDown: np.Status == "STOPPING" || np.Status == "DELETING",
 			}
 			expectedCount, err := getExpectedTPUNodePoolSize(np)
 			if err != nil {
@@ -285,15 +297,15 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	nodePoolsContext := logf.IntoContext(ctx, log.WithValues("type", "nodepools"))
 	slicesContext := logf.IntoContext(ctx, log.WithValues("type", "slices"))
 
-	jsEvents, err := a.reconcileEvents(jobsetContext, "jobsets.json", report.JobSetsUp)
+	jsEvents, err := a.reconcileEvents(jobsetContext, now, "jobsets.json", report.JobSetsUp)
 	if err != nil {
 		return fmt.Errorf("reconciling jobset events: %w", err)
 	}
-	jsNodeEvents, err := a.reconcileEvents(jobsetNodesContext, "jobset-nodes.json", report.JobSetNodesUp)
+	jsNodeEvents, err := a.reconcileEvents(jobsetNodesContext, now, "jobset-nodes.json", report.JobSetNodesUp)
 	if err != nil {
 		return fmt.Errorf("reconciling jobset node events: %w", err)
 	}
-	nodePoolEvents, err := a.reconcileEvents(nodePoolsContext, "node-pools.json", report.NodePoolsUp)
+	nodePoolEvents, err := a.reconcileEvents(nodePoolsContext, now, "node-pools.json", report.NodePoolsUp)
 	if err != nil {
 		return fmt.Errorf("reconciling nodepool events: %w", err)
 	}
@@ -342,14 +354,14 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	return nil
 }
 
-func (a *Aggregator) reconcileEvents(ctx context.Context, filename string, ups map[string]records.Upness) (map[string]records.EventRecords, error) {
+func (a *Aggregator) reconcileEvents(ctx context.Context, now time.Time, filename string, ups map[string]records.Upness) (map[string]records.EventRecords, error) {
 	path := strings.TrimSuffix(a.EventsBucketPath, "/") + "/" + filename
 	recs, err := a.GCS.GetRecords(ctx, a.EventsBucketName, path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get %q: %w", filename, err)
 	}
 
-	if changed := records.ReconcileEvents(ctx, time.Now(), ups, recs, a.UnknownCountThreshold); changed {
+	if changed := records.ReconcileEvents(ctx, now, ups, recs, a.UnknownCountThreshold); changed {
 		if err := a.GCS.PutRecords(ctx, a.EventsBucketName, path, recs); err != nil {
 			return nil, fmt.Errorf("failed to put %q: %w", filename, err)
 		}

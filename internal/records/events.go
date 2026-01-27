@@ -14,8 +14,9 @@ type EventRecords struct {
 }
 
 type UpEvent struct {
-	Up        bool      `json:"up"`
-	Timestamp time.Time `json:"ts"`
+	Up           bool      `json:"up"`
+	ExpectedDown bool      `json:"ed,omitempty"`
+	Timestamp    time.Time `json:"ts"`
 }
 
 type UpnessSummaryWithAttrs struct {
@@ -91,6 +92,7 @@ func (r *EventRecords) Summarize(ctx context.Context, now time.Time) EventSummar
 	// up:        _____
 	// down:  ____|   |
 	// event: 0   1   2
+	// (Down events with ExpectedDown=true don't increment InterruptionCount)
 	for i := 2; i < len(r.UpEvents); i++ {
 		if r.UpEvents[i].Up {
 			// Just transitioned down to up.
@@ -104,14 +106,24 @@ func (r *EventRecords) Summarize(ctx context.Context, now time.Time) EventSummar
 			summary.LatestUpTimeBetweenInterruption = r.UpEvents[i].Timestamp.Sub(r.UpEvents[i-1].Timestamp)
 			summary.UpTime += summary.LatestUpTimeBetweenInterruption
 			summary.TotalUpTimeBetweenInterruption += summary.LatestUpTimeBetweenInterruption
-			summary.InterruptionCount++
-			summaryLog.V(5).Info("interruption event found, incrementing count")
+
+			// Only increment interruption count if it's NOT expected downtime.
+			if !r.UpEvents[i].ExpectedDown {
+				summary.InterruptionCount++
+				summaryLog.V(5).Info("interruption event found, incrementing count")
+			} else {
+				summaryLog.V(5).Info("expected downtime event found, skipping interruption count")
+			}
 		}
 	}
 
 	// Calculate means.
 	if summary.InterruptionCount > 0 {
 		summary.MeanUpTimeBetweenInterruption = summary.TotalUpTimeBetweenInterruption / time.Duration(summary.InterruptionCount)
+	} else {
+		// If there are no interruptions, semantically "Time Between Interruption" is undefined/zero.
+		// We zero it out to avoid redundancy with UpTime and confusion.
+		summary.TotalUpTimeBetweenInterruption = 0
 	}
 	if summary.RecoveryCount > 0 {
 		summary.MeanDownTimeBetweenRecovery = summary.TotalDownTimeBetweenRecovery / time.Duration(summary.RecoveryCount)
@@ -129,20 +141,23 @@ func (r *EventRecords) Summarize(ctx context.Context, now time.Time) EventSummar
 	return summary
 }
 
-func AppendUpEvent(now time.Time, rec *EventRecords, isUp bool) bool {
+func AppendUpEvent(now time.Time, rec *EventRecords, isUp bool, expectedDown bool) bool {
 	var changed bool
 	if len(rec.UpEvents) == 0 {
 		rec.UpEvents = append(rec.UpEvents, UpEvent{
-			Up:        false,
-			Timestamp: now,
+			Up:           false,
+			ExpectedDown: expectedDown,
+			Timestamp:    now,
 		})
 		changed = true
 	}
+
 	last := rec.UpEvents[len(rec.UpEvents)-1]
 	if last.Up != isUp {
 		rec.UpEvents = append(rec.UpEvents, UpEvent{
-			Up:        isUp,
-			Timestamp: now,
+			Up:           isUp,
+			ExpectedDown: expectedDown,
+			Timestamp:    now,
 		})
 		changed = true
 	}
@@ -156,8 +171,18 @@ func ReconcileEvents(ctx context.Context, now time.Time, ups map[string]Upness, 
 
 	for key, up := range ups {
 		rec := events[key]
-		reconcileLog.Info("ReconcileEvents", "key", key, "expected", up.ExpectedCount, "ready", up.ReadyCount, "unknownCount", up.UnknownCount, "unknownThreshold", unknownThreshold)
-		if AppendUpEvent(now, &rec, up.Up(unknownThreshold)) {
+		reconcileLog.Info("ReconcileEvents", "key", key, "expected", up.ExpectedCount, "ready", up.ReadyCount, "unknownCount", up.UnknownCount, "unknownThreshold", unknownThreshold, "status", up.Status)
+
+		isUp := up.Up(unknownThreshold)
+
+		// If ExpectedDown is true (e.g. JobSet Completed), force isUp to false.
+		// This ensures we stop the UpTime clock and record a Down event (Expected),
+		// regardless of whether the Pod counts (Ready vs Expected) technically imply Up.
+		if up.ExpectedDown {
+			isUp = false
+		}
+
+		if AppendUpEvent(now, &rec, isUp, up.ExpectedDown) {
 			events[key] = rec
 			changed = true
 		}
