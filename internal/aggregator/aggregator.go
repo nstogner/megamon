@@ -195,9 +195,16 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 			}
 
 			// Determine status
+			log.V(5).Info("DEBUG", "slice", s.Name, "status", s.Status)
 			for _, cond := range s.Status.Conditions {
-				if cond.Type == slice.SliceStateConditionType && cond.Status == metav1.ConditionTrue {
-					up.ReadyCount = 1
+				if cond.Type == slice.SliceStateConditionType {
+					up.SliceState = cond.Reason
+					switch cond.Status {
+					case metav1.ConditionTrue:
+						up.ReadyCount = 1
+					case metav1.ConditionUnknown:
+						up.UnknownCount = 1
+					}
 					break
 				}
 			}
@@ -319,6 +326,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	}
 
 	log.V(3).Info("DEBUG", "report.NodePoolsUp", report.NodePoolsUp, "report.JobSetNodesUp", report.JobSetNodesUp, "report.JobSetsUp", report.JobSetsUp)
+	log.V(3).Info("DEBUG", "report.SlicesUp", report.SlicesUp)
 
 	jobsetContext := logf.IntoContext(ctx, log.WithValues("type", "jobsets"))
 	jobsetNodesContext := logf.IntoContext(ctx, log.WithValues("type", "jobset-nodes"))
