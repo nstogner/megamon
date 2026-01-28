@@ -614,6 +614,14 @@ var _ = Describe("JobSet Metrics with slice attributes", Ordered, func() {
 			metrics := expectedMetricsForJobSetWithSlice(js, "2x4", sl)
 			assertMetrics(metricsAddr, metrics.up.WithValue(0))
 		})
+
+		It("should not publish any jobset node metrics when slice is enabled", func() {
+			By("checking that no jobset node metrics are published")
+			unexpectedMetricPrefix := "jobset_node_"
+			Eventually(func() (string, error) {
+				return fetchMetrics(metricsAddr)
+			}, "5s", "1s").ShouldNot(ContainSubstring(unexpectedMetricPrefix))
+		})
 	})
 })
 

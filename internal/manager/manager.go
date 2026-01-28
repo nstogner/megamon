@@ -368,7 +368,7 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 		}
 	}
 
-	shutdownMetricsFunc := metrics.Init(ctx, agg, time.Duration(cfg.AggregationIntervalSeconds)*time.Second, cfg.UnknownCountThreshold)
+	shutdownMetricsFunc := metrics.Init(ctx, agg, time.Duration(cfg.AggregationIntervalSeconds)*time.Second, cfg.UnknownCountThreshold, cfg.SliceEnabled)
 
 	controllerName := func(base string) string {
 		if cfg.OptionalControllerSuffix != "" {

@@ -300,28 +300,29 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 		}
 
 		// Static jobset mapping:
+		if !a.SliceEnabled {
+			if jsNS, jsName := k8sutils.GetJobSetForNode(&node); jsNS != "" && jsName != "" {
+				func() {
+					if jsNS == "" || jsName == "" {
+						return
+					}
+					uid, ok := uidMap[uidMapKey(jsNS, jsName)]
+					if !ok {
+						return
+					}
 
-		if jsNS, jsName := k8sutils.GetJobSetForNode(&node); jsNS != "" && jsName != "" {
-			func() {
-				if jsNS == "" || jsName == "" {
-					return
-				}
-				uid, ok := uidMap[uidMapKey(jsNS, jsName)]
-				if !ok {
-					return
-				}
-
-				up, ok := report.JobSetNodesUp[uid]
-				if !ok {
-					return
-				}
-				if nodeStatus == corev1.ConditionTrue {
-					up.ReadyCount++
-				} else if nodeStatus == corev1.ConditionUnknown {
-					up.UnknownCount++
-				}
-				report.JobSetNodesUp[uid] = up
-			}()
+					up, ok := report.JobSetNodesUp[uid]
+					if !ok {
+						return
+					}
+					if nodeStatus == corev1.ConditionTrue {
+						up.ReadyCount++
+					} else if nodeStatus == corev1.ConditionUnknown {
+						up.UnknownCount++
+					}
+					report.JobSetNodesUp[uid] = up
+				}()
+			}
 		}
 	}
 
@@ -337,9 +338,12 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("reconciling jobset events: %w", err)
 	}
-	jsNodeEvents, err := a.reconcileEvents(jobsetNodesContext, now, "jobset-nodes.json", report.JobSetNodesUp)
-	if err != nil {
-		return fmt.Errorf("reconciling jobset node events: %w", err)
+	var jsNodeEvents map[string]records.EventRecords
+	if !a.SliceEnabled {
+		jsNodeEvents, err = a.reconcileEvents(jobsetNodesContext, now, "jobset-nodes.json", report.JobSetNodesUp)
+		if err != nil {
+			return fmt.Errorf("reconciling jobset node events: %w", err)
+		}
 	}
 	nodePoolEvents, err := a.reconcileEvents(nodePoolsContext, now, "node-pools.json", report.NodePoolsUp)
 	if err != nil {
