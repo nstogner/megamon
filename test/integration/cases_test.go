@@ -34,7 +34,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -120,20 +119,17 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 	var ctx context.Context
 	var cancel context.CancelFunc
 	var metricsAddr string
-	var testEnv *envtest.Environment
 	var restCfg *rest.Config
 	var k8sClient client.Client
 
 	BeforeAll(func() {
 		ctx, cancel = context.WithCancel(context.Background())
-		testEnv, restCfg, k8sClient = startTestEnv()
+		_, restCfg, k8sClient = startTestEnv()
+		DeferCleanup(func() {
+			cancel()
+			time.Sleep(3 * time.Second) // Wait for manager shutdown
+		})
 		metricsAddr = startManager(ctx, false, restCfg)
-	})
-
-	AfterAll(func() {
-		cancel()
-		time.Sleep(3 * time.Second) // Wait for manager shutdown
-		stopTestEnv(testEnv)
 	})
 
 	Context("When reconciling a resource", func() {
@@ -378,20 +374,17 @@ var _ = Describe("JobSet metrics", Ordered, func() {
 	var ctx context.Context
 	var cancel context.CancelFunc
 	var metricsAddr string
-	var testEnv *envtest.Environment
 	var restCfg *rest.Config
 	var k8sClient client.Client
 
 	BeforeAll(func() {
 		ctx, cancel = context.WithCancel(context.Background())
-		testEnv, restCfg, k8sClient = startTestEnv()
+		_, restCfg, k8sClient = startTestEnv()
+		DeferCleanup(func() {
+			cancel()
+			time.Sleep(3 * time.Second) // Wait for manager shutdown
+		})
 		metricsAddr = startManager(ctx, false, restCfg)
-	})
-
-	AfterAll(func() {
-		cancel()
-		time.Sleep(3 * time.Second) // Wait for manager shutdown
-		stopTestEnv(testEnv)
 	})
 
 	Context("When reconciling a resource", func() {
@@ -548,20 +541,17 @@ var _ = Describe("JobSet Metrics with slice attributes", Ordered, func() {
 	var ctx context.Context
 	var cancel context.CancelFunc
 	var metricsAddr string
-	var testEnv *envtest.Environment
 	var restCfg *rest.Config
 	var k8sClient client.Client
 
 	BeforeAll(func() {
 		ctx, cancel = context.WithCancel(context.Background())
-		testEnv, restCfg, k8sClient = startTestEnv()
+		_, restCfg, k8sClient = startTestEnv()
+		DeferCleanup(func() {
+			cancel()
+			time.Sleep(3 * time.Second) // Wait for manager shutdown
+		})
 		metricsAddr = startManager(ctx, true, restCfg)
-	})
-
-	AfterAll(func() {
-		cancel()
-		time.Sleep(3 * time.Second) // Wait for manager shutdown
-		stopTestEnv(testEnv)
 	})
 
 	Context("When reconciling a JobSet and a Slice linked by owner labels", func() {
@@ -766,13 +756,17 @@ var _ = Describe("Slice Metrics Scenarios", func() {
 		var cancel context.CancelFunc
 		var metricsAddr string
 		var s *slice.Slice
-		var testEnv *envtest.Environment
 		var restCfg *rest.Config
 		var k8sClient client.Client
 
 		BeforeEach(func() {
 			ctx, cancel = context.WithCancel(context.Background())
-			testEnv, restCfg, k8sClient = startTestEnv()
+			_, restCfg, k8sClient = startTestEnv()
+			DeferCleanup(func() {
+				cancel()
+				time.Sleep(3 * time.Second) // Wait for manager shutdown
+			})
+
 			metricsAddr = startManager(ctx, enableSlice, restCfg)
 			s = &slice.Slice{
 				ObjectMeta: metav1.ObjectMeta{
@@ -788,12 +782,6 @@ var _ = Describe("Slice Metrics Scenarios", func() {
 					PartitionIds: []string{"p1"},
 				},
 			}
-		})
-
-		AfterEach(func() {
-			cancel()
-			time.Sleep(3 * time.Second) // Wait for manager shutdown
-			stopTestEnv(testEnv)
 		})
 
 		It("should verify slice lifecycle", func() {
