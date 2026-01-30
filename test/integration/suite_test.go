@@ -104,6 +104,7 @@ func startTestEnv() (*envtest.Environment, *rest.Config, client.Client) {
 	k8sClient, err := client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
+	DeferCleanup(testEnv.Stop)
 
 	return testEnv, cfg, k8sClient
 }
@@ -151,12 +152,6 @@ func findFreePort() int {
 var _ = AfterSuite(func() {
 	cancel()
 })
-
-func stopTestEnv(testEnv *envtest.Environment) {
-	By("tearing down the test environment")
-	err := testEnv.Stop()
-	Expect(err).NotTo(HaveOccurred())
-}
 
 // getFirstFoundEnvTestBinaryDir locates the first binary in the specified path.
 // ENVTEST-based tests depend on specific binaries, usually located in paths set by
