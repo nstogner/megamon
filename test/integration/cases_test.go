@@ -800,8 +800,9 @@ var _ = Describe("Slice Metrics Scenarios", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: fmt.Sprintf("test-slice-%v", enableSlice),
 					Labels: map[string]string{
-						"tpu-provisioner.cloud.google.com/owner-name": "test-owner",
-						"tpu-provisioner.cloud.google.com/owner-kind": "test-kind",
+						"tpu-provisioner.cloud.google.com/owner-name":      "test-owner",
+						"tpu-provisioner.cloud.google.com/owner-namespace": "default",
+						"tpu-provisioner.cloud.google.com/owner-kind":      "test-kind",
 					},
 				},
 				Spec: slice.SliceSpec{
@@ -905,8 +906,9 @@ var _ = Describe("Slice State Transition Scenarios", Ordered, func() {
 				Name:      "test-slice-transitions",
 				Namespace: "default",
 				Labels: map[string]string{
-					"tpu-provisioner.cloud.google.com/owner-name": "test-owner",
-					"tpu-provisioner.cloud.google.com/owner-kind": "test-kind",
+					"tpu-provisioner.cloud.google.com/owner-name":      "test-owner",
+					"tpu-provisioner.cloud.google.com/owner-namespace": "default",
+					"tpu-provisioner.cloud.google.com/owner-kind":      "test-kind",
 				},
 			},
 			Spec: slice.SliceSpec{
@@ -992,12 +994,13 @@ func expectedMetricsForSlice(s *slice.Slice) upnessMetrics {
 
 func expectedMetricsForSliceWithState(s *slice.Slice, state string) upnessMetrics {
 	sLabels := map[string]interface{}{
-		"slice_name":       s.Name,
-		"slice_uid":        s.UID,
-		"slice_owner_name": s.Labels["tpu-provisioner.cloud.google.com/owner-name"],
-		"slice_owner_kind": s.Labels["tpu-provisioner.cloud.google.com/owner-kind"],
-		"tpu_accelerator":  string(s.Spec.Type),
-		"tpu_topology":     s.Spec.Topology,
+		"slice_name":            s.Name,
+		"slice_uid":             s.UID,
+		"slice_owner_name":      s.Labels["tpu-provisioner.cloud.google.com/owner-name"],
+		"slice_owner_namespace": s.Labels["tpu-provisioner.cloud.google.com/owner-namespace"],
+		"slice_owner_kind":      s.Labels["tpu-provisioner.cloud.google.com/owner-kind"],
+		"tpu_accelerator":       string(s.Spec.Type),
+		"tpu_topology":          s.Spec.Topology,
 	}
 	if state != "" {
 		sLabels["slice_state"] = state

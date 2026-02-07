@@ -190,6 +190,9 @@ func OTELAttrs(attrs records.Attrs) []attribute.KeyValue {
 	if attrs.SliceOwnerName != "" {
 		otelAttrs = append(otelAttrs, attribute.String("slice.owner.name", attrs.SliceOwnerName))
 	}
+	if attrs.SliceOwnerNamespace != "" {
+		otelAttrs = append(otelAttrs, attribute.String("slice.owner.namespace", attrs.SliceOwnerNamespace))
+	}
 	if attrs.SliceOwnerKind != "" {
 		otelAttrs = append(otelAttrs, attribute.String("slice.owner.kind", attrs.SliceOwnerKind))
 	}
