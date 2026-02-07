@@ -1,0 +1,38 @@
+resources:
+- ../default
+- ./config.yaml
+
+patches:
+- path: ./service_account_identity.yaml
+- patch: |-
+    - op: add
+      path: /rules/-
+      value:
+        apiGroups:
+        - accelerator.gke.io
+        resources:
+        - slices
+        verbs:
+        - get
+        - list
+        - watch
+    - op: add
+      path: /rules/-
+      value:
+        apiGroups:
+        - accelerator.gke.io
+        resources:
+        - slices/status
+        verbs:
+        - get
+  target:
+    group: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: megamon-manager-role
+    version: v1
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+- name: controller
+  newName: controller
+  newTag: latest

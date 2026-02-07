@@ -30,20 +30,6 @@ rules:
   verbs:
   - get
 - apiGroups:
-  - accelerator.gke.io
-  resources:
-  - slices
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - accelerator.gke.io
-  resources:
-  - slices/status
-  verbs:
-  - get
-- apiGroups:
   - jobset.x-k8s.io
   resources:
   - jobsets

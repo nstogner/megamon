@@ -19,9 +19,6 @@ import (
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 )
 
-// +kubebuilder:rbac:groups=accelerator.gke.io,resources=slices,verbs=get;list;watch
-// +kubebuilder:rbac:groups=accelerator.gke.io,resources=slices/status,verbs=get
-
 type Aggregator struct {
 	client.Client
 

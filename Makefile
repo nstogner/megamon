@@ -158,9 +158,19 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 	cd config/dev && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/dev | $(KUBECTL) apply -f -
 
+.PHONY: deploy-slice
+deploy-slice: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+	cd config/dev-slice && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/dev-slice | $(KUBECTL) apply -f -
+
+
 .PHONY: undeploy
 undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/dev | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+
+.PHONY: undeploy-slice
+undeploy-slice: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	$(KUSTOMIZE) build config/dev-slice | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 ##@ Dependencies
 
