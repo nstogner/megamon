@@ -158,10 +158,8 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 			return fmt.Errorf("listing slices: %w", err)
 		}
 		for _, s := range sliceList.Items {
-			sliceUID := string(s.UID)
 			attrs := records.Attrs{
 				SliceName:      s.Name,
-				SliceUID:       sliceUID,
 				TPUAccelerator: string(s.Spec.Type),
 				TPUTopology:    s.Spec.Topology,
 			}
@@ -211,7 +209,6 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 				if uid, ok := uidMap[uidMapKey(attrs.SliceOwnerNamespace, attrs.SliceOwnerName)]; ok {
 					if jsUp, ok := report.JobSetsUp[uid]; ok {
 						jsUp.Attrs.SliceName = s.Name
-						jsUp.Attrs.SliceUID = sliceUID
 						report.JobSetsUp[uid] = jsUp
 					} else {
 						log.Info("Cannot find jobset for slice", "slice", s.Name, "jobset", attrs.SliceOwnerName)

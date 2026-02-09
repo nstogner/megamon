@@ -708,9 +708,6 @@ func expectedMetricsForJobSetWithSlice(js *jobset.JobSet, tpuTopology string, sl
 		if sl.Name != "" {
 			jsLabels["slice_name"] = sl.Name
 		}
-		if sl.UID != "" {
-			jsLabels["slice_uid"] = string(sl.UID)
-		}
 	}
 	return upnessMetrics{
 		up: metric{
@@ -995,7 +992,6 @@ func expectedMetricsForSlice(s *slice.Slice) upnessMetrics {
 func expectedMetricsForSliceWithState(s *slice.Slice, state string) upnessMetrics {
 	sLabels := map[string]interface{}{
 		"slice_name":            s.Name,
-		"slice_uid":             s.UID,
 		"slice_owner_name":      s.Labels["tpu-provisioner.cloud.google.com/owner-name"],
 		"slice_owner_namespace": s.Labels["tpu-provisioner.cloud.google.com/owner-namespace"],
 		"slice_owner_kind":      s.Labels["tpu-provisioner.cloud.google.com/owner-kind"],
