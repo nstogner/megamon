@@ -111,7 +111,6 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	}
 	// map[<ns>/<name>]<uid>
 	uidMap := map[string]string{}
-	sliceUidMap := map[string]string{}
 
 	for _, js := range jobsetList.Items {
 		if js.Status.TerminalState != "" {
@@ -120,7 +119,6 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 
 		uid := string(js.UID)
 		uidMap[uidMapKey(js.Namespace, js.Name)] = uid
-		sliceUidMap[uidMapKey(js.Namespace, js.Name)] = uid
 
 		attrs := extractJobSetAttrs(&js)
 		specReplicas, readyReplicas := k8sutils.GetJobSetReplicas(&js)
@@ -210,7 +208,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 
 			// update jobset attribute with slice attribute if found
 			if attrs.SliceOwnerKind == "jobset" {
-				if uid, ok := sliceUidMap[uidMapKey(attrs.SliceOwnerNamespace, attrs.SliceOwnerName)]; ok {
+				if uid, ok := uidMap[uidMapKey(attrs.SliceOwnerNamespace, attrs.SliceOwnerName)]; ok {
 					if jsUp, ok := report.JobSetsUp[uid]; ok {
 						jsUp.Attrs.SliceName = s.Name
 						jsUp.Attrs.SliceUID = sliceUID
