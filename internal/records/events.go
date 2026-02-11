@@ -11,6 +11,7 @@ const JobSetRecordsAnnotationKey = "megamon.tbd/records"
 
 type EventRecords struct {
 	UpEvents []UpEvent `json:"upEvents"`
+	Attrs    Attrs     `json:"attrs,omitempty"`
 }
 
 type UpEvent struct {
@@ -164,14 +165,14 @@ func AppendUpEvent(now time.Time, rec *EventRecords, isUp bool, expectedDown boo
 	return changed
 }
 
-func ReconcileEvents(ctx context.Context, now time.Time, ups map[string]Upness, events map[string]EventRecords, unknownThreshold float64) bool {
+func ReconcileEvents(ctx context.Context, now time.Time, ups map[string]Upness, events map[string]EventRecords, unknownThreshold float64, gracePeriod time.Duration) bool {
 	var changed bool
 
 	reconcileLog := logf.FromContext(ctx).WithName("events")
 
 	for key, up := range ups {
 		rec := events[key]
-		reconcileLog.Info("ReconcileEvents", "key", key, "expected", up.ExpectedCount, "ready", up.ReadyCount, "unknownCount", up.UnknownCount, "unknownThreshold", unknownThreshold, "status", up.Status)
+		reconcileLog.Info("ReconcileEvents", "key", key, "expected", up.ExpectedCount, "ready", up.ReadyCount, "unknownCount", up.UnknownCount, "unknownThreshold", unknownThreshold, "status", up.Status, "gracePeriod", gracePeriod)
 
 		isUp := up.Up(unknownThreshold)
 
@@ -182,14 +183,39 @@ func ReconcileEvents(ctx context.Context, now time.Time, ups map[string]Upness, 
 			isUp = false
 		}
 
+		// Update attributes if they have changed. This ensures we have the latest
+		// metadata (like slice state or owner info) even if the upness status hasn't changed.
+		if rec.Attrs != up.Attrs {
+			reconcileLog.V(5).Info("rec.Attrs != up.Attrs, updating", "rec.Attrs", rec.Attrs, "upAttrs", up.Attrs)
+			rec.Attrs = up.Attrs // event record updates to match live state
+			changed = true
+			events[key] = rec
+		}
+
+		// Append a new up/down event if the state has transitioned.
 		if AppendUpEvent(now, &rec, isUp, up.ExpectedDown) {
 			events[key] = rec
 			changed = true
 		}
 	}
 
-	for key := range events {
+	// Handle items that are no longer present in the current state.
+	for key, rec := range events {
 		if _, ok := ups[key]; !ok {
+			// Delay deletion during grace period (e.g. slice repair) to maintain continuous history.
+			if gracePeriod > 0 && len(rec.UpEvents) > 0 {
+				lastEvent := rec.UpEvents[len(rec.UpEvents)-1]
+				// If the item has been missing for less than the grace period, keep its records.
+				if now.Sub(lastEvent.Timestamp) < gracePeriod {
+					// Record the item as 'down' if its last known state was 'up'.
+					if AppendUpEvent(now, &rec, false, false) {
+						events[key] = rec
+						changed = true
+					}
+					continue
+				}
+			}
+			// Grace period has expired or is not configured, proceed with pruning the record.
 			delete(events, key)
 			changed = true
 		}

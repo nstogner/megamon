@@ -25,9 +25,10 @@ type Aggregator struct {
 	EventsBucketName string
 	EventsBucketPath string
 
-	Interval              time.Duration
-	UnknownCountThreshold float64
-	SliceEnabled          bool
+	Interval                 time.Duration
+	UnknownCountThreshold    float64
+	SliceEnabled             bool
+	SliceDeletionGracePeriod time.Duration
 
 	reportMtx   sync.RWMutex
 	report      records.Report
@@ -160,6 +161,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 		for _, s := range sliceList.Items {
 			attrs := records.Attrs{
 				SliceName:      s.Name,
+				SliceUID:       string(s.UID),
 				TPUAccelerator: string(s.Spec.Type),
 				TPUTopology:    s.Spec.Topology,
 			}
@@ -323,7 +325,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 
 	var sliceEvents map[string]records.EventRecords
 	if a.SliceEnabled {
-		sliceEvents, err = a.reconcileEvents(slicesContext, now, "slices.json", report.SlicesUp)
+		sliceEvents, err = a.reconcileEventsWithGracePeriod(slicesContext, now, "slices.json", report.SlicesUp, a.SliceDeletionGracePeriod)
 		if err != nil {
 			return fmt.Errorf("reconciling slice events: %w", err)
 		}
@@ -332,21 +334,21 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	for key, events := range jsEvents {
 		eventSummary := events.Summarize(jobsetContext, now)
 		report.JobSetsUpSummaries[key] = records.UpnessSummaryWithAttrs{
-			Attrs:        report.JobSetsUp[key].Attrs,
+			Attrs:        events.Attrs,
 			EventSummary: eventSummary,
 		}
 	}
 	for key, events := range jsNodeEvents {
 		eventSummary := events.Summarize(jobsetNodesContext, now)
 		report.JobSetNodesUpSummaries[key] = records.UpnessSummaryWithAttrs{
-			Attrs:        report.JobSetNodesUp[key].Attrs,
+			Attrs:        events.Attrs,
 			EventSummary: eventSummary,
 		}
 	}
 	for key, events := range nodePoolEvents {
 		eventSummary := events.Summarize(nodePoolsContext, now)
 		report.NodePoolsUpSummaries[key] = records.UpnessSummaryWithAttrs{
-			Attrs:        report.NodePoolsUp[key].Attrs,
+			Attrs:        events.Attrs,
 			EventSummary: eventSummary,
 		}
 	}
@@ -354,7 +356,7 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 		for key, events := range sliceEvents {
 			eventSummary := events.Summarize(slicesContext, now)
 			report.SlicesUpSummaries[key] = records.UpnessSummaryWithAttrs{
-				Attrs:        report.SlicesUp[key].Attrs,
+				Attrs:        events.Attrs,
 				EventSummary: eventSummary,
 			}
 		}
@@ -372,13 +374,17 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 }
 
 func (a *Aggregator) reconcileEvents(ctx context.Context, now time.Time, filename string, ups map[string]records.Upness) (map[string]records.EventRecords, error) {
+	return a.reconcileEventsWithGracePeriod(ctx, now, filename, ups, 0)
+}
+
+func (a *Aggregator) reconcileEventsWithGracePeriod(ctx context.Context, now time.Time, filename string, ups map[string]records.Upness, gracePeriod time.Duration) (map[string]records.EventRecords, error) {
 	path := strings.TrimSuffix(a.EventsBucketPath, "/") + "/" + filename
 	recs, err := a.GCS.GetRecords(ctx, a.EventsBucketName, path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get %q: %w", filename, err)
 	}
 
-	if changed := records.ReconcileEvents(ctx, now, ups, recs, a.UnknownCountThreshold); changed {
+	if changed := records.ReconcileEvents(ctx, now, ups, recs, a.UnknownCountThreshold, gracePeriod); changed {
 		if err := a.GCS.PutRecords(ctx, a.EventsBucketName, path, recs); err != nil {
 			return nil, fmt.Errorf("failed to put %q: %w", filename, err)
 		}

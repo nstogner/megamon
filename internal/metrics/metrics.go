@@ -290,18 +290,29 @@ func mustRegisterUpnessMetrics(prefix string, meter metric.Meter, unknownThresho
 	fatal(err)
 
 	observeFunc := func(ctx context.Context, o metric.Observer, upnesses map[string]records.Upness, summaries map[string]records.UpnessSummaryWithAttrs) {
-		for _, upness := range upnesses {
+		// observedUp tracks items present in the live state (upnesses)
+		// used to identify items missing from live state, but still in summaries (e.g. within deletion grace period)
+		observedUp := make(map[string]bool)
+		for key, upness := range upnesses {
 			val := int64(0)
 			if upness.Up(unknownThreshold) && !upness.ExpectedDown {
 				val = 1
 			}
+			attrs := OTELAttrs(upness.Attrs)
 			o.ObserveInt64(up, val, metric.WithAttributes(
-				OTELAttrs(upness.Attrs)...,
+				attrs...,
 			))
+			observedUp[key] = true
 		}
 
-		for _, summary := range summaries {
+		for key, summary := range summaries {
 			commonAttrs := OTELAttrs(summary.Attrs)
+			// Explicitly report 'up=0' for items in history (e.g. during grace period) but missing from live state
+			// to ensure the metric series shows 'down' instead of disappearing.
+			if !observedUp[key] {
+				o.ObserveInt64(up, 0, metric.WithAttributes(commonAttrs...))
+			}
+
 			o.ObserveInt64(interruptionCount, int64(summary.InterruptionCount), metric.WithAttributes(commonAttrs...))
 			o.ObserveInt64(recoveryCount, int64(summary.RecoveryCount), metric.WithAttributes(commonAttrs...))
 			o.ObserveFloat64(upTime, summary.UpTime.Seconds(), metric.WithAttributes(commonAttrs...))

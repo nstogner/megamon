@@ -817,6 +817,143 @@ var _ = Describe("Slice Metrics Scenarios", func() {
 	})
 })
 
+var _ = Describe("Slice Deletion and Recreation", func() {
+	var ctx context.Context
+	var cancel context.CancelFunc
+	var metricsAddr string
+	var s *slice.Slice
+	var restCfg *rest.Config
+	var k8sClient client.Client
+	const gracePeriod = 5 * time.Second
+
+	BeforeEach(func() {
+		ctx, cancel = context.WithCancel(context.Background())
+		_, restCfg, k8sClient = startTestEnv()
+		DeferCleanup(func() {
+			cancel()
+			time.Sleep(3 * time.Second) // Wait for manager shutdown
+		})
+
+		metricsAddr = startManager(ctx, true, restCfg, gracePeriod)
+		s = &slice.Slice{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "slice",
+				Labels: map[string]string{
+					"tpu-provisioner.cloud.google.com/owner-name":      "test-owner",
+					"tpu-provisioner.cloud.google.com/owner-namespace": "default",
+					"tpu-provisioner.cloud.google.com/owner-kind":      "test-kind",
+				},
+			},
+			Spec: slice.SliceSpec{
+				Type:         slice.TypeTpu7x,
+				Topology:     "2x2x2",
+				PartitionIds: []string{"p1"},
+			},
+		}
+	})
+
+	It("should preserve slice metrics during the grace period after deletion", func() {
+		By("creating a Slice")
+		Expect(k8sClient.Create(ctx, s)).To(Succeed())
+
+		// Allow time for aggregation
+		time.Sleep(3 * time.Second)
+		sliceMetrics := expectedMetricsForSlice(s)
+		assertMetrics(metricsAddr, sliceMetrics.up.WithValue(0))
+
+		By("updating the slice status to ready")
+		updateSliceStatus(s, "SliceReady", metav1.ConditionTrue)
+		Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
+		time.Sleep(3 * time.Second)
+
+		// Refresh metrics to include slice_state
+		sliceMetrics = expectedMetricsForSliceWithState(s, "SliceReady")
+		assertMetrics(metricsAddr, sliceMetrics.up.WithValue(1))
+
+		By("deleting the slice")
+		Expect(k8sClient.Delete(ctx, s)).To(Succeed())
+
+		By("verifying metrics are still present during grace period")
+		// Metric should show 'up=0' because it's missing from live state
+		// but its record is preserved in history.
+		assertMetrics(metricsAddr, sliceMetrics.up.WithValue(0))
+
+		By("waiting for grace period to expire")
+		time.Sleep(gracePeriod + 2*time.Second)
+
+		By("verifying metrics are gone after grace period")
+		assertMetricsAbsent(metricsAddr, sliceMetrics.up)
+	})
+
+	It("should record 1 interruption when slice is deleted and recreated during grace period", func() {
+		By("creating a Slice")
+		Expect(k8sClient.Create(ctx, s)).To(Succeed())
+
+		By("updating the slice status to ready")
+		updateSliceStatus(s, "SliceReady", metav1.ConditionTrue)
+		Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
+		time.Sleep(3 * time.Second)
+
+		sliceMetrics := expectedMetricsForSliceWithState(s, "SliceReady")
+		assertMetrics(metricsAddr, sliceMetrics.up.WithValue(1))
+
+		By("deleting the slice")
+		Expect(k8sClient.Delete(ctx, s)).To(Succeed())
+		time.Sleep(2 * time.Second) // Less than grace period
+
+		By("verifying interruption is recorded during grace period")
+		assertMetrics(metricsAddr,
+			sliceMetrics.up.WithValue(0),
+			sliceMetrics.interruption_count.WithValue(1),
+		)
+
+		By("recreating the slice during grace period")
+		s2 := &slice.Slice{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      s.Name,
+				Namespace: "default",
+				Labels:    s.Labels,
+			},
+			Spec: s.Spec,
+		}
+		Expect(k8sClient.Create(ctx, s2)).To(Succeed())
+
+		By("updating the new slice status to ready")
+		updateSliceStatus(s2, "SliceReady", metav1.ConditionTrue)
+		Expect(k8sClient.Status().Update(ctx, s2)).To(Succeed())
+		time.Sleep(3 * time.Second)
+
+		By("verifying recovery is recorded")
+		assertMetrics(metricsAddr,
+			sliceMetrics.up.WithValue(1),
+			sliceMetrics.interruption_count.WithValue(1),
+			sliceMetrics.recovery_count.WithValue(1),
+		)
+
+		By("checking for >0 for time between interruptions and recovery metrics")
+		Eventually(func(g Gomega) {
+			m, err := fetchMetrics(metricsAddr)
+			g.Expect(err).NotTo(HaveOccurred())
+
+			// Helper to check if metric value > 0
+			checkGreaterThanZero := func(metricName string) {
+				fullName := expectedMetricPrefix + "_" + metricName + "{"
+				line := findMatchingLine(m, fullName)
+				g.Expect(line).NotTo(BeEmpty(), "Metric %s not found in:\n%s", metricName, m)
+				parts := strings.Fields(line)
+				g.Expect(parts).To(HaveLen(2), "Unexpected metric line format: %s", line)
+				val := parts[1]
+				g.Expect(val).NotTo(Equal("0"), "Metric %s should be > 0, but got %s", metricName, val)
+			}
+
+			checkGreaterThanZero("slice_up_time_between_interruption_latest_seconds")
+			checkGreaterThanZero("slice_down_time_between_recovery_latest_seconds")
+			checkGreaterThanZero("slice_up_time_seconds")
+			checkGreaterThanZero("slice_down_time_seconds")
+		}, "10s", "1s").Should(Succeed())
+	})
+})
+
 var _ = Describe("Slice State Transition Scenarios", Ordered, func() {
 	var ctx context.Context
 	var cancel context.CancelFunc
