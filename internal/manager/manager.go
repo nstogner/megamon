@@ -91,7 +91,8 @@ type Config struct {
 	UnknownCountThreshold float64
 
 	// HyperComputer features
-	SliceEnabled bool
+	SliceEnabled                    bool
+	SliceDeletionGracePeriodSeconds int64
 }
 
 type GKEConfig struct {
@@ -140,14 +141,15 @@ func MustConfigure() Config {
 			Namespace: "megamon-system",
 			Name:      "megamon-report",
 		},
-		DisableNodePoolJobLabelling: true,
-		MetricsAddr:                 ":8080",
-		EnableLeaderElection:        false,
-		ProbeAddr:                   ":8081",
-		SecureMetrics:               true,
-		EnableHTTP2:                 false,
-		UnknownCountThreshold:       1.0,
-		EnableSimulation:            false,
+		DisableNodePoolJobLabelling:     true,
+		MetricsAddr:                     ":8080",
+		EnableLeaderElection:            false,
+		ProbeAddr:                       ":8081",
+		SecureMetrics:                   true,
+		EnableHTTP2:                     false,
+		UnknownCountThreshold:           1.0,
+		EnableSimulation:                false,
+		SliceDeletionGracePeriodSeconds: 300,
 	}
 
 	if err := json.Unmarshal(cfgFile, &cfg); err != nil {
@@ -340,15 +342,16 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 	}
 
 	agg := &aggregator.Aggregator{
-		Interval:              time.Duration(cfg.AggregationIntervalSeconds) * time.Second,
-		Client:                mgr.GetClient(),
-		Exporters:             map[string]aggregator.Exporter{},
-		GKE:                   gkeClient,
-		GCS:                   gcsClient,
-		EventsBucketName:      cfg.EventsBucketName,
-		EventsBucketPath:      cfg.EventsBucketPath,
-		UnknownCountThreshold: cfg.UnknownCountThreshold,
-		SliceEnabled:          cfg.SliceEnabled,
+		Interval:                 time.Duration(cfg.AggregationIntervalSeconds) * time.Second,
+		Client:                   mgr.GetClient(),
+		Exporters:                map[string]aggregator.Exporter{},
+		GKE:                      gkeClient,
+		GCS:                      gcsClient,
+		EventsBucketName:         cfg.EventsBucketName,
+		EventsBucketPath:         cfg.EventsBucketPath,
+		UnknownCountThreshold:    cfg.UnknownCountThreshold,
+		SliceEnabled:             cfg.SliceEnabled,
+		SliceDeletionGracePeriod: time.Duration(cfg.SliceDeletionGracePeriodSeconds) * time.Second,
 	}
 
 	availableExporters := map[string]aggregator.Exporter{

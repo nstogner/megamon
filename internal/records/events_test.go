@@ -387,6 +387,7 @@ func TestReconcileEvents(t *testing.T) {
 		expEvents        map[string]EventRecords
 		expChanged       bool
 		unknownThreshold float64
+		gracePeriod      time.Duration
 	}{
 		"empty": {
 			inputUps:         map[string]Upness{},
@@ -637,6 +638,113 @@ func TestReconcileEvents(t *testing.T) {
 			unknownThreshold: 1.0,
 			expChanged:       false,
 		},
+		"deletion without grace period": {
+			inputUps: map[string]Upness{},
+			inputEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: true, Timestamp: now.Add(-1 * time.Minute)},
+					},
+				},
+			},
+			expEvents:        map[string]EventRecords{},
+			unknownThreshold: 1.0,
+			gracePeriod:      0,
+			expChanged:       true,
+		},
+		"deletion with grace period - within grace period": {
+			inputUps: map[string]Upness{},
+			inputEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: true, Timestamp: now.Add(-1 * time.Minute)},
+					},
+				},
+			},
+			expEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: true, Timestamp: now.Add(-1 * time.Minute)},
+						{Up: false, Timestamp: now},
+					},
+				},
+			},
+			unknownThreshold: 1.0,
+			gracePeriod:      5 * time.Minute,
+			expChanged:       true,
+		},
+		"deletion with grace period - already recorded down": {
+			inputUps: map[string]Upness{},
+			inputEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: true, Timestamp: now.Add(-2 * time.Minute)},
+						{Up: false, Timestamp: now.Add(-1 * time.Minute)},
+					},
+				},
+			},
+			expEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: true, Timestamp: now.Add(-2 * time.Minute)},
+						{Up: false, Timestamp: now.Add(-1 * time.Minute)},
+					},
+				},
+			},
+			unknownThreshold: 1.0,
+			gracePeriod:      5 * time.Minute,
+			expChanged:       false,
+		},
+		"deletion with grace period - exceeded grace period": {
+			inputUps: map[string]Upness{},
+			inputEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: true, Timestamp: now.Add(-10 * time.Minute)},
+						{Up: false, Timestamp: now.Add(-6 * time.Minute)},
+					},
+				},
+			},
+			expEvents:        map[string]EventRecords{},
+			unknownThreshold: 1.0,
+			gracePeriod:      5 * time.Minute,
+			expChanged:       true,
+		},
+		"attribute update": {
+			inputUps: map[string]Upness{
+				"abc": {
+					ExpectedCount: 1,
+					ReadyCount:    1,
+					Attrs: Attrs{
+						SliceState: "Active",
+					},
+				},
+			},
+			inputEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: false, Timestamp: now.Add(-2 * time.Minute)},
+						{Up: true, Timestamp: now.Add(-1 * time.Minute)},
+					},
+					Attrs: Attrs{
+						SliceState: "Activating",
+					},
+				},
+			},
+			expEvents: map[string]EventRecords{
+				"abc": {
+					UpEvents: []UpEvent{
+						{Up: false, Timestamp: now.Add(-2 * time.Minute)},
+						{Up: true, Timestamp: now.Add(-1 * time.Minute)},
+					},
+					Attrs: Attrs{
+						SliceState: "Active",
+					},
+				},
+			},
+			unknownThreshold: 1.0,
+			expChanged:       true,
+		},
 	}
 
 	ctx := context.Background()
@@ -644,7 +752,7 @@ func TestReconcileEvents(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			events := c.inputEvents
-			gotChanged := ReconcileEvents(ctx, now, c.inputUps, events, c.unknownThreshold)
+			gotChanged := ReconcileEvents(ctx, now, c.inputUps, events, c.unknownThreshold, c.gracePeriod)
 			require.Equal(t, c.expEvents, events)
 			require.Equal(t, c.expChanged, gotChanged)
 		})
