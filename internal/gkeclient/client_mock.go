@@ -2,7 +2,6 @@ package gkeclient
 
 import (
 	"context"
-	"regexp"
 
 	"example.com/megamon/internal/k8sutils"
 	containerv1beta1 "google.golang.org/api/container/v1beta1"
@@ -29,15 +28,11 @@ func (m *mockGKEClient) ListNodePools(ctx context.Context) ([]*containerv1beta1.
 		Topology    string
 	})
 
-	// Regex to match [nodepool_name]-n-n-n
-	re := regexp.MustCompile(`^(.*)-\d+-\d+-\d+(?:-\d+)*$`)
-
 	for _, node := range nodeList.Items {
-		matches := re.FindStringSubmatch(node.Name)
-		if len(matches) < 2 {
+		nodePoolName, ok := node.Labels[k8sutils.NodeLabelGKENodepool]
+		if !ok {
 			continue
 		}
-		nodePoolName := matches[1]
 		nodePoolMap[nodePoolName]++
 
 		if _, ok := nodePoolAttrs[nodePoolName]; !ok {
