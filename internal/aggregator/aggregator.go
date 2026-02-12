@@ -319,7 +319,9 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	}
 
 	log.V(3).Info("DEBUG", "report.NodePoolsUp", report.NodePoolsUp, "report.JobSetNodesUp", report.JobSetNodesUp, "report.JobSetsUp", report.JobSetsUp)
-	log.V(3).Info("DEBUG", "report.SlicesUp", report.SlicesUp)
+	if a.SliceEnabled {
+		log.V(3).Info("DEBUG", "report.SlicesUp", report.SlicesUp)
+	}
 
 	jobsetContext := logf.IntoContext(ctx, log.WithValues("type", "jobsets"))
 	jobsetNodesContext := logf.IntoContext(ctx, log.WithValues("type", "jobset-nodes"))
@@ -341,9 +343,13 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("reconciling nodepool events: %w", err)
 	}
-	sliceEvents, err := a.reconcileEvents(slicesContext, now, "slices.json", report.SlicesUp)
-	if err != nil {
-		return fmt.Errorf("reconciling slice events: %w", err)
+
+	var sliceEvents map[string]records.EventRecords
+	if a.SliceEnabled {
+		sliceEvents, err = a.reconcileEvents(slicesContext, now, "slices.json", report.SlicesUp)
+		if err != nil {
+			return fmt.Errorf("reconciling slice events: %w", err)
+		}
 	}
 
 	for key, events := range jsEvents {
@@ -367,11 +373,13 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 			EventSummary: eventSummary,
 		}
 	}
-	for key, events := range sliceEvents {
-		eventSummary := events.Summarize(slicesContext, now)
-		report.SlicesUpSummaries[key] = records.UpnessSummaryWithAttrs{
-			Attrs:        report.SlicesUp[key].Attrs,
-			EventSummary: eventSummary,
+	if a.SliceEnabled {
+		for key, events := range sliceEvents {
+			eventSummary := events.Summarize(slicesContext, now)
+			report.SlicesUpSummaries[key] = records.UpnessSummaryWithAttrs{
+				Attrs:        report.SlicesUp[key].Attrs,
+				EventSummary: eventSummary,
+			}
 		}
 	}
 

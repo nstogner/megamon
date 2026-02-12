@@ -101,14 +101,20 @@ func Init(ctx context.Context, r Reporter, interval time.Duration, unknownThresh
 		jobsetNodeObservables, observeJobsetNodes = mustRegisterUpnessMetrics(Prefix+".jobset.nodes", meter, unknownThreshold)
 	}
 	nodePoolObservables, observeNodePools := mustRegisterUpnessMetrics(Prefix+".nodepool", meter, unknownThreshold)
-	sliceObservables, observeSlices := mustRegisterUpnessMetrics(Prefix+".slice", meter, unknownThreshold)
+	var sliceObservables []metric.Observable
+	var observeSlices reportObserveFunc
+	if sliceEnabled {
+		sliceObservables, observeSlices = mustRegisterUpnessMetrics(Prefix+".slice", meter, unknownThreshold)
+	}
 
 	observables := jobsetObservables
 	if !sliceEnabled {
 		observables = append(observables, jobsetNodeObservables...)
 	}
 	observables = append(observables, nodePoolObservables...)
-	observables = append(observables, sliceObservables...)
+	if sliceEnabled {
+		observables = append(observables, sliceObservables...)
+	}
 	observables = append(observables, nodePoolJobScheduled)
 	observables = append(observables, buildInfo)
 
@@ -131,7 +137,9 @@ func Init(ctx context.Context, r Reporter, interval time.Duration, unknownThresh
 			observeJobsetNodes(ctx, o, report.JobSetNodesUp, report.JobSetNodesUpSummaries)
 		}
 		observeNodePools(ctx, o, report.NodePoolsUp, report.NodePoolsUpSummaries)
-		observeSlices(ctx, o, report.SlicesUp, report.SlicesUpSummaries)
+		if sliceEnabled {
+			observeSlices(ctx, o, report.SlicesUp, report.SlicesUpSummaries)
+		}
 
 		for npName, sch := range report.NodePoolScheduling {
 			o.ObserveInt64(nodePoolJobScheduled, 1, metric.WithAttributes(
