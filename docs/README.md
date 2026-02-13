@@ -39,6 +39,6 @@ MegaMon was created to address shortcoming of using [kube-state-metrics](https:/
 * Set "EnableSimulation" in config file to run megamon without access to GKE and
   GCS.
     * **GCS Mock**: Data is stored in-memory and will be lost on restart.
-    * **GKE Mock**: Node pools are inferred from existing nodes using a naming
-      convention (`[nodepool_name]-n-n-n`). Machine type is hardcoded to
-      `tpu7x-standard-4t` and disk size to `100GB`.
+    * **GKE Mock**: Node pools are inferred from existing nodes using node
+    labels. Machine type is hardcoded to `tpu7x-standard-4t` and disk size
+    to `100GB`.
