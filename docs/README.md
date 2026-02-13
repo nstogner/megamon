@@ -36,7 +36,7 @@ MegaMon was created to address shortcoming of using [kube-state-metrics](https:/
 ## Runtime config
 * Set log level via `-zap-log-level 3` flag on manager binary
 * Set "SliceEnabled" to support slice metrics
-* Set "SliceDeletionGracePeriodSeconds" (default 300) to configure the grace period for slice deletions. Doing this period, slice metrics and attributes are preserved, allowing for slice recreation without losing continuity.
+* Set "SliceDeletionGracePeriodSeconds" (default 600) to configure the grace period for slice deletions. Doing this period, slice metrics and attributes are preserved, allowing for slice recreation without losing continuity.
 * Set "EnableSimulation" in config file to run megamon without access to GKE and
   GCS.
     * **GCS Mock**: Data is stored in-memory and will be lost on restart.

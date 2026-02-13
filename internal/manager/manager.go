@@ -149,7 +149,7 @@ func MustConfigure() Config {
 		EnableHTTP2:                     false,
 		UnknownCountThreshold:           1.0,
 		EnableSimulation:                false,
-		SliceDeletionGracePeriodSeconds: 300,
+		SliceDeletionGracePeriodSeconds: 600,
 	}
 
 	if err := json.Unmarshal(cfgFile, &cfg); err != nil {
