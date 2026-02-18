@@ -36,7 +36,6 @@ MegaMon was created to address shortcoming of using [kube-state-metrics](https:/
 ## Runtime config
 * Set log level via `-zap-log-level 3` flag on manager binary
 * Set "SliceEnabled" to support slice metrics
-  * use "default-slice" or "dev-slice" for kustomize when deploying
 * Set "EnableSimulation" in config file to run megamon without access to GKE and
   GCS.
     * **GCS Mock**: Data is stored in-memory and will be lost on restart.
