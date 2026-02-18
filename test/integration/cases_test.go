@@ -358,25 +358,6 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 			)
 		})
 
-		It("should update slice_name in nodepool metrics when a node has the slice label", func() {
-			By("adding the slice label to a node")
-			const testSliceName = "test-slice-name"
-			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: node.Name}, node)).To(Succeed())
-			if node.Labels == nil {
-				node.Labels = make(map[string]string)
-			}
-			node.Labels[k8sutils.NodeLabelGKETPUSlice] = testSliceName
-			Expect(k8sClient.Update(ctx, node)).To(Succeed())
-
-			// Allow time for aggregation
-			time.Sleep(3 * time.Second)
-
-			By("rechecking the metrics for nodepool_up with slice_name")
-			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name, testSliceName)
-			assertMetrics(metricsAddr,
-				nodepool.up.WithValue(1),
-			)
-		})
 	})
 })
 
@@ -547,16 +528,15 @@ var _ = Describe("JobSet metrics", Ordered, func() {
 	})
 })
 
-var _ = Describe("JobSet Metrics with slice attributes", Ordered, func() {
+var _ = Describe("JobSet Node metrics absent when slice is enabled", Ordered, func() {
 	var ctx context.Context
 	var cancel context.CancelFunc
 	var metricsAddr string
 	var restCfg *rest.Config
-	var k8sClient client.Client
 
 	BeforeAll(func() {
 		ctx, cancel = context.WithCancel(context.Background())
-		_, restCfg, k8sClient = startTestEnv()
+		_, restCfg, _ = startTestEnv()
 		DeferCleanup(func() {
 			cancel()
 			time.Sleep(3 * time.Second) // Wait for manager shutdown
@@ -564,54 +544,12 @@ var _ = Describe("JobSet Metrics with slice attributes", Ordered, func() {
 		metricsAddr = startManager(ctx, true, restCfg)
 	})
 
-	Context("When reconciling a JobSet and a Slice linked by owner labels", func() {
-		js := &jobset.JobSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "js-linked-slice",
-				Namespace: "default",
-			},
-			Spec: jobset.JobSetSpec{
-				ReplicatedJobs: []jobset.ReplicatedJob{
-					*replicatedJob_2x4_r1,
-				},
-			},
-		}
-
-		sl := &slice.Slice{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "slice001",
-				Namespace: "default",
-				Labels: map[string]string{
-					k8sutils.LabelTPUProvisionerOwnerKind:      "jobset",
-					k8sutils.LabelTPUProvisionerOwnerName:      js.Name,
-					k8sutils.LabelTPUProvisionerOwnerNamespace: "default",
-				},
-			},
-			Spec: slice.SliceSpec{
-				Type:         "tpu7x",
-				Topology:     "2x2x1",
-				PartitionIds: []string{"test-partition"},
-			},
-		}
-
-		It("should update the JobSet metrics with the slice name", func() {
-			Expect(k8sClient.Create(ctx, js)).To(Succeed())
-			Expect(k8sClient.Create(ctx, sl)).To(Succeed())
-
-			// Allow aggregation
-			time.Sleep(3 * time.Second)
-
-			metrics := expectedMetricsForJobSetWithSlice(js, "2x4", sl)
-			assertMetrics(metricsAddr, metrics.up.WithValue(0))
-		})
-
-		It("should not publish any jobset node metrics when slice is enabled", func() {
-			By("checking that no jobset node metrics are published")
-			unexpectedMetricPrefix := "jobset_node_"
-			Eventually(func() (string, error) {
-				return fetchMetrics(metricsAddr)
-			}, "5s", "1s").ShouldNot(ContainSubstring(unexpectedMetricPrefix))
-		})
+	It("should not publish any jobset node metrics when slice is enabled", func() {
+		By("checking that no jobset node metrics are published")
+		unexpectedMetricPrefix := "jobset_node_"
+		Eventually(func() (string, error) {
+			return fetchMetrics(metricsAddr)
+		}, "5s", "1s").ShouldNot(ContainSubstring(unexpectedMetricPrefix))
 	})
 })
 

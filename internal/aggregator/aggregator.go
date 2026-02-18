@@ -203,23 +203,6 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 			}
 
 			report.SlicesUp[s.Name] = up
-
-			// update jobset attribute with slice attribute if found
-			if attrs.SliceOwnerKind == "jobset" {
-				if uid, ok := uidMap[uidMapKey(attrs.SliceOwnerNamespace, attrs.SliceOwnerName)]; ok {
-					if jsUp, ok := report.JobSetsUp[uid]; ok {
-						jsUp.Attrs.SliceName = s.Name
-						report.JobSetsUp[uid] = jsUp
-					} else {
-						log.Info("Cannot find jobset for slice", "slice", s.Name, "jobset", attrs.SliceOwnerName)
-					}
-				} else {
-					log.Info("Warning cannot find jobset UID for jobset", "slice", s.Name, "jobset", attrs.SliceOwnerName)
-				}
-			} else {
-				log.V(3).Info("slice is owned by non-jobset", "slice", s.Name, "owner", attrs.SliceOwnerName, "ownerKind", attrs.SliceOwnerKind)
-			}
-
 		}
 	}
 
@@ -273,12 +256,6 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 					if err != nil {
 						log.Error(err, "failed to get expected TPU node pool size", "node", node.Name)
 						return
-					}
-				}
-
-				if sliceName, ok := node.Labels[k8sutils.NodeLabelGKETPUSlice]; ok && sliceName != "" {
-					if up.Attrs.SliceName == "" {
-						up.Attrs.SliceName = sliceName
 					}
 				}
 
