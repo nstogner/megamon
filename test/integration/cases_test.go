@@ -824,7 +824,7 @@ var _ = Describe("Slice Deletion and Recreation", func() {
 	var s *slice.Slice
 	var restCfg *rest.Config
 	var k8sClient client.Client
-	const gracePeriod = 5 * time.Second
+	const gracePeriod = 10 * time.Second
 
 	BeforeEach(func() {
 		ctx, cancel = context.WithCancel(context.Background())
@@ -858,16 +858,16 @@ var _ = Describe("Slice Deletion and Recreation", func() {
 
 		// Allow time for aggregation
 		time.Sleep(3 * time.Second)
-		sliceMetrics := expectedMetricsForSlice(s)
+		sliceMetrics := expectedMetricsForSliceWithState(s, "")
 		assertMetrics(metricsAddr, sliceMetrics.up.WithValue(0))
 
-		By("updating the slice status to ready")
-		updateSliceStatus(s, "SliceReady", metav1.ConditionTrue)
+		By("updating the slice status to READY with reason ACTIVE")
+		updateSliceStatus(s, SLICE_STATE_ACTIVE, metav1.ConditionTrue)
 		Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
 		time.Sleep(3 * time.Second)
 
 		// Refresh metrics to include slice_state
-		sliceMetrics = expectedMetricsForSliceWithState(s, "SliceReady")
+		sliceMetrics = expectedMetricsForSliceWithState(s, SLICE_STATE_ACTIVE)
 		assertMetrics(metricsAddr, sliceMetrics.up.WithValue(1))
 
 		By("deleting the slice")
@@ -889,17 +889,20 @@ var _ = Describe("Slice Deletion and Recreation", func() {
 		By("creating a Slice")
 		Expect(k8sClient.Create(ctx, s)).To(Succeed())
 
-		By("updating the slice status to ready")
-		updateSliceStatus(s, "SliceReady", metav1.ConditionTrue)
+		By("updating the slice status to READY with reason ACTIVE")
+		updateSliceStatus(s, SLICE_STATE_ACTIVE, metav1.ConditionTrue)
 		Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
 		time.Sleep(3 * time.Second)
 
-		sliceMetrics := expectedMetricsForSliceWithState(s, "SliceReady")
+		sliceMetrics := expectedMetricsForSliceWithState(s, SLICE_STATE_ACTIVE)
 		assertMetrics(metricsAddr, sliceMetrics.up.WithValue(1))
 
 		By("deleting the slice")
 		Expect(k8sClient.Delete(ctx, s)).To(Succeed())
 		time.Sleep(2 * time.Second) // Less than grace period
+
+		// time to aggregate
+		time.Sleep(3 * time.Second)
 
 		By("verifying interruption is recorded during grace period")
 		assertMetrics(metricsAddr,
@@ -919,7 +922,7 @@ var _ = Describe("Slice Deletion and Recreation", func() {
 		Expect(k8sClient.Create(ctx, s2)).To(Succeed())
 
 		By("updating the new slice status to ready")
-		updateSliceStatus(s2, "SliceReady", metav1.ConditionTrue)
+		updateSliceStatus(s2, SLICE_STATE_ACTIVE, metav1.ConditionTrue)
 		Expect(k8sClient.Status().Update(ctx, s2)).To(Succeed())
 		time.Sleep(3 * time.Second)
 
