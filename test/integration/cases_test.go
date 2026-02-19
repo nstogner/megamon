@@ -772,6 +772,18 @@ var _ = Describe("Slice Metrics Scenarios", func() {
 				assertMetricsAbsent(metricsAddr, sliceMetrics.up)
 			}
 
+			By("updating the slice status to READY with reason ACTIVE_DEGRADED")
+			updateSliceStatus(s, SLICE_STATE_ACTIVE_DEGRADED, metav1.ConditionTrue)
+			Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
+			time.Sleep(3 * time.Second)
+
+			sliceMetrics = expectedMetricsForSliceWithState(s, SLICE_STATE_ACTIVE_DEGRADED)
+			if enableSlice {
+				assertMetrics(metricsAddr, sliceMetrics.up.WithValue(1), sliceMetrics.tpu_chip_count, sliceMetrics.down_time_initial_seconds, sliceMetrics.interruption_count.WithValue(0))
+			} else {
+				assertMetricsAbsent(metricsAddr, sliceMetrics.up)
+			}
+
 			By("updating the slice status to NOT_READY with reason INCOMPLETE")
 			updateSliceStatus(s, SLICE_STATE_INCOMPLETE, metav1.ConditionFalse)
 			sliceMetrics = expectedMetricsForSliceWithState(s, SLICE_STATE_INCOMPLETE)
@@ -782,18 +794,6 @@ var _ = Describe("Slice Metrics Scenarios", func() {
 				assertMetrics(metricsAddr, sliceMetrics.up.WithValue(0), sliceMetrics.interruption_count.WithValue(1))
 			} else {
 				assertMetricsAbsent(metricsAddr, sliceMetrics.interruption_count)
-			}
-
-			By("recovering the slice to READY with reason ACTIVE")
-			updateSliceStatus(s, SLICE_STATE_ACTIVE, metav1.ConditionTrue)
-			sliceMetrics = expectedMetricsForSliceWithState(s, SLICE_STATE_ACTIVE)
-			Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
-			time.Sleep(3 * time.Second)
-
-			if enableSlice {
-				assertMetrics(metricsAddr, sliceMetrics.up.WithValue(1), sliceMetrics.interruption_count.WithValue(1), sliceMetrics.recovery_count.WithValue(1), sliceMetrics.down_time_between_recovery_seconds, sliceMetrics.down_time_between_recovery_latest_seconds, sliceMetrics.tpu_chip_count)
-			} else {
-				assertMetricsAbsent(metricsAddr, sliceMetrics.recovery_count)
 			}
 
 			By("deleting the slice")
