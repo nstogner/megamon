@@ -191,7 +191,6 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 			log.V(5).Info("DEBUG", "slice", s.Name, "status", s.Status)
 			for _, cond := range s.Status.Conditions {
 				if cond.Type == slice.SliceStateConditionType {
-					up.SliceState = cond.Reason
 					switch cond.Status {
 					case metav1.ConditionTrue:
 						up.ReadyCount = 1

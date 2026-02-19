@@ -201,9 +201,6 @@ func OTELAttrs(attrs records.Attrs) []attribute.KeyValue {
 	if attrs.SliceOwnerKind != "" {
 		otelAttrs = append(otelAttrs, attribute.String("slice.owner.kind", attrs.SliceOwnerKind))
 	}
-	if attrs.SliceState != "" {
-		otelAttrs = append(otelAttrs, attribute.String("slice.state", attrs.SliceState))
-	}
 	return otelAttrs
 }
 
