@@ -58,6 +58,9 @@ func extractNodeAttrs(node *corev1.Node) records.Attrs {
 		if val, ok := node.Labels[k8sutils.NodeLabelGKETPUTopology]; ok {
 			attrs.TPUTopology = val
 		}
+		if val, ok := node.Labels[k8sutils.NodeLabelGKETPUSlice]; ok {
+			attrs.SliceName = val
+		}
 		if val, ok := node.Labels[k8sutils.NodeLabelGKESpot]; ok {
 			attrs.Spot = val == "true"
 		}

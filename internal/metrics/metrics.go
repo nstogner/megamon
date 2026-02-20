@@ -69,7 +69,7 @@ type Reporter interface {
 	Report() records.Report
 }
 
-func Init(ctx context.Context, r Reporter, interval time.Duration, unknownThreshold float64) func() {
+func Init(ctx context.Context, r Reporter, interval time.Duration, unknownThreshold float64, sliceEnabled bool) func() {
 	// Initialize the OpenTelemetry Prometheus exporter and meter provider.
 	provider := initMeterProvider(ctx, interval)
 
@@ -95,11 +95,26 @@ func Init(ctx context.Context, r Reporter, interval time.Duration, unknownThresh
 	fatal(err)
 
 	jobsetObservables, observeJobset := mustRegisterUpnessMetrics(Prefix+".jobset", meter, unknownThreshold)
-	jobsetNodeObservables, observeJobsetNodes := mustRegisterUpnessMetrics(Prefix+".jobset.nodes", meter, unknownThreshold)
+	var jobsetNodeObservables []metric.Observable
+	var observeJobsetNodes reportObserveFunc
+	if !sliceEnabled {
+		jobsetNodeObservables, observeJobsetNodes = mustRegisterUpnessMetrics(Prefix+".jobset.nodes", meter, unknownThreshold)
+	}
 	nodePoolObservables, observeNodePools := mustRegisterUpnessMetrics(Prefix+".nodepool", meter, unknownThreshold)
+	var sliceObservables []metric.Observable
+	var observeSlices reportObserveFunc
+	if sliceEnabled {
+		sliceObservables, observeSlices = mustRegisterUpnessMetrics(Prefix+".slice", meter, unknownThreshold)
+	}
 
-	observables := append(jobsetObservables, jobsetNodeObservables...)
+	observables := jobsetObservables
+	if !sliceEnabled {
+		observables = append(observables, jobsetNodeObservables...)
+	}
 	observables = append(observables, nodePoolObservables...)
+	if sliceEnabled {
+		observables = append(observables, sliceObservables...)
+	}
 	observables = append(observables, nodePoolJobScheduled)
 	observables = append(observables, buildInfo)
 
@@ -118,8 +133,13 @@ func Init(ctx context.Context, r Reporter, interval time.Duration, unknownThresh
 		report := r.Report()
 
 		observeJobset(ctx, o, report.JobSetsUp, report.JobSetsUpSummaries)
-		observeJobsetNodes(ctx, o, report.JobSetNodesUp, report.JobSetNodesUpSummaries)
+		if !sliceEnabled {
+			observeJobsetNodes(ctx, o, report.JobSetNodesUp, report.JobSetNodesUpSummaries)
+		}
 		observeNodePools(ctx, o, report.NodePoolsUp, report.NodePoolsUpSummaries)
+		if sliceEnabled {
+			observeSlices(ctx, o, report.SlicesUp, report.SlicesUpSummaries)
+		}
 
 		for npName, sch := range report.NodePoolScheduling {
 			o.ObserveInt64(nodePoolJobScheduled, 1, metric.WithAttributes(
@@ -168,6 +188,21 @@ func OTELAttrs(attrs records.Attrs) []attribute.KeyValue {
 	}
 	if attrs.NodePoolName != "" {
 		otelAttrs = append(otelAttrs, attribute.String("nodepool.name", attrs.NodePoolName))
+	}
+	if attrs.SliceName != "" {
+		otelAttrs = append(otelAttrs, attribute.String("slice.name", attrs.SliceName))
+	}
+	if attrs.SliceOwnerName != "" {
+		otelAttrs = append(otelAttrs, attribute.String("slice.owner.name", attrs.SliceOwnerName))
+	}
+	if attrs.SliceOwnerNamespace != "" {
+		otelAttrs = append(otelAttrs, attribute.String("slice.owner.namespace", attrs.SliceOwnerNamespace))
+	}
+	if attrs.SliceOwnerKind != "" {
+		otelAttrs = append(otelAttrs, attribute.String("slice.owner.kind", attrs.SliceOwnerKind))
+	}
+	if attrs.SliceState != "" {
+		otelAttrs = append(otelAttrs, attribute.String("slice.state", attrs.SliceState))
 	}
 	return otelAttrs
 }

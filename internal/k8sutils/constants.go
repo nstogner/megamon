@@ -4,6 +4,7 @@ const (
 	NodeLabelGKETPUAccelerator   = "cloud.google.com/gke-tpu-accelerator"
 	NodeLabelGKEAcceleratorCount = "cloud.google.com/gke-accelerator-count"
 	NodeLabelGKETPUTopology      = "cloud.google.com/gke-tpu-topology"
+	NodeLabelGKETPUSlice         = "cloud.google.com/gke-tpu-slice"
 	NodeLabelGKESpot             = "cloud.google.com/gke-spot"
 	NodeLabelGKENodepool         = "cloud.google.com/gke-nodepool"
 
@@ -14,4 +15,8 @@ const (
 
 	PodLabelJobName    = "batch.kubernetes.io/job-name"
 	PodLabelJobSetName = "jobset.sigs.k8s.io/jobset-name"
+
+	LabelTPUProvisionerOwnerKind      = "tpu-provisioner.cloud.google.com/owner-kind"
+	LabelTPUProvisionerOwnerName      = "tpu-provisioner.cloud.google.com/owner-name"
+	LabelTPUProvisionerOwnerNamespace = "tpu-provisioner.cloud.google.com/owner-namespace"
 )

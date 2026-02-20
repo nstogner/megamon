@@ -5,19 +5,57 @@ import (
 
 	"example.com/megamon/internal/k8sutils"
 	containerv1beta1 "google.golang.org/api/container/v1beta1"
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type mockGKEClient struct {
 	ClusterRef        string
 	ContainersService *containerv1beta1.Service
-	nodePools         []*containerv1beta1.NodePool
+	Client            client.Client
 }
 
 func (m *mockGKEClient) ListNodePools(ctx context.Context) ([]*containerv1beta1.NodePool, error) {
-	return m.nodePools, nil
+	// build fake GKE node pool object based on k8s nodes present, assumes a node naming convention
+	var nodeList corev1.NodeList
+	if err := m.Client.List(ctx, &nodeList); err != nil {
+		return nil, err
+	}
+
+	nodePoolMap := make(map[string]int64)
+	nodePoolAttrs := make(map[string]struct {
+		Accelerator string
+		Topology    string
+	})
+
+	for _, node := range nodeList.Items {
+		nodePoolName, ok := node.Labels[k8sutils.NodeLabelGKENodepool]
+		if !ok {
+			continue
+		}
+		nodePoolMap[nodePoolName]++
+
+		if _, ok := nodePoolAttrs[nodePoolName]; !ok {
+			nodePoolAttrs[nodePoolName] = struct {
+				Accelerator string
+				Topology    string
+			}{
+				Accelerator: node.Labels[k8sutils.NodeLabelGKETPUAccelerator],
+				Topology:    node.Labels[k8sutils.NodeLabelGKETPUTopology],
+			}
+		}
+	}
+
+	var nodePools []*containerv1beta1.NodePool
+	for name, count := range nodePoolMap {
+		attrs := nodePoolAttrs[name]
+		nodePools = append(nodePools, createStubNodePool(name, attrs.Accelerator, attrs.Topology, count))
+	}
+
+	return nodePools, nil
 }
 
-func createStubNodePool(nodePoolName, tpuAccelerator, tpuTopology string) *containerv1beta1.NodePool {
+func createStubNodePool(nodePoolName, tpuAccelerator, tpuTopology string, nodeCount int64) *containerv1beta1.NodePool {
 	return &containerv1beta1.NodePool{
 		Name: nodePoolName,
 		Config: &containerv1beta1.NodeConfig{
@@ -29,8 +67,8 @@ func createStubNodePool(nodePoolName, tpuAccelerator, tpuTopology string) *conta
 		},
 		Autoscaling: &containerv1beta1.NodePoolAutoscaling{
 			Enabled:      true,
-			MinNodeCount: 1,
-			MaxNodeCount: 3,
+			MinNodeCount: nodeCount,
+			MaxNodeCount: nodeCount,
 		},
 		PlacementPolicy: &containerv1beta1.PlacementPolicy{
 			TpuTopology: tpuTopology,
@@ -38,12 +76,8 @@ func createStubNodePool(nodePoolName, tpuAccelerator, tpuTopology string) *conta
 	}
 }
 
-func CreateStubGKEClient() *mockGKEClient {
+func CreateStubGKEClient(c client.Client) *mockGKEClient {
 	return &mockGKEClient{
-		nodePools: []*containerv1beta1.NodePool{
-			createStubNodePool("a", "tpu7x", "4x4x4"),
-			createStubNodePool("b", "tpu7x", "4x4x4"),
-			createStubNodePool("c", "tpu7x", "4x4x4"),
-		},
+		Client: c,
 	}
 }

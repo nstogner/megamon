@@ -12,6 +12,7 @@ import (
 
 // JobSetReconciler reconciles a Guestbook object
 type JobSetReconciler struct {
+	Name     string
 	Disabled bool
 
 	client.Client
@@ -33,8 +34,12 @@ func (r *JobSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *JobSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	name := "jobset"
+	if r.Name != "" {
+		name = r.Name
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&jobset.JobSet{}).
-		Named("jobset").
+		Named(name).
 		Complete(r)
 }

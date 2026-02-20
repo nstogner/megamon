@@ -47,6 +47,7 @@ import (
 
 	// +kubebuilder:scaffold:imports
 
+	slice "example.com/megamon/copied-slice-api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 )
@@ -58,10 +59,13 @@ var (
 func init() {
 	//utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(jobset.AddToScheme(scheme.Scheme))
+	utilruntime.Must(slice.AddToScheme(scheme.Scheme))
 }
 
 type Config struct {
 	MetricsPrefix string
+
+	OptionalControllerSuffix string
 
 	AggregationIntervalSeconds int64
 	Exporters                  []string
@@ -85,6 +89,9 @@ type Config struct {
 
 	// Controller runtime thresholds
 	UnknownCountThreshold float64
+
+	// HyperComputer features
+	SliceEnabled bool
 }
 
 type GKEConfig struct {
@@ -305,7 +312,7 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 	}
 
 	if cfg.EnableSimulation {
-		gkeClient = gkeclient.CreateStubGKEClient()
+		gkeClient = gkeclient.CreateStubGKEClient(mgr.GetClient())
 		gcsClient = gcsclient.CreateStubGCSClient()
 	}
 
@@ -341,6 +348,7 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 		EventsBucketName:      cfg.EventsBucketName,
 		EventsBucketPath:      cfg.EventsBucketPath,
 		UnknownCountThreshold: cfg.UnknownCountThreshold,
+		SliceEnabled:          cfg.SliceEnabled,
 	}
 
 	availableExporters := map[string]aggregator.Exporter{
@@ -360,9 +368,17 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 		}
 	}
 
-	shutdownMetricsFunc := metrics.Init(ctx, agg, time.Duration(cfg.AggregationIntervalSeconds)*time.Second, cfg.UnknownCountThreshold)
+	shutdownMetricsFunc := metrics.Init(ctx, agg, time.Duration(cfg.AggregationIntervalSeconds)*time.Second, cfg.UnknownCountThreshold, cfg.SliceEnabled)
+
+	controllerName := func(base string) string {
+		if cfg.OptionalControllerSuffix != "" {
+			return fmt.Sprintf("%s-%s", base, cfg.OptionalControllerSuffix)
+		}
+		return base
+	}
 
 	if err = (&controller.JobSetReconciler{
+		Name:     controllerName("jobset"),
 		Disabled: false,
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
@@ -371,6 +387,7 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 		os.Exit(1)
 	}
 	if err = (&controller.NodeReconciler{
+		Name:   controllerName("node"),
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
@@ -378,6 +395,7 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 		os.Exit(1)
 	}
 	if err = (&controller.PodReconciler{
+		Name:                        controllerName("pod"),
 		Client:                      mgr.GetClient(),
 		Scheme:                      mgr.GetScheme(),
 		Aggregator:                  agg,

@@ -253,6 +253,7 @@ func TestExtractNodeAttrs(t *testing.T) {
 					Labels: map[string]string{
 						k8sutils.NodeLabelGKETPUAccelerator: "tpu-v5p",
 						k8sutils.NodeLabelGKETPUTopology:    "2x2x1",
+						k8sutils.NodeLabelGKETPUSlice:       "test-slice",
 						k8sutils.NodeLabelGKESpot:           "true",
 					},
 				},
@@ -260,6 +261,7 @@ func TestExtractNodeAttrs(t *testing.T) {
 			want: records.Attrs{
 				TPUAccelerator: "tpu-v5p",
 				TPUTopology:    "2x2x1",
+				SliceName:      "test-slice",
 				Spot:           true,
 			},
 		},

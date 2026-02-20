@@ -11,6 +11,7 @@ import (
 
 // JobSetReconciler reconciles a Guestbook object
 type NodeReconciler struct {
+	Name string
 	client.Client
 	Scheme *runtime.Scheme
 }
@@ -26,7 +27,12 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *NodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	name := "node"
+	if r.Name != "" {
+		name = r.Name
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Node{}).
+		Named(name).
 		Complete(r)
 }

@@ -31,12 +31,26 @@ import (
 	. "github.com/onsi/gomega"
 	containerv1beta1 "google.golang.org/api/container/v1beta1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
+
+	slice "example.com/megamon/copied-slice-api/v1beta1"
+)
+
+const (
+	SLICE_STATE_ACTIVATING                = "ACTIVATING"
+	SLICE_STATE_ACTIVE                    = "ACTIVE"
+	SLICE_STATE_ACTIVE_DEGRADED           = "ACTIVE_DEGRADED"
+	SLICE_STATE_INCOMPLETE                = "INCOMPLETE"
+	SLICE_STATE_FAILED                    = "FAILED"
+	SLICE_STATE_UNKNOWN                   = "UNKNOWN"
+	SLICE_STATE_HEALTH_STATUS_UNSPECIFIED = "HEALTH_STATUS_UNSPECIFIED"
 )
 
 var (
@@ -111,10 +125,24 @@ var (
 	}
 )
 
-var _ = Describe("Nodepool metrics", func() {
-	Context("When reconciling a resource", func() {
-		ctx := context.Background()
+var _ = Describe("Nodepool metrics", Ordered, func() {
+	var ctx context.Context
+	var cancel context.CancelFunc
+	var metricsAddr string
+	var restCfg *rest.Config
+	var k8sClient client.Client
 
+	BeforeAll(func() {
+		ctx, cancel = context.WithCancel(context.Background())
+		_, restCfg, k8sClient = startTestEnv()
+		DeferCleanup(func() {
+			cancel()
+			time.Sleep(3 * time.Second) // Wait for manager shutdown
+		})
+		metricsAddr = startManager(ctx, false, restCfg)
+	})
+
+	Context("When reconciling a resource", func() {
 		jsRef := types.NamespacedName{
 			Name:      "test-jobset",
 			Namespace: "default",
@@ -179,8 +207,8 @@ var _ = Describe("Nodepool metrics", func() {
 		time.Sleep(5 * time.Second)
 
 		It("should publish nodepool metrics", func() {
-			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
-			assertMetrics(
+			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name, "")
+			assertMetrics(metricsAddr,
 				// Depends on node and jobset pod being created
 				nodepool.job_scheduled.WithValue(1),
 				// Only depend on nodepool being created
@@ -205,8 +233,8 @@ var _ = Describe("Nodepool metrics", func() {
 			// nodepool_up should still be 0; 16x16 topology expects 256
 			By("rechecking the metrics for nodepool_up")
 			time.Sleep(3 * time.Second)
-			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
-			assertMetrics(
+			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name, "")
+			assertMetrics(metricsAddr,
 				nodepool.job_scheduled.WithValue(1),
 				nodepool.down_time_seconds,
 				nodepool.interruption_count.WithValue(0),
@@ -253,8 +281,8 @@ var _ = Describe("Nodepool metrics", func() {
 			time.Sleep(3 * time.Second)
 
 			By("rechecking the metrics for nodepool_up")
-			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
-			assertMetrics(
+			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name, "")
+			assertMetrics(metricsAddr,
 				nodepool.job_scheduled.WithValue(1),
 				nodepool.down_time_seconds,
 				nodepool.interruption_count.WithValue(0),
@@ -285,8 +313,8 @@ var _ = Describe("Nodepool metrics", func() {
 			time.Sleep(3 * time.Second)
 
 			By("rechecking the metrics for nodepool_up")
-			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
-			assertMetrics(
+			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name, "")
+			assertMetrics(metricsAddr,
 				nodepool.job_scheduled.WithValue(1),
 				nodepool.down_time_seconds,
 				nodepool.interruption_count.WithValue(1),
@@ -318,8 +346,8 @@ var _ = Describe("Nodepool metrics", func() {
 			time.Sleep(3 * time.Second)
 
 			By("rechecking the metrics for nodepool_up")
-			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name)
-			assertMetrics(
+			nodepool := expectedMetricsForNodePool(np, jsRef.Name, jobRef.Name, "")
+			assertMetrics(metricsAddr,
 				nodepool.job_scheduled.WithValue(1),
 				nodepool.down_time_seconds,
 				nodepool.interruption_count.WithValue(1),
@@ -328,24 +356,29 @@ var _ = Describe("Nodepool metrics", func() {
 				nodepool.up_time_seconds,
 				nodepool.tpu_chip_count.WithValue(256),
 			)
-
 		})
 
 	})
 })
 
-var _ = Describe("JobSet metrics", func() {
+var _ = Describe("JobSet metrics", Ordered, func() {
+	var ctx context.Context
+	var cancel context.CancelFunc
+	var metricsAddr string
+	var restCfg *rest.Config
+	var k8sClient client.Client
+
+	BeforeAll(func() {
+		ctx, cancel = context.WithCancel(context.Background())
+		_, restCfg, k8sClient = startTestEnv()
+		DeferCleanup(func() {
+			cancel()
+			time.Sleep(3 * time.Second) // Wait for manager shutdown
+		})
+		metricsAddr = startManager(ctx, false, restCfg)
+	})
+
 	Context("When reconciling a resource", func() {
-		ctx := context.Background()
-
-		//BeforeEach(func() {
-		//})
-
-		//AfterEach(func() {
-		//	By("Cleanup the specific resource instance")
-		//	Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
-		//})
-
 		js := jobsetSingleJob
 		It("should watch a JobSet", func() {
 			Expect(k8sClient.Create(ctx, js)).To(Succeed())
@@ -353,7 +386,7 @@ var _ = Describe("JobSet metrics", func() {
 
 		It("should publish metrics after submitting a jobset", func() {
 			jobset := expectedMetricsForJobSet(js, "2x4")
-			assertMetrics(
+			assertMetrics(metricsAddr,
 				jobset.up.WithValue(0),
 				jobset.up_time_seconds,
 				jobset.down_time_seconds,
@@ -375,7 +408,7 @@ var _ = Describe("JobSet metrics", func() {
 
 			By("rechecking the metrics")
 			jobset := expectedMetricsForJobSet(js, "2x4")
-			assertMetrics(
+			assertMetrics(metricsAddr,
 				jobset.up.WithValue(1),
 				jobset.up_time_seconds,
 				jobset.down_time_seconds,
@@ -398,7 +431,7 @@ var _ = Describe("JobSet metrics", func() {
 
 			By("rechecking the metrics")
 			jobset := expectedMetricsForJobSet(js, "2x4")
-			assertMetrics(
+			assertMetrics(metricsAddr,
 				jobset.up.WithValue(0),
 				jobset.up_time_seconds,
 				jobset.down_time_seconds,
@@ -424,7 +457,7 @@ var _ = Describe("JobSet metrics", func() {
 
 			By("rechecking the metrics")
 			jobset := expectedMetricsForJobSet(js, "2x4")
-			assertMetrics(
+			assertMetrics(metricsAddr,
 				jobset.up.WithValue(1),
 				jobset.up_time_seconds,
 				jobset.down_time_seconds,
@@ -444,7 +477,9 @@ var _ = Describe("JobSet metrics", func() {
 		It("should publish build info metric", func() {
 			By("checking for megamon_build_info metric")
 			metrics := expectedMetricPrefix + "_build_info{commit=\"none\",date=\"unknown\",otel_scope_name=\"megamon\",otel_scope_version=\"\",version=\"dev\"} 1"
-			Eventually(fetchMetrics, "5s", "1s").Should(ContainSubstring(metrics))
+			Eventually(func() (string, error) {
+				return fetchMetrics(metricsAddr)
+			}, "5s", "1s").Should(ContainSubstring(metrics))
 		})
 
 		It("should NOT increment interruption count when jobset completes (expected downtime)", func() {
@@ -467,14 +502,14 @@ var _ = Describe("JobSet metrics", func() {
 
 			// 1. Wait for the aggregator to pick up the "Completed" state (Up -> 0)
 			Eventually(func(g Gomega) {
-				m, err := fetchMetrics()
+				m, err := fetchMetrics(metricsAddr)
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(m).To(ContainSubstring(metrics.up.WithValue(0).String()))
 			}, "10s", "1s").Should(Succeed())
 
 			// 2. Ensure Interruption Count remains 1 (Expected Downtime should NOT increment it)
 			Consistently(func(g Gomega) {
-				m, err := fetchMetrics()
+				m, err := fetchMetrics(metricsAddr)
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(m).To(ContainSubstring(metrics.interruption_count.WithValue(1).String()))
 			}, "5s", "1s").Should(Succeed())
@@ -486,10 +521,35 @@ var _ = Describe("JobSet metrics", func() {
 		It("should publish total TPU chip counts by jobset with multiple replicated jobs with >1 replica", func() {
 			By("looking at TPU topology per replicated job in a deployed jobset")
 			metrics := expectedMetricsForJobSet(jobsetMultipleRJobs, "2x4")
-			assertMetrics(
+			assertMetrics(metricsAddr,
 				metrics.tpu_chip_count.WithValue(24),
 			)
 		})
+	})
+})
+
+var _ = Describe("JobSet Node metrics absent when slice is enabled", Ordered, func() {
+	var ctx context.Context
+	var cancel context.CancelFunc
+	var metricsAddr string
+	var restCfg *rest.Config
+
+	BeforeAll(func() {
+		ctx, cancel = context.WithCancel(context.Background())
+		_, restCfg, _ = startTestEnv()
+		DeferCleanup(func() {
+			cancel()
+			time.Sleep(3 * time.Second) // Wait for manager shutdown
+		})
+		metricsAddr = startManager(ctx, true, restCfg)
+	})
+
+	It("should not publish any jobset node metrics when slice is enabled", func() {
+		By("checking that no jobset node metrics are published")
+		unexpectedMetricPrefix := "jobset_node_"
+		Eventually(func() (string, error) {
+			return fetchMetrics(metricsAddr)
+		}, "5s", "1s").ShouldNot(ContainSubstring(unexpectedMetricPrefix))
 	})
 })
 
@@ -525,11 +585,14 @@ type utilizationMetrics struct {
 	job_scheduled metric
 }
 
-func expectedMetricsForNodePool(np *containerv1beta1.NodePool, jobSetName string, jobName string) utilizationMetrics {
+func expectedMetricsForNodePool(np *containerv1beta1.NodePool, jobSetName string, jobName string, sliceName string) utilizationMetrics {
 	nodepoolLabels := map[string]interface{}{
 		"nodepool_name":   np.Name,
 		"tpu_topology":    tpuTopology,
 		"tpu_accelerator": tpuAccelerator,
+	}
+	if sliceName != "" {
+		nodepoolLabels["slice_name"] = sliceName
 	}
 	nodepoolJobLabels := map[string]interface{}{
 		"job_name":      jobName,
@@ -569,12 +632,20 @@ func expectedMetricsForNodePool(np *containerv1beta1.NodePool, jobSetName string
 }
 
 func expectedMetricsForJobSet(js *jobset.JobSet, tpuTopology string) upnessMetrics {
-	// megamon_test_jobset_up{jobset_name="test-js",jobset_namespace="default",jobset_uid="a9876d7f-4639-41a3-9961-9ac68e0fcb7b",otel_scope_name="megamon",otel_scope_version=""} 0
+	return expectedMetricsForJobSetWithSlice(js, tpuTopology, nil)
+}
+
+func expectedMetricsForJobSetWithSlice(js *jobset.JobSet, tpuTopology string, sl *slice.Slice) upnessMetrics {
 	jsLabels := map[string]interface{}{
 		"jobset_name":      js.Name,
 		"jobset_namespace": js.Namespace,
 		"jobset_uid":       js.UID,
 		"tpu_topology":     tpuTopology,
+	}
+	if sl != nil {
+		if sl.Name != "" {
+			jsLabels["slice_name"] = sl.Name
+		}
 	}
 	return upnessMetrics{
 		up: metric{
@@ -632,8 +703,258 @@ func expectedMetricsForJobSet(js *jobset.JobSet, tpuTopology string) upnessMetri
 	}
 }
 
-func fetchMetrics() (string, error) {
-	resp, err := http.Get("http://" + testCfg.MetricsAddr + "/metrics")
+func updateSliceStatus(s *slice.Slice, reason string, status metav1.ConditionStatus) {
+	if len(s.Status.Conditions) == 0 {
+		s.Status.Conditions = []metav1.Condition{{Type: slice.SliceStateConditionType}}
+	}
+	s.Status.Conditions[0].Type = slice.SliceStateConditionType
+	s.Status.Conditions[0].Reason = reason
+	s.Status.Conditions[0].Status = status
+	s.Status.Conditions[0].LastTransitionTime = metav1.Now()
+}
+
+var _ = Describe("Slice Metrics Scenarios", func() {
+	sliceLifecycleTest := func(enableSlice bool) {
+		var ctx context.Context
+		var cancel context.CancelFunc
+		var metricsAddr string
+		var s *slice.Slice
+		var restCfg *rest.Config
+		var k8sClient client.Client
+
+		BeforeEach(func() {
+			ctx, cancel = context.WithCancel(context.Background())
+			_, restCfg, k8sClient = startTestEnv()
+			DeferCleanup(func() {
+				cancel()
+				time.Sleep(3 * time.Second) // Wait for manager shutdown
+			})
+
+			metricsAddr = startManager(ctx, enableSlice, restCfg)
+			s = &slice.Slice{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: fmt.Sprintf("test-slice-%v", enableSlice),
+					Labels: map[string]string{
+						"tpu-provisioner.cloud.google.com/owner-name":      "test-owner",
+						"tpu-provisioner.cloud.google.com/owner-namespace": "default",
+						"tpu-provisioner.cloud.google.com/owner-kind":      "test-kind",
+					},
+				},
+				Spec: slice.SliceSpec{
+					Type:         slice.TypeTpu7x,
+					Topology:     "2x2x2",
+					PartitionIds: []string{"p1"},
+				},
+			}
+		})
+
+		It("should verify slice lifecycle", func() {
+			By("watching a Slice")
+			Expect(k8sClient.Create(ctx, s)).To(Succeed())
+
+			time.Sleep(3 * time.Second)
+			sliceMetrics := expectedMetricsForSliceWithState(s, "")
+			if enableSlice {
+				assertMetrics(metricsAddr, sliceMetrics.up.WithValue(0), sliceMetrics.tpu_chip_count)
+			} else {
+				assertMetricsAbsent(metricsAddr, sliceMetrics.tpu_chip_count)
+			}
+
+			By("updating the slice status to READY with reason ACTIVE")
+			updateSliceStatus(s, SLICE_STATE_ACTIVE, metav1.ConditionTrue)
+			Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
+			time.Sleep(3 * time.Second)
+
+			sliceMetrics = expectedMetricsForSliceWithState(s, "ACTIVE")
+			if enableSlice {
+				assertMetrics(metricsAddr, sliceMetrics.up.WithValue(1), sliceMetrics.tpu_chip_count, sliceMetrics.down_time_initial_seconds)
+			} else {
+				assertMetricsAbsent(metricsAddr, sliceMetrics.up)
+			}
+
+			By("updating the slice status to READY with reason ACTIVE_DEGRADED")
+			updateSliceStatus(s, SLICE_STATE_ACTIVE_DEGRADED, metav1.ConditionTrue)
+			Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
+			time.Sleep(3 * time.Second)
+
+			sliceMetrics = expectedMetricsForSliceWithState(s, SLICE_STATE_ACTIVE_DEGRADED)
+			if enableSlice {
+				assertMetrics(metricsAddr, sliceMetrics.up.WithValue(1), sliceMetrics.tpu_chip_count, sliceMetrics.down_time_initial_seconds, sliceMetrics.interruption_count.WithValue(0))
+			} else {
+				assertMetricsAbsent(metricsAddr, sliceMetrics.up)
+			}
+
+			By("updating the slice status to NOT_READY with reason INCOMPLETE")
+			updateSliceStatus(s, SLICE_STATE_INCOMPLETE, metav1.ConditionFalse)
+			sliceMetrics = expectedMetricsForSliceWithState(s, SLICE_STATE_INCOMPLETE)
+			Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
+			time.Sleep(3 * time.Second)
+
+			if enableSlice {
+				assertMetrics(metricsAddr, sliceMetrics.up.WithValue(0), sliceMetrics.interruption_count.WithValue(1))
+			} else {
+				assertMetricsAbsent(metricsAddr, sliceMetrics.interruption_count)
+			}
+
+			By("deleting the slice")
+			Expect(k8sClient.Delete(ctx, s)).To(Succeed())
+			time.Sleep(5 * time.Second)
+
+			if enableSlice {
+				assertMetricsAbsent(metricsAddr, sliceMetrics.up)
+			} else {
+				assertMetricsAbsent(metricsAddr, sliceMetrics.up)
+			}
+		})
+	}
+
+	Context("With Slice Disabled", func() {
+		sliceLifecycleTest(false)
+	})
+
+	Context("With Slice Enabled", func() {
+		sliceLifecycleTest(true)
+	})
+})
+
+var _ = Describe("Slice State Transition Scenarios", Ordered, func() {
+	var ctx context.Context
+	var cancel context.CancelFunc
+	var metricsAddr string
+	var s *slice.Slice
+	var restCfg *rest.Config
+	var k8sClient client.Client
+
+	BeforeAll(func() {
+		ctx, cancel = context.WithCancel(context.Background())
+		_, restCfg, k8sClient = startTestEnv()
+		DeferCleanup(func() {
+			cancel()
+			time.Sleep(3 * time.Second) // Wait for manager shutdown
+		})
+		metricsAddr = startManager(ctx, true, restCfg)
+	})
+
+	It("should handle complex state transitions", func() {
+		s = &slice.Slice{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-slice-transitions",
+				Namespace: "default",
+				Labels: map[string]string{
+					"tpu-provisioner.cloud.google.com/owner-name":      "test-owner",
+					"tpu-provisioner.cloud.google.com/owner-namespace": "default",
+					"tpu-provisioner.cloud.google.com/owner-kind":      "test-kind",
+				},
+			},
+			Spec: slice.SliceSpec{
+				Type:         slice.TypeTpu7x,
+				Topology:     "2x2",
+				PartitionIds: []string{"p1"},
+			},
+		}
+
+		By("creating a slice in ACTIVATING state")
+		Expect(k8sClient.Create(ctx, s)).To(Succeed())
+		By("updating slice status to ACTIVATING")
+		updateSliceStatus(s, SLICE_STATE_ACTIVATING, metav1.ConditionFalse)
+		Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
+		// Allow time for aggregation
+		time.Sleep(3 * time.Second)
+
+		expectedSliceMetrics := expectedMetricsForSliceWithState(s, SLICE_STATE_ACTIVATING)
+		assertMetrics(metricsAddr, expectedSliceMetrics.up.WithValue(0),
+			expectedSliceMetrics.interruption_count.WithValue(0))
+
+		By("updating slice status to ACTIVE")
+		updateSliceStatus(s, SLICE_STATE_ACTIVE, metav1.ConditionTrue)
+		Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
+		time.Sleep(3 * time.Second)
+		expectedSliceMetrics = expectedMetricsForSliceWithState(s, SLICE_STATE_ACTIVE)
+		assertMetrics(metricsAddr, expectedSliceMetrics.up.WithValue(1),
+			expectedSliceMetrics.interruption_count.WithValue(0))
+
+		By("updating slice status to ACTIVE_DEGRADED")
+		updateSliceStatus(s, SLICE_STATE_ACTIVE_DEGRADED, metav1.ConditionTrue)
+		Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
+		time.Sleep(3 * time.Second)
+		expectedSliceMetrics = expectedMetricsForSliceWithState(s, SLICE_STATE_ACTIVE_DEGRADED)
+		assertMetrics(metricsAddr, expectedSliceMetrics.up.WithValue(1),
+			expectedSliceMetrics.interruption_count.WithValue(0),
+			expectedSliceMetrics.recovery_count.WithValue(0))
+
+		By("updating slice status to INCOMPLETE")
+		updateSliceStatus(s, SLICE_STATE_INCOMPLETE, metav1.ConditionFalse)
+		Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
+		time.Sleep(3 * time.Second)
+		expectedSliceMetrics = expectedMetricsForSliceWithState(s, SLICE_STATE_INCOMPLETE)
+		assertMetrics(metricsAddr, expectedSliceMetrics.up.WithValue(0),
+			expectedSliceMetrics.interruption_count.WithValue(1))
+
+		By("updating slice status to ACTIVE")
+		updateSliceStatus(s, SLICE_STATE_ACTIVE, metav1.ConditionTrue)
+		Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
+		time.Sleep(3 * time.Second)
+		expectedSliceMetrics = expectedMetricsForSliceWithState(s, SLICE_STATE_ACTIVE)
+		assertMetrics(metricsAddr, expectedSliceMetrics.up.WithValue(1),
+			expectedSliceMetrics.interruption_count.WithValue(1),
+			expectedSliceMetrics.recovery_count.WithValue(1))
+
+		// Test additional slice down states
+		statesToTestDown := []string{"FAILED", "UNKNOWN", "HEALTH_STATUS_UNSPECIFIED"}
+		for i, state := range statesToTestDown {
+			By(fmt.Sprintf("updating slice status to %s", state))
+			updateSliceStatus(s, state, metav1.ConditionFalse)
+			Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
+			time.Sleep(3 * time.Second)
+
+			// slice metric should show down
+			expectedSliceMetrics = expectedMetricsForSliceWithState(s, state)
+			assertMetrics(metricsAddr, expectedSliceMetrics.up.WithValue(0),
+				expectedSliceMetrics.interruption_count.WithValue(2+i))
+
+			By("updating slice status to ACTIVE")
+			updateSliceStatus(s, SLICE_STATE_ACTIVE, metav1.ConditionTrue)
+			Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
+			time.Sleep(3 * time.Second)
+			expectedSliceMetrics = expectedMetricsForSliceWithState(s, SLICE_STATE_ACTIVE)
+			assertMetrics(metricsAddr, expectedSliceMetrics.up.WithValue(1),
+				expectedSliceMetrics.recovery_count.WithValue(2+i))
+		}
+	})
+})
+
+func expectedMetricsForSliceWithState(s *slice.Slice, state string) upnessMetrics {
+	sLabels := map[string]interface{}{
+		"slice_name":            s.Name,
+		"slice_owner_name":      s.Labels["tpu-provisioner.cloud.google.com/owner-name"],
+		"slice_owner_namespace": s.Labels["tpu-provisioner.cloud.google.com/owner-namespace"],
+		"slice_owner_kind":      s.Labels["tpu-provisioner.cloud.google.com/owner-kind"],
+		"tpu_accelerator":       string(s.Spec.Type),
+		"tpu_topology":          s.Spec.Topology,
+	}
+	if state != "" {
+		sLabels["slice_state"] = state
+	}
+	chipCount, _ := k8sutils.GetTpuTopologyToChipCount(s.Spec.Topology)
+	return upnessMetrics{
+		up:                                   metric{name: "slice_up", labels: sLabels},
+		interruption_count:                   metric{name: "slice_interruption_count", labels: sLabels},
+		recovery_count:                       metric{name: "slice_recovery_count", labels: sLabels},
+		up_time_seconds:                      metric{name: "slice_up_time_seconds", labels: sLabels},
+		down_time_seconds:                    metric{name: "slice_down_time_seconds", labels: sLabels},
+		tpu_chip_count:                       metric{name: "slice_tpu_chip_count", labels: sLabels}.WithValue(chipCount),
+		up_time_between_interruption_seconds: metric{name: "slice_up_time_between_interruption_seconds", labels: sLabels},
+		up_time_between_interruption_mean_seconds:   metric{name: "slice_up_time_between_interruption_mean_seconds", labels: sLabels},
+		up_time_between_interruption_latest_seconds: metric{name: "slice_up_time_between_interruption_latest_seconds", labels: sLabels},
+		down_time_initial_seconds:                   metric{name: "slice_down_time_initial_seconds", labels: sLabels},
+		down_time_between_recovery_seconds:          metric{name: "slice_down_time_between_recovery_seconds", labels: sLabels},
+		down_time_between_recovery_mean_seconds:     metric{name: "slice_down_time_between_recovery_mean_seconds", labels: sLabels},
+		down_time_between_recovery_latest_seconds:   metric{name: "slice_down_time_between_recovery_latest_seconds", labels: sLabels},
+	}
+}
+
+func fetchMetrics(addr string) (string, error) {
+	resp, err := http.Get("http://" + addr + "/metrics")
 	if err != nil {
 		return "", err
 	}
@@ -645,12 +966,12 @@ func fetchMetrics() (string, error) {
 	return string(body), nil
 }
 
-func assertMetrics(expected ...metric) {
+func assertMetrics(addr string, expected ...metric) {
 	GinkgoHelper()
 	var metrics string
 	Eventually(func() (string, error) {
 		var err error
-		metrics, err = fetchMetrics()
+		metrics, err = fetchMetrics(addr)
 		return metrics, err
 	}, "3s", "1s").Should(ContainSubstring(expected[0].String()), "initial metric not found")
 	for _, exp := range expected {
@@ -660,6 +981,17 @@ func assertMetrics(expected ...metric) {
 		//fmt.Println(metrics)
 		Expect(metrics).To(ContainSubstring(exp.String()), "full metric does not match: "+line)
 	}
+}
+
+func assertMetricsAbsent(addr string, expected ...metric) {
+	GinkgoHelper()
+	Consistently(func() (string, error) {
+		metrics, err := fetchMetrics(addr)
+		if err != nil {
+			return "", err
+		}
+		return metrics, nil
+	}, "3s", "1s").ShouldNot(ContainSubstring(expected[0].name+"{"), "metric found but should be absent")
 }
 
 func findMatchingLine(lines, match string) string {

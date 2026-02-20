@@ -71,7 +71,7 @@ vet: ## Run go vet against code.
 test-unit: ## Run unit tests.
 	go test ./internal/... -coverprofile cover.out
 
-.PHONY: test-integration test-integration-verbose
+.PHONY: test-integration test-integration-verbose test-integration-parallel test-integration-parallel-verbose
 INTEGRATION_TEST_DEPS := manifests generate fmt vet envtest ginkgo
 INTEGRATION_TEST_CMD = KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" $(GINKGO)
 
@@ -80,6 +80,12 @@ test-integration: $(INTEGRATION_TEST_DEPS) ## Run tests.
 
 test-integration-verbose: $(INTEGRATION_TEST_DEPS) ## Run tests.
 	$(INTEGRATION_TEST_CMD) -v --output-interceptor-mode=none ./test/integration
+
+test-integration-parallel: $(INTEGRATION_TEST_DEPS) ## Run tests.
+	$(INTEGRATION_TEST_CMD) -p ./test/integration
+
+test-integration-parallel-verbose: $(INTEGRATION_TEST_DEPS) ## Run tests.
+	$(INTEGRATION_TEST_CMD) -v -p ./test/integration
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter
@@ -123,7 +129,7 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
 	- $(CONTAINER_TOOL) buildx create --name megamon-builder
 	$(CONTAINER_TOOL) buildx use megamon-builder
-	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross .
+	- $(CONTAINER_TOOL) buildx build --push --build-arg LDFLAGS="$(LDFLAGS)" --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross .
 	- $(CONTAINER_TOOL) buildx rm megamon-builder
 	rm Dockerfile.cross
 
@@ -147,14 +153,24 @@ install-test: manifests kustomize ## Install CRDs into the K8s cluster specified
 uninstall-test: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f test/crds
 
-.PHONY: deploy
-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+.PHONY: deploy-dev
+deploy-dev: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/dev && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/dev | $(KUBECTL) apply -f -
 
-.PHONY: undeploy
-undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+.PHONY: deploy-dev-slice
+deploy-dev-slice: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+	cd config/dev-slice && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/dev-slice | $(KUBECTL) apply -f -
+
+
+.PHONY: undeploy-dev
+undeploy-dev: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/dev | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+
+.PHONY: undeploy-dev-slice
+undeploy-dev-slice: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	$(KUSTOMIZE) build config/dev-slice | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 ##@ Dependencies
 
