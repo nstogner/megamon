@@ -41,7 +41,6 @@ type Attrs struct {
 
 	SliceName           string `json:"sliceName"`
 	SliceOwnerKind      string `json:"sliceOwnerKind"`
-	SliceState          string `json:"sliceState"`
 	SliceOwnerName      string `json:"sliceOwnerName"`
 	SliceOwnerNamespace string `json:"sliceOwnerNamespace"`
 }

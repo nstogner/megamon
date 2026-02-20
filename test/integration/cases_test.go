@@ -753,7 +753,7 @@ var _ = Describe("Slice Metrics Scenarios", func() {
 			Expect(k8sClient.Create(ctx, s)).To(Succeed())
 
 			time.Sleep(3 * time.Second)
-			sliceMetrics := expectedMetricsForSliceWithState(s, "")
+			sliceMetrics := expectedMetricsForSlice(s)
 			if enableSlice {
 				assertMetrics(metricsAddr, sliceMetrics.up.WithValue(0), sliceMetrics.tpu_chip_count)
 			} else {
@@ -765,7 +765,7 @@ var _ = Describe("Slice Metrics Scenarios", func() {
 			Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
 			time.Sleep(3 * time.Second)
 
-			sliceMetrics = expectedMetricsForSliceWithState(s, "ACTIVE")
+			sliceMetrics = expectedMetricsForSlice(s)
 			if enableSlice {
 				assertMetrics(metricsAddr, sliceMetrics.up.WithValue(1), sliceMetrics.tpu_chip_count, sliceMetrics.down_time_initial_seconds)
 			} else {
@@ -777,7 +777,7 @@ var _ = Describe("Slice Metrics Scenarios", func() {
 			Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
 			time.Sleep(3 * time.Second)
 
-			sliceMetrics = expectedMetricsForSliceWithState(s, SLICE_STATE_ACTIVE_DEGRADED)
+			sliceMetrics = expectedMetricsForSlice(s)
 			if enableSlice {
 				assertMetrics(metricsAddr, sliceMetrics.up.WithValue(1), sliceMetrics.tpu_chip_count, sliceMetrics.down_time_initial_seconds, sliceMetrics.interruption_count.WithValue(0))
 			} else {
@@ -786,7 +786,7 @@ var _ = Describe("Slice Metrics Scenarios", func() {
 
 			By("updating the slice status to NOT_READY with reason INCOMPLETE")
 			updateSliceStatus(s, SLICE_STATE_INCOMPLETE, metav1.ConditionFalse)
-			sliceMetrics = expectedMetricsForSliceWithState(s, SLICE_STATE_INCOMPLETE)
+			sliceMetrics = expectedMetricsForSlice(s)
 			Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
 			time.Sleep(3 * time.Second)
 
@@ -861,7 +861,7 @@ var _ = Describe("Slice State Transition Scenarios", Ordered, func() {
 		// Allow time for aggregation
 		time.Sleep(3 * time.Second)
 
-		expectedSliceMetrics := expectedMetricsForSliceWithState(s, SLICE_STATE_ACTIVATING)
+		expectedSliceMetrics := expectedMetricsForSlice(s)
 		assertMetrics(metricsAddr, expectedSliceMetrics.up.WithValue(0),
 			expectedSliceMetrics.interruption_count.WithValue(0))
 
@@ -869,7 +869,7 @@ var _ = Describe("Slice State Transition Scenarios", Ordered, func() {
 		updateSliceStatus(s, SLICE_STATE_ACTIVE, metav1.ConditionTrue)
 		Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
 		time.Sleep(3 * time.Second)
-		expectedSliceMetrics = expectedMetricsForSliceWithState(s, SLICE_STATE_ACTIVE)
+		expectedSliceMetrics = expectedMetricsForSlice(s)
 		assertMetrics(metricsAddr, expectedSliceMetrics.up.WithValue(1),
 			expectedSliceMetrics.interruption_count.WithValue(0))
 
@@ -877,7 +877,7 @@ var _ = Describe("Slice State Transition Scenarios", Ordered, func() {
 		updateSliceStatus(s, SLICE_STATE_ACTIVE_DEGRADED, metav1.ConditionTrue)
 		Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
 		time.Sleep(3 * time.Second)
-		expectedSliceMetrics = expectedMetricsForSliceWithState(s, SLICE_STATE_ACTIVE_DEGRADED)
+		expectedSliceMetrics = expectedMetricsForSlice(s)
 		assertMetrics(metricsAddr, expectedSliceMetrics.up.WithValue(1),
 			expectedSliceMetrics.interruption_count.WithValue(0),
 			expectedSliceMetrics.recovery_count.WithValue(0))
@@ -886,7 +886,7 @@ var _ = Describe("Slice State Transition Scenarios", Ordered, func() {
 		updateSliceStatus(s, SLICE_STATE_INCOMPLETE, metav1.ConditionFalse)
 		Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
 		time.Sleep(3 * time.Second)
-		expectedSliceMetrics = expectedMetricsForSliceWithState(s, SLICE_STATE_INCOMPLETE)
+		expectedSliceMetrics = expectedMetricsForSlice(s)
 		assertMetrics(metricsAddr, expectedSliceMetrics.up.WithValue(0),
 			expectedSliceMetrics.interruption_count.WithValue(1))
 
@@ -894,7 +894,7 @@ var _ = Describe("Slice State Transition Scenarios", Ordered, func() {
 		updateSliceStatus(s, SLICE_STATE_ACTIVE, metav1.ConditionTrue)
 		Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
 		time.Sleep(3 * time.Second)
-		expectedSliceMetrics = expectedMetricsForSliceWithState(s, SLICE_STATE_ACTIVE)
+		expectedSliceMetrics = expectedMetricsForSlice(s)
 		assertMetrics(metricsAddr, expectedSliceMetrics.up.WithValue(1),
 			expectedSliceMetrics.interruption_count.WithValue(1),
 			expectedSliceMetrics.recovery_count.WithValue(1))
@@ -908,7 +908,7 @@ var _ = Describe("Slice State Transition Scenarios", Ordered, func() {
 			time.Sleep(3 * time.Second)
 
 			// slice metric should show down
-			expectedSliceMetrics = expectedMetricsForSliceWithState(s, state)
+			expectedSliceMetrics = expectedMetricsForSlice(s)
 			assertMetrics(metricsAddr, expectedSliceMetrics.up.WithValue(0),
 				expectedSliceMetrics.interruption_count.WithValue(2+i))
 
@@ -916,14 +916,14 @@ var _ = Describe("Slice State Transition Scenarios", Ordered, func() {
 			updateSliceStatus(s, SLICE_STATE_ACTIVE, metav1.ConditionTrue)
 			Expect(k8sClient.Status().Update(ctx, s)).To(Succeed())
 			time.Sleep(3 * time.Second)
-			expectedSliceMetrics = expectedMetricsForSliceWithState(s, SLICE_STATE_ACTIVE)
+			expectedSliceMetrics = expectedMetricsForSlice(s)
 			assertMetrics(metricsAddr, expectedSliceMetrics.up.WithValue(1),
 				expectedSliceMetrics.recovery_count.WithValue(2+i))
 		}
 	})
 })
 
-func expectedMetricsForSliceWithState(s *slice.Slice, state string) upnessMetrics {
+func expectedMetricsForSlice(s *slice.Slice) upnessMetrics {
 	sLabels := map[string]interface{}{
 		"slice_name":            s.Name,
 		"slice_owner_name":      s.Labels["tpu-provisioner.cloud.google.com/owner-name"],
@@ -931,9 +931,6 @@ func expectedMetricsForSliceWithState(s *slice.Slice, state string) upnessMetric
 		"slice_owner_kind":      s.Labels["tpu-provisioner.cloud.google.com/owner-kind"],
 		"tpu_accelerator":       string(s.Spec.Type),
 		"tpu_topology":          s.Spec.Topology,
-	}
-	if state != "" {
-		sLabels["slice_state"] = state
 	}
 	chipCount, _ := k8sutils.GetTpuTopologyToChipCount(s.Spec.Topology)
 	return upnessMetrics{
