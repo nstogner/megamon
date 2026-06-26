@@ -83,6 +83,7 @@ type Upness struct {
 	UnknownCount  int32  `json:"unknownCount"`
 	Status        string `json:"status"`
 	ExpectedDown  bool   `json:"expectedDown"`
+	Failed        bool   `json:"failed"`
 	Attrs
 }
 

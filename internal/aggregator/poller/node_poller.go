@@ -53,6 +53,7 @@ func (p *NodePoller) PollResources(ctx context.Context) (map[string]records.Upne
 				Attrs:        utils.ExtractNodePoolAttrs(np),
 				Status:       np.Status,
 				ExpectedDown: np.Status == "STOPPING" || np.Status == "DELETING",
+				Failed:       np.Status == "ERROR" || np.Status == "RUNNING_WITH_ERROR",
 			}
 			expectedCount, err := utils.GetExpectedTPUNodePoolSize(np)
 			if err != nil {

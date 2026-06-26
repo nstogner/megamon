@@ -214,6 +214,7 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 				nodepool.up.WithValue(0),
 				nodepool.up_time_seconds.WithValue(0),
 				nodepool.tpu_chip_count.WithValue(256),
+				nodepool.provisioning_duration.WithLabel("provisioning_state", records.StateProvisioning),
 			)
 		})
 
@@ -237,6 +238,7 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 				nodepool.up.WithValue(0),
 				nodepool.up_time_seconds,
 				nodepool.tpu_chip_count.WithValue(256),
+				nodepool.provisioning_duration.WithLabel("provisioning_state", records.StateProvisioning),
 			)
 		})
 
@@ -282,6 +284,7 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 				nodepool.up.WithValue(1),
 				nodepool.up_time_seconds,
 				nodepool.tpu_chip_count.WithValue(256),
+				nodepool.provisioning_duration.WithLabel("provisioning_state", records.StateSuccess),
 			)
 		})
 
@@ -569,7 +572,8 @@ type utilizationMetrics struct {
 	tpu_chip_count     metric
 
 	// Present after events occur
-	job_scheduled metric
+	job_scheduled         metric
+	provisioning_duration metric
 }
 
 func expectedMetricsForNodePool(np *containerv1beta1.NodePool, jobSetName string, jobName string, sliceName string) utilizationMetrics {
@@ -613,6 +617,10 @@ func expectedMetricsForNodePool(np *containerv1beta1.NodePool, jobSetName string
 		},
 		tpu_chip_count: metric{
 			name:   "nodepool_tpu_chip_count",
+			labels: nodepoolLabels,
+		},
+		provisioning_duration: metric{
+			name:   "nodepool_provisioning_duration_seconds",
 			labels: nodepoolLabels,
 		},
 	}
@@ -1033,6 +1041,14 @@ func (m metric) WithValue(val any) metric {
 	return cp
 }
 
+func (m metric) WithLabel(k string, v any) metric {
+	cp := m
+	cp.labels = make(map[string]any, len(m.labels)+1)
+	maps.Copy(cp.labels, m.labels)
+	cp.labels[k] = v
+	return cp
+}
+
 func (m metric) String() string {
 	if m.value != nil {
 		return m.valueString(m.value)
@@ -1072,29 +1088,29 @@ var _ = Describe("Event Summarization Logic", func() {
 		var rec records.EventRecords
 
 		// 2. T0: Component starts (Not Up yet)
-		records.AppendUpEvent(t0, &rec, false, false)
+		records.AppendUpEvent(t0, &rec, false, false, false)
 
 		// 3. T+10m: Component becomes Ready (Up)
 		t1 := t0.Add(10 * time.Minute)
-		records.AppendUpEvent(t1, &rec, true, false)
+		records.AppendUpEvent(t1, &rec, true, false, false)
 
 		// 4. T+30m: Component goes into EXPECTED maintenance
 		// This should NOT count as an interruption.
 		t2 := t0.Add(30 * time.Minute)
-		records.AppendUpEvent(t2, &rec, false, true) // isUp=false, expected=true
+		records.AppendUpEvent(t2, &rec, false, true, false) // isUp=false, expected=true, failed=false
 
 		// 5. T+60m: Component comes back Up (no recovery)
 		t3 := t0.Add(60 * time.Minute)
-		records.AppendUpEvent(t3, &rec, true, false)
+		records.AppendUpEvent(t3, &rec, true, false, false)
 
 		// 6. T+90m: Component crashes (UNPLANNED down)
 		// This SHOULD count as an interruption.
 		t4 := t0.Add(90 * time.Minute)
-		records.AppendUpEvent(t4, &rec, false, false) // isUp=false, expected=false
+		records.AppendUpEvent(t4, &rec, false, false, false) // isUp=false, expected=false, failed=false
 
 		// 7. T+100m: Component recovers
 		t5 := t0.Add(100 * time.Minute)
-		records.AppendUpEvent(t5, &rec, true, false)
+		records.AppendUpEvent(t5, &rec, true, false, false)
 
 		// Verify at T+120m
 		now := t0.Add(120 * time.Minute)
@@ -1126,13 +1142,33 @@ var _ = Describe("Event Summarization Logic", func() {
 		var rec records.EventRecords
 
 		// 1. T0: Component starts (Not Up yet)
-		records.AppendUpEvent(t0, &rec, false, false)
+		records.AppendUpEvent(t0, &rec, false, false, false)
 
 		// Verify at T+30m (still provisioning)
 		now := t0.Add(30 * time.Minute)
 		summary := rec.Summarize(ctx, now)
 
 		Expect(summary.ProvisioningDuration).To(Equal(30*time.Minute), "ProvisioningDuration mismatch")
-		Expect(summary.ProvisioningState).To(Equal("provisioning"), "ProvisioningState mismatch")
+		Expect(summary.ProvisioningState).To(Equal(records.StateProvisioning), "ProvisioningState mismatch")
+		Expect(summary.DownTimeInitial).To(Equal(time.Duration(0)), "DownTimeInitial mismatch")
+	})
+
+	It("should correctly summarize a failed provisioning flow", func() {
+		t0, _ := time.Parse(time.RFC3339, "2024-01-01T00:00:00Z")
+		ctx := context.Background()
+		var rec records.EventRecords
+
+		// 1. T0: Component starts (Not Up yet)
+		records.AppendUpEvent(t0, &rec, false, false, false)
+
+		// 2. T+10m: Component fails
+		records.AppendUpEvent(t0.Add(10*time.Minute), &rec, false, false, true)
+
+		now := t0.Add(30 * time.Minute)
+		summary := rec.Summarize(ctx, now)
+
+		Expect(summary.ProvisioningDuration).To(Equal(10*time.Minute), "ProvisioningDuration mismatch")
+		Expect(summary.ProvisioningState).To(Equal(records.StateFailed), "ProvisioningState mismatch")
+		Expect(summary.DownTimeInitial).To(Equal(10*time.Minute), "DownTimeInitial mismatch")
 	})
 })

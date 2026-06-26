@@ -1,5 +1,10 @@
 # Release Notes
 
+## v1.1.1
+
+### New features and improvements
+* Add `nodepool.provisioning.duration` metric to track GKE NodePool provisioning latency with state tracking (`provisioning`, `success`, `failed`).
+
 ## v1.1.0
 
 ### New features and improvements
