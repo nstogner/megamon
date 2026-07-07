@@ -17,6 +17,13 @@ import (
 
 var log = logf.Log.WithName("upness")
 
+const (
+	statusStopping         = "STOPPING"
+	statusDeleting         = "DELETING"
+	statusError            = "ERROR"
+	statusRunningWithError = "RUNNING_WITH_ERROR"
+)
+
 type GKEClient interface {
 	ListNodePools(ctx context.Context) ([]*containerv1beta1.NodePool, error)
 }
@@ -52,8 +59,8 @@ func (p *NodePoller) PollResources(ctx context.Context) (map[string]records.Upne
 			up := records.Upness{
 				Attrs:        utils.ExtractNodePoolAttrs(np),
 				Status:       np.Status,
-				ExpectedDown: np.Status == "STOPPING" || np.Status == "DELETING",
-				Failed:       np.Status == "ERROR" || np.Status == "RUNNING_WITH_ERROR",
+				ExpectedDown: np.Status == statusStopping || np.Status == statusDeleting,
+				Failed:       np.Status == statusError || np.Status == statusRunningWithError,
 			}
 			expectedCount, err := utils.GetExpectedTPUNodePoolSize(np)
 			if err != nil {

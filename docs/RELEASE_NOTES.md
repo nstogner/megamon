@@ -3,7 +3,7 @@
 ## v1.1.1
 
 ### New features and improvements
-* Add `nodepool.provisioning.duration` metric to track GKE NodePool provisioning latency with state tracking (`provisioning`, `success`, `failed`).
+* Add `nodepool.provisioning.duration` metric to track GKE NodePool provisioning latency with state tracking (`provisioning`, `success`, `failed`). See [docs/metrics.md](metrics.md) for details.
 
 ## v1.1.0
 

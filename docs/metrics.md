@@ -4,6 +4,7 @@
 
 ### `megamon.nodepool.provisioning.duration`
 
+*   **Introduced in**: `v1.1.1`
 *   **Type**: Gauge
 *   **Unit**: Seconds (s)
 *   **Description**: Time spent provisioning a GKE NodePool.

@@ -28,14 +28,67 @@ func TestPollResources(t *testing.T) {
 	_ = jobset.AddToScheme(scheme)
 	_ = slice.AddToScheme(scheme)
 
-	fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
-	fakeGKE := &fakeGKEClient{
-		nodePools: []*containerv1beta1.NodePool{},
+	tests := map[string]struct {
+		status       string
+		expectedDown bool
+		expectedFail bool
+	}{
+		"status running": {
+			status:       "RUNNING",
+			expectedDown: false,
+			expectedFail: false,
+		},
+		"status stopping": {
+			status:       "STOPPING",
+			expectedDown: true,
+			expectedFail: false,
+		},
+		"status deleting": {
+			status:       "DELETING",
+			expectedDown: true,
+			expectedFail: false,
+		},
+		"status error": {
+			status:       "ERROR",
+			expectedDown: false,
+			expectedFail: true,
+		},
+		"status running with error": {
+			status:       "RUNNING_WITH_ERROR",
+			expectedDown: false,
+			expectedFail: true,
+		},
 	}
 
-	provider := NewNodePoller(fakeClient, fakeGKE)
-	nodePoolsUp, err := provider.PollResources(context.Background())
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+			fakeGKE := &fakeGKEClient{
+				nodePools: []*containerv1beta1.NodePool{
+					{
+						Name:   "test-tpu-pool",
+						Status: tc.status,
+						PlacementPolicy: &containerv1beta1.PlacementPolicy{
+							TpuTopology: "2x2x1",
+						},
+						Config: &containerv1beta1.NodeConfig{
+							MachineType: "ct4p-hightpu-4t",
+						},
+					},
+				},
+			}
 
-	require.NoError(t, err)
-	require.NotNil(t, nodePoolsUp)
+			provider := NewNodePoller(fakeClient, fakeGKE)
+			nodePoolsUp, err := provider.PollResources(context.Background())
+
+			require.NoError(t, err)
+			require.NotNil(t, nodePoolsUp)
+			require.Contains(t, nodePoolsUp, "test-tpu-pool")
+
+			upRecord := nodePoolsUp["test-tpu-pool"]
+			require.Equal(t, tc.expectedDown, upRecord.ExpectedDown, "ExpectedDown mismatch")
+			require.Equal(t, tc.expectedFail, upRecord.Failed, "Failed mismatch")
+			require.Equal(t, tc.status, upRecord.Status, "Status mismatch")
+		})
+	}
 }

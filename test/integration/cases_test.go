@@ -214,7 +214,7 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 				nodepool.up.WithValue(0),
 				nodepool.up_time_seconds.WithValue(0),
 				nodepool.tpu_chip_count.WithValue(256),
-				nodepool.provisioning_duration.WithLabel("provisioning_state", records.StateProvisioning),
+				nodepool.provisioning_duration.WithLabel("provisioning_state", records.NodepoolProvisioningStateProvisioning),
 			)
 		})
 
@@ -238,7 +238,7 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 				nodepool.up.WithValue(0),
 				nodepool.up_time_seconds,
 				nodepool.tpu_chip_count.WithValue(256),
-				nodepool.provisioning_duration.WithLabel("provisioning_state", records.StateProvisioning),
+				nodepool.provisioning_duration.WithLabel("provisioning_state", records.NodepoolProvisioningStateProvisioning),
 			)
 		})
 
@@ -284,7 +284,7 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 				nodepool.up.WithValue(1),
 				nodepool.up_time_seconds,
 				nodepool.tpu_chip_count.WithValue(256),
-				nodepool.provisioning_duration.WithLabel("provisioning_state", records.StateSuccess),
+				nodepool.provisioning_duration.WithLabel("provisioning_state", records.NodepoolProvisioningStateSuccess),
 			)
 		})
 
@@ -1149,7 +1149,7 @@ var _ = Describe("Event Summarization Logic", func() {
 		summary := rec.Summarize(ctx, now)
 
 		Expect(summary.ProvisioningDuration).To(Equal(30*time.Minute), "ProvisioningDuration mismatch")
-		Expect(summary.ProvisioningState).To(Equal(records.StateProvisioning), "ProvisioningState mismatch")
+		Expect(summary.ProvisioningState).To(Equal(records.NodepoolProvisioningStateProvisioning), "ProvisioningState mismatch")
 		Expect(summary.DownTimeInitial).To(Equal(time.Duration(0)), "DownTimeInitial mismatch")
 	})
 
@@ -1168,7 +1168,7 @@ var _ = Describe("Event Summarization Logic", func() {
 		summary := rec.Summarize(ctx, now)
 
 		Expect(summary.ProvisioningDuration).To(Equal(10*time.Minute), "ProvisioningDuration mismatch")
-		Expect(summary.ProvisioningState).To(Equal(records.StateFailed), "ProvisioningState mismatch")
+		Expect(summary.ProvisioningState).To(Equal(records.NodepoolProvisioningStateFailed), "ProvisioningState mismatch")
 		Expect(summary.DownTimeInitial).To(Equal(10*time.Minute), "DownTimeInitial mismatch")
 	})
 })
