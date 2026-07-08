@@ -39,22 +39,22 @@ func TestPollResources(t *testing.T) {
 			expectedFail: false,
 		},
 		"status stopping": {
-			status:       "STOPPING",
+			status:       statusStopping,
 			expectedDown: true,
 			expectedFail: false,
 		},
 		"status deleting": {
-			status:       "DELETING",
+			status:       statusDeleting,
 			expectedDown: true,
 			expectedFail: false,
 		},
 		"status error": {
-			status:       "ERROR",
+			status:       statusError,
 			expectedDown: false,
 			expectedFail: true,
 		},
 		"status running with error": {
-			status:       "RUNNING_WITH_ERROR",
+			status:       statusRunningWithError,
 			expectedDown: false,
 			expectedFail: true,
 		},
