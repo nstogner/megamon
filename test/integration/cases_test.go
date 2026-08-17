@@ -383,6 +383,7 @@ var _ = Describe("JobSet metrics", Ordered, func() {
 				jobset.interruption_count.WithValue(0),
 				jobset.recovery_count.WithValue(0),
 				jobset.tpu_chip_count.WithValue(8),
+				jobset.provisioning_duration.WithLabel("provisioning_state", records.NodepoolProvisioningStateProvisioning),
 			)
 		})
 
@@ -406,6 +407,7 @@ var _ = Describe("JobSet metrics", Ordered, func() {
 				jobset.interruption_count.WithValue(0),
 				jobset.recovery_count.WithValue(0),
 				jobset.tpu_chip_count.WithValue(8),
+				jobset.provisioning_duration.WithLabel("provisioning_state", records.NodepoolProvisioningStateSuccess),
 			)
 		})
 
@@ -560,6 +562,7 @@ type upnessMetrics struct {
 	down_time_between_recovery_seconds          metric
 	down_time_between_recovery_mean_seconds     metric
 	down_time_between_recovery_latest_seconds   metric
+	provisioning_duration                       metric
 }
 
 type utilizationMetrics struct {
@@ -695,6 +698,10 @@ func expectedMetricsForJobSetWithSlice(js *jobset.JobSet, tpuTopology string, sl
 			name:   "jobset_tpu_chip_count",
 			labels: jsLabels,
 		},
+		provisioning_duration: metric{
+			name:   "jobset_provisioning_duration_seconds",
+			labels: jsLabels,
+		},
 	}
 }
 
@@ -732,6 +739,7 @@ func expectedMetricsForSlice(s *slice.Slice) upnessMetrics {
 		down_time_between_recovery_seconds:          metric{name: "slice_down_time_between_recovery_seconds", labels: sLabels},
 		down_time_between_recovery_mean_seconds:     metric{name: "slice_down_time_between_recovery_mean_seconds", labels: sLabels},
 		down_time_between_recovery_latest_seconds:   metric{name: "slice_down_time_between_recovery_latest_seconds", labels: sLabels},
+		provisioning_duration:                       metric{name: "slice_provisioning_duration_seconds", labels: sLabels},
 	}
 }
 

@@ -158,6 +158,7 @@ func (r *WorkloadReconciler) processJobSets(jobsetList jobset.JobSetList, nodeLi
 		specReplicas, readyReplicas := k8sutils.GetJobSetReplicas(&js)
 		state, isTerminal := k8sutils.GetJobSetTerminalState(&js)
 		expectedDown := isTerminal && state == jobset.JobSetCompleted
+		failed := isTerminal && state == jobset.JobSetFailed
 
 		jobsetsUp[jobsetUid] = records.Upness{
 			ExpectedCount: specReplicas,
@@ -165,6 +166,7 @@ func (r *WorkloadReconciler) processJobSets(jobsetList jobset.JobSetList, nodeLi
 			Attrs:         attrs,
 			Status:        string(state),
 			ExpectedDown:  expectedDown,
+			Failed:        failed,
 		}
 
 		if !r.SliceEnabled {
