@@ -214,7 +214,7 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 				nodepool.up.WithValue(0),
 				nodepool.up_time_seconds.WithValue(0),
 				nodepool.tpu_chip_count.WithValue(256),
-				nodepool.provisioning_duration.WithLabel("provisioning_state", records.NodepoolProvisioningStateProvisioning),
+				nodepool.provisioning_duration.WithLabel("provisioning_state", records.ProvisioningStateProvisioning),
 			)
 		})
 
@@ -238,7 +238,7 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 				nodepool.up.WithValue(0),
 				nodepool.up_time_seconds,
 				nodepool.tpu_chip_count.WithValue(256),
-				nodepool.provisioning_duration.WithLabel("provisioning_state", records.NodepoolProvisioningStateProvisioning),
+				nodepool.provisioning_duration.WithLabel("provisioning_state", records.ProvisioningStateProvisioning),
 			)
 		})
 
@@ -284,7 +284,7 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 				nodepool.up.WithValue(1),
 				nodepool.up_time_seconds,
 				nodepool.tpu_chip_count.WithValue(256),
-				nodepool.provisioning_duration.WithLabel("provisioning_state", records.NodepoolProvisioningStateSuccess),
+				nodepool.provisioning_duration.WithLabel("provisioning_state", records.ProvisioningStateSuccess),
 			)
 		})
 
@@ -383,7 +383,7 @@ var _ = Describe("JobSet metrics", Ordered, func() {
 				jobset.interruption_count.WithValue(0),
 				jobset.recovery_count.WithValue(0),
 				jobset.tpu_chip_count.WithValue(8),
-				jobset.provisioning_duration.WithLabel("provisioning_state", records.NodepoolProvisioningStateProvisioning),
+				jobset.provisioning_duration.WithLabel("provisioning_state", records.ProvisioningStateProvisioning),
 			)
 		})
 
@@ -407,7 +407,7 @@ var _ = Describe("JobSet metrics", Ordered, func() {
 				jobset.interruption_count.WithValue(0),
 				jobset.recovery_count.WithValue(0),
 				jobset.tpu_chip_count.WithValue(8),
-				jobset.provisioning_duration.WithLabel("provisioning_state", records.NodepoolProvisioningStateSuccess),
+				jobset.provisioning_duration.WithLabel("provisioning_state", records.ProvisioningStateSuccess),
 			)
 		})
 
@@ -542,6 +542,52 @@ var _ = Describe("JobSet Node metrics absent when slice is enabled", Ordered, fu
 		Eventually(func() (string, error) {
 			return fetchMetrics(metricsAddr)
 		}, "3s", "10ms").ShouldNot(ContainSubstring(unexpectedMetricPrefix))
+	})
+})
+
+var _ = Describe("JobSet failed provisioning metrics", Ordered, func() {
+	var ctx context.Context
+	var cancel context.CancelFunc
+	var metricsAddr string
+	var restCfg *rest.Config
+	var k8sClient client.Client
+	aggregationInterval := 1
+	var js *jobset.JobSet
+
+	BeforeAll(func() {
+		ctx, cancel = context.WithCancel(context.Background())
+		_, restCfg, k8sClient = startTestEnv()
+		DeferCleanup(func() {
+			stopManager(cancel, metricsAddr)
+		})
+		metricsAddr = startManager(ctx, false, restCfg, aggregationInterval)
+
+		js = jobsetSingleJob.DeepCopy()
+		js.Name = "failed-jobset"
+		js.Namespace = "default"
+		Expect(k8sClient.Create(ctx, js)).To(Succeed())
+	})
+
+	It("should publish failed provisioning metrics when jobset fails before becoming ready", func() {
+		By("setting the terminal state to Failed")
+		js.Status.TerminalState = string(jobset.JobSetFailed)
+		js.Status.Conditions = []metav1.Condition{
+			{
+				Type:               string(jobset.JobSetFailed),
+				Status:             metav1.ConditionTrue,
+				LastTransitionTime: metav1.Now(),
+				Reason:             "PodsFailed",
+				Message:            "jobset failed",
+			},
+		}
+		Expect(k8sClient.Status().Update(ctx, js)).To(Succeed())
+
+		By("checking that failed provisioning duration is published")
+		metrics := expectedMetricsForJobSet(js, "2x4")
+		assertMetrics(metricsAddr,
+			metrics.provisioning_duration.WithLabel("provisioning_state", records.ProvisioningStateFailed),
+			metrics.down_time_initial_seconds,
+		)
 	})
 })
 
@@ -1157,7 +1203,7 @@ var _ = Describe("Event Summarization Logic", func() {
 		summary := rec.Summarize(ctx, now)
 
 		Expect(summary.ProvisioningDuration).To(Equal(30*time.Minute), "ProvisioningDuration mismatch")
-		Expect(summary.ProvisioningState).To(Equal(records.NodepoolProvisioningStateProvisioning), "ProvisioningState mismatch")
+		Expect(summary.ProvisioningState).To(Equal(records.ProvisioningStateProvisioning), "ProvisioningState mismatch")
 		Expect(summary.DownTimeInitial).To(Equal(time.Duration(0)), "DownTimeInitial mismatch")
 	})
 
@@ -1176,7 +1222,7 @@ var _ = Describe("Event Summarization Logic", func() {
 		summary := rec.Summarize(ctx, now)
 
 		Expect(summary.ProvisioningDuration).To(Equal(10*time.Minute), "ProvisioningDuration mismatch")
-		Expect(summary.ProvisioningState).To(Equal(records.NodepoolProvisioningStateFailed), "ProvisioningState mismatch")
+		Expect(summary.ProvisioningState).To(Equal(records.ProvisioningStateFailed), "ProvisioningState mismatch")
 		Expect(summary.DownTimeInitial).To(Equal(10*time.Minute), "DownTimeInitial mismatch")
 	})
 })

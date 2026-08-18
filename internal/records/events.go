@@ -18,9 +18,9 @@ type EventRecords struct {
 }
 
 const (
-	NodepoolProvisioningStateProvisioning = "provisioning"
-	NodepoolProvisioningStateSuccess      = "success"
-	NodepoolProvisioningStateFailed       = "failed"
+	ProvisioningStateProvisioning = "provisioning"
+	ProvisioningStateSuccess      = "success"
+	ProvisioningStateFailed       = "failed"
 )
 
 type UpEvent struct {
@@ -86,7 +86,7 @@ func (r *EventRecords) Summarize(ctx context.Context, now time.Time) EventSummar
 	if n == 1 {
 		summary.DownTime = now.Sub(r.UpEvents[0].Timestamp)
 		summary.ProvisioningDuration = summary.DownTime
-		summary.ProvisioningState = NodepoolProvisioningStateProvisioning
+		summary.ProvisioningState = ProvisioningStateProvisioning
 		return summary
 	}
 	// Invalid or missing data:
@@ -95,7 +95,7 @@ func (r *EventRecords) Summarize(ctx context.Context, now time.Time) EventSummar
 			summary.DownTime = r.UpEvents[1].Timestamp.Sub(r.UpEvents[0].Timestamp)
 			summary.DownTimeInitial = summary.DownTime
 			summary.ProvisioningDuration = summary.DownTimeInitial
-			summary.ProvisioningState = NodepoolProvisioningStateFailed
+			summary.ProvisioningState = ProvisioningStateFailed
 			return summary
 		}
 		log.V(3).Info("invalid data: second event is not up and not failed")
@@ -105,7 +105,7 @@ func (r *EventRecords) Summarize(ctx context.Context, now time.Time) EventSummar
 	summary.DownTime = r.UpEvents[1].Timestamp.Sub(r.UpEvents[0].Timestamp)
 	summary.DownTimeInitial = r.UpEvents[1].Timestamp.Sub(r.UpEvents[0].Timestamp)
 	summary.ProvisioningDuration = summary.DownTimeInitial
-	summary.ProvisioningState = NodepoolProvisioningStateSuccess
+	summary.ProvisioningState = ProvisioningStateSuccess
 
 	// up:        ___
 	// down:  ____|

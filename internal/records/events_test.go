@@ -46,7 +46,7 @@ func TestSummarize(t *testing.T) {
 			expectedSummary: EventSummary{
 				DownTime:             time.Hour,
 				ProvisioningDuration: time.Hour,
-				ProvisioningState:    NodepoolProvisioningStateProvisioning,
+				ProvisioningState:    ProvisioningStateProvisioning,
 			},
 		},
 		"failed provisioning": {
@@ -65,7 +65,7 @@ func TestSummarize(t *testing.T) {
 				DownTime:             time.Hour,
 				DownTimeInitial:      time.Hour,
 				ProvisioningDuration: time.Hour,
-				ProvisioningState:    NodepoolProvisioningStateFailed,
+				ProvisioningState:    ProvisioningStateFailed,
 			},
 		},
 
@@ -85,7 +85,7 @@ func TestSummarize(t *testing.T) {
 				DownTime:             time.Hour,
 				DownTimeInitial:      time.Hour,
 				ProvisioningDuration: time.Hour,
-				ProvisioningState:    NodepoolProvisioningStateSuccess,
+				ProvisioningState:    ProvisioningStateSuccess,
 			},
 		},
 		"up for 3 hours": {
@@ -105,7 +105,7 @@ func TestSummarize(t *testing.T) {
 				DownTime:             time.Hour,
 				UpTime:               3 * time.Hour,
 				ProvisioningDuration: time.Hour,
-				ProvisioningState:    NodepoolProvisioningStateSuccess,
+				ProvisioningState:    ProvisioningStateSuccess,
 			},
 		},
 		"single interruption": {
@@ -132,7 +132,7 @@ func TestSummarize(t *testing.T) {
 				MeanUpTimeBetweenInterruption:   time.Hour,
 				LatestUpTimeBetweenInterruption: time.Hour,
 				ProvisioningDuration:            time.Hour,
-				ProvisioningState:               NodepoolProvisioningStateSuccess,
+				ProvisioningState:               ProvisioningStateSuccess,
 			},
 		},
 		"single interruption then down for an hour": {
@@ -159,7 +159,7 @@ func TestSummarize(t *testing.T) {
 				MeanUpTimeBetweenInterruption:   time.Hour,
 				LatestUpTimeBetweenInterruption: time.Hour,
 				ProvisioningDuration:            time.Hour,
-				ProvisioningState:               NodepoolProvisioningStateSuccess,
+				ProvisioningState:               ProvisioningStateSuccess,
 			},
 		},
 		"single interruption single recovery": {
@@ -192,7 +192,7 @@ func TestSummarize(t *testing.T) {
 				MeanUpTimeBetweenInterruption:   time.Hour,
 				LatestUpTimeBetweenInterruption: time.Hour,
 				ProvisioningDuration:            time.Hour,
-				ProvisioningState:               NodepoolProvisioningStateSuccess,
+				ProvisioningState:               ProvisioningStateSuccess,
 			},
 		},
 		"single interruption single recovery then up for an hour": {
@@ -225,7 +225,7 @@ func TestSummarize(t *testing.T) {
 				MeanUpTimeBetweenInterruption:   time.Hour,
 				LatestUpTimeBetweenInterruption: time.Hour,
 				ProvisioningDuration:            time.Hour,
-				ProvisioningState:               NodepoolProvisioningStateSuccess,
+				ProvisioningState:               ProvisioningStateSuccess,
 			},
 		},
 		"two interruptions single recovery": {
@@ -260,7 +260,7 @@ func TestSummarize(t *testing.T) {
 				MeanUpTimeBetweenInterruption:   (1*time.Hour + 2*time.Hour) / 2,
 				LatestUpTimeBetweenInterruption: 2 * time.Hour,
 				ProvisioningDuration:            time.Hour,
-				ProvisioningState:               NodepoolProvisioningStateSuccess,
+				ProvisioningState:               ProvisioningStateSuccess,
 			},
 		},
 		"two interruptions one recovery with trailing downtime": {
@@ -295,7 +295,7 @@ func TestSummarize(t *testing.T) {
 				MeanUpTimeBetweenInterruption:   (1*time.Hour + 2*time.Hour) / 2,
 				LatestUpTimeBetweenInterruption: 2 * time.Hour,
 				ProvisioningDuration:            time.Hour,
-				ProvisioningState:               NodepoolProvisioningStateSuccess,
+				ProvisioningState:               ProvisioningStateSuccess,
 			},
 		},
 		"two interruptions two recoveries - different durations": {
@@ -332,7 +332,7 @@ func TestSummarize(t *testing.T) {
 				MeanUpTimeBetweenInterruption:   (1*time.Hour + 2*time.Hour) / 2,
 				LatestUpTimeBetweenInterruption: 2 * time.Hour,
 				ProvisioningDuration:            time.Hour,
-				ProvisioningState:               NodepoolProvisioningStateSuccess,
+				ProvisioningState:               ProvisioningStateSuccess,
 			},
 		},
 		// Error cases
@@ -403,7 +403,7 @@ func TestSummarize(t *testing.T) {
 				MeanDownTimeBetweenRecovery:     0,
 				LatestDownTimeBetweenRecovery:   time.Hour,
 				ProvisioningDuration:            time.Hour,
-				ProvisioningState:               NodepoolProvisioningStateSuccess,
+				ProvisioningState:               ProvisioningStateSuccess,
 			},
 		},
 		"expected downtime interruption": {
@@ -430,7 +430,7 @@ func TestSummarize(t *testing.T) {
 				MeanUpTimeBetweenInterruption:   0, // No interruptions
 				LatestUpTimeBetweenInterruption: time.Hour,
 				ProvisioningDuration:            time.Hour,
-				ProvisioningState:               NodepoolProvisioningStateSuccess,
+				ProvisioningState:               ProvisioningStateSuccess,
 			},
 		},
 	}
