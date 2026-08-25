@@ -759,3 +759,103 @@ func TestAppendStateChangeEvents(t *testing.T) {
 		})
 	}
 }
+
+func TestEventRecords_Clone(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	cases := map[string]struct {
+		input    EventRecords
+		validate func(t *testing.T, orig, clone EventRecords)
+	}{
+		"nil UpEvents": {
+			input: EventRecords{UpEvents: nil},
+			validate: func(t *testing.T, orig, clone EventRecords) {
+				require.Nil(t, clone.UpEvents)
+			},
+		},
+		"empty UpEvents": {
+			input: EventRecords{UpEvents: []UpEvent{}},
+			validate: func(t *testing.T, orig, clone EventRecords) {
+				require.NotNil(t, clone.UpEvents)
+				require.Empty(t, clone.UpEvents)
+			},
+		},
+		"non-empty UpEvents deep copy isolation": {
+			input: EventRecords{
+				UpEvents: []UpEvent{
+					{Up: true, Timestamp: now},
+					{Up: false, Failed: true, Timestamp: now.Add(time.Minute)},
+				},
+			},
+			validate: func(t *testing.T, orig, clone EventRecords) {
+				require.Equal(t, orig, clone)
+				// Mutating the clone's slice must not affect the original (prevents data race)
+				clone.UpEvents[0].Up = false
+				require.True(t, orig.UpEvents[0].Up)
+				clone.UpEvents = append(clone.UpEvents, UpEvent{Up: true})
+				require.Len(t, orig.UpEvents, 2)
+				require.Len(t, clone.UpEvents, 3)
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			cloned := tc.input.Clone()
+			tc.validate(t, tc.input, cloned)
+		})
+	}
+}
+
+func TestCloneEventRecordsMap(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	cases := map[string]struct {
+		input    map[string]EventRecords
+		validate func(t *testing.T, orig, clone map[string]EventRecords)
+	}{
+		"nil map": {
+			input: nil,
+			validate: func(t *testing.T, orig, clone map[string]EventRecords) {
+				require.Nil(t, clone)
+			},
+		},
+		"empty map": {
+			input: map[string]EventRecords{},
+			validate: func(t *testing.T, orig, clone map[string]EventRecords) {
+				require.NotNil(t, clone)
+				require.Empty(t, clone)
+			},
+		},
+		"populated map deep copy isolation": {
+			input: map[string]EventRecords{
+				"res1": {
+					UpEvents: []UpEvent{
+						{Up: true, Timestamp: now},
+					},
+				},
+			},
+			validate: func(t *testing.T, orig, clone map[string]EventRecords) {
+				require.Equal(t, orig, clone)
+				// Mutating clone map must not affect original
+				clone["res2"] = EventRecords{}
+				require.NotContains(t, orig, "res2")
+
+				// Mutating elements inside clone must not affect original
+				clone["res1"].UpEvents[0].Up = false
+				require.True(t, orig["res1"].UpEvents[0].Up)
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			cloned := CloneEventRecordsMap(tc.input)
+			tc.validate(t, tc.input, cloned)
+		})
+	}
+}

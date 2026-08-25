@@ -164,8 +164,12 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test-node",
 				Labels: map[string]string{
-					"cloud.google.com/gke-nodepool":     nodePoolName,
-					"cloud.google.com/gke-tpu-topology": "2x4",
+					"cloud.google.com/gke-nodepool":        nodePoolName,
+					"cloud.google.com/gke-tpu-topology":    "2x4",
+					k8sutils.NodeLabelGCETopologyBlock:     "9a0e671424e45fd480ca172ad7a4e25d",
+					k8sutils.NodeLabelGCETopologySubBlock:  "6ce4a464bd524e332477fad57c0875a5",
+					k8sutils.NodeLabelReservationBlocks:    "tpu7x-test-block-0001",
+					k8sutils.NodeLabelReservationSubBlocks: "tpu7x-test-block-0001-subblock-0002",
 				},
 			},
 		}
@@ -251,8 +255,12 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: fmt.Sprintf("node-%d", i),
 						Labels: map[string]string{
-							"cloud.google.com/gke-nodepool":     nodePoolName,
-							"cloud.google.com/gke-tpu-topology": tpuTopology,
+							"cloud.google.com/gke-nodepool":        nodePoolName,
+							"cloud.google.com/gke-tpu-topology":    tpuTopology,
+							k8sutils.NodeLabelGCETopologyBlock:     "9a0e671424e45fd480ca172ad7a4e25d",
+							k8sutils.NodeLabelGCETopologySubBlock:  "6ce4a464bd524e332477fad57c0875a5",
+							k8sutils.NodeLabelReservationBlocks:    "tpu7x-test-block-0001",
+							k8sutils.NodeLabelReservationSubBlocks: "tpu7x-test-block-0001-subblock-0002",
 						},
 					},
 					Status: corev1.NodeStatus{
@@ -634,10 +642,38 @@ func expectedMetricsForNodePool(np *containerv1beta1.NodePool, jobSetName string
 	if sliceName != "" {
 		nodepoolLabels["slice_name"] = sliceName
 	}
+	if np.Config != nil && np.Config.Labels != nil {
+		if val, ok := np.Config.Labels[k8sutils.NodeLabelGCETopologyBlock]; ok && val != "" {
+			nodepoolLabels["block_id"] = val
+		}
+		if val, ok := np.Config.Labels[k8sutils.NodeLabelReservationBlocks]; ok && val != "" {
+			nodepoolLabels["block_name"] = val
+		}
+		if val, ok := np.Config.Labels[k8sutils.NodeLabelGCETopologySubBlock]; ok && val != "" {
+			nodepoolLabels["subblock_id"] = val
+		}
+		if val, ok := np.Config.Labels[k8sutils.NodeLabelReservationSubBlocks]; ok && val != "" {
+			nodepoolLabels["subblock_name"] = val
+		}
+	}
 	nodepoolJobLabels := map[string]interface{}{
 		"job_name":      jobName,
 		"jobset_name":   jobSetName,
 		"nodepool_name": np.Name,
+	}
+	if np.Config != nil && np.Config.Labels != nil {
+		if val, ok := np.Config.Labels[k8sutils.NodeLabelGCETopologyBlock]; ok && val != "" {
+			nodepoolJobLabels["block_id"] = val
+		}
+		if val, ok := np.Config.Labels[k8sutils.NodeLabelReservationBlocks]; ok && val != "" {
+			nodepoolJobLabels["block_name"] = val
+		}
+		if val, ok := np.Config.Labels[k8sutils.NodeLabelGCETopologySubBlock]; ok && val != "" {
+			nodepoolJobLabels["subblock_id"] = val
+		}
+		if val, ok := np.Config.Labels[k8sutils.NodeLabelReservationSubBlocks]; ok && val != "" {
+			nodepoolJobLabels["subblock_name"] = val
+		}
 	}
 	return utilizationMetrics{
 		job_scheduled: metric{

@@ -159,11 +159,24 @@ func Init(ctx context.Context, r Reporter, interval time.Duration, unknownThresh
 		}
 
 		for npName, sch := range report.NodePoolScheduling {
-			o.ObserveInt64(nodePoolJobScheduled, 1, metric.WithAttributes(
+			attrs := []attribute.KeyValue{
 				attribute.String("nodepool.name", npName),
 				attribute.String("job.name", sch.JobName),
 				attribute.String("jobset.name", sch.JobSetName),
-			))
+			}
+			if sch.TopologyBlockID != "" {
+				attrs = append(attrs, attribute.String("block_id", sch.TopologyBlockID))
+			}
+			if sch.ReservationBlockName != "" {
+				attrs = append(attrs, attribute.String("block_name", sch.ReservationBlockName))
+			}
+			if sch.TopologySubBlockID != "" {
+				attrs = append(attrs, attribute.String("subblock_id", sch.TopologySubBlockID))
+			}
+			if sch.ReservationSubBlockName != "" {
+				attrs = append(attrs, attribute.String("subblock_name", sch.ReservationSubBlockName))
+			}
+			o.ObserveInt64(nodePoolJobScheduled, 1, metric.WithAttributes(attrs...))
 		}
 
 		return nil
@@ -208,6 +221,18 @@ func OTELAttrs(attrs records.Attrs) []attribute.KeyValue {
 	}
 	if attrs.SliceName != "" {
 		otelAttrs = append(otelAttrs, attribute.String("slice.name", attrs.SliceName))
+	}
+	if attrs.TopologyBlockID != "" {
+		otelAttrs = append(otelAttrs, attribute.String("block_id", attrs.TopologyBlockID))
+	}
+	if attrs.ReservationBlockName != "" {
+		otelAttrs = append(otelAttrs, attribute.String("block_name", attrs.ReservationBlockName))
+	}
+	if attrs.TopologySubBlockID != "" {
+		otelAttrs = append(otelAttrs, attribute.String("subblock_id", attrs.TopologySubBlockID))
+	}
+	if attrs.ReservationSubBlockName != "" {
+		otelAttrs = append(otelAttrs, attribute.String("subblock_name", attrs.ReservationSubBlockName))
 	}
 	if attrs.SliceOwnerName != "" {
 		otelAttrs = append(otelAttrs, attribute.String("slice.owner.name", attrs.SliceOwnerName))

@@ -1,5 +1,25 @@
 # Release Notes
 
+## v1.2.0
+
+### New features and improvements
+* Support block and subblock topology and reservation labels across NodePool (e.g. `nodepool_up`, `nodepool_up_time_seconds`) and scheduling (`nodepool_job_scheduled`) metrics:
+    * `block_name`: Reservation block name
+    * `block_id`: Physical topology block hash
+    * `subblock_name`: Reservation sub-block name
+    * `subblock_id`: Physical topology sub-block hash
+    * See [docs/metrics.md](metrics.md) for details.
+
+### Fixes
+* Prevent data races in the mock GCS client and in-memory event stores by adding deep-copy methods (`EventRecords.Clone()`, `CloneEventRecordsMap()`) and synchronizing access.
+
+### Example metrics
+```
+megamon_nodepool_up{block_id="9a0e671424e45fd480ca172ad7a4e25d",block_name="tpu-block-0001",nodepool_name="tpu-pool-1",subblock_id="6ce4a464bd524e332477fad57c0875a5",subblock_name="tpu-block-0001-subblock-0002",tpu_accelerator="tpu7x",tpu_topology="4x4x4"} 1
+
+megamon_nodepool_job_scheduled{block_id="9a0e671424e45fd480ca172ad7a4e25d",block_name="tpu-block-0001",job_name="train-job-0",jobset_name="train-jobset",nodepool_name="tpu-pool-1",subblock_id="6ce4a464bd524e332477fad57c0875a5",subblock_name="tpu-block-0001-subblock-0002"} 1
+```
+
 ## v1.1.1
 
 ### New features and improvements

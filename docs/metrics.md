@@ -64,3 +64,28 @@ megamon_alpha_jobset_provisioning_duration_seconds{jobset_name="tpu-jobset-valid
 ```
 megamon_alpha_jobset_provisioning_duration_seconds{jobset_name="tpu-jobset-failed-test", jobset_namespace="default", jobset_uid="c146a977-95b2-4cf4-bbb7-d10ad7ba9798", provisioning_state="failed", tpu_topology="2x2x1"} 70.287
 ```
+
+## Topology and Reservation Labels
+
+*   **Introduced in**: `v1.2.0`
+*   **Description**: Block and subblock topology and reservation labels are emitted across NodePool (e.g. `nodepool_up`, `nodepool_up_time_seconds`) and scheduling (`nodepool_job_scheduled`) metrics.
+*   **Labels**:
+    *   `block_name`: Reservation block name
+    *   `block_id`: Physical topology block hash
+    *   `subblock_name`: Reservation sub-block name
+    *   `subblock_id`: Physical topology sub-block hash
+
+### Object & Metric Mapping
+
+| Resource | Applicable Metrics | Labels | Notes |
+| :--- | :--- | :--- | :--- |
+| **NodePool** | `nodepool_up`, `nodepool_up_time_seconds`, `nodepool_interruption_count`, etc. | `block_name`<br>`block_id`<br>`subblock_name`<br>`subblock_id` | From GKE node labels |
+| **Scheduling** | `nodepool_job_scheduled` | `block_name`<br>`block_id`<br>`subblock_name`<br>`subblock_id` |  |
+
+### Scrape Examples
+
+```
+megamon_nodepool_up{block_id="9a0e671424e45fd480ca172ad7a4e25d",block_name="tpu-block-0001",nodepool_name="tpu-pool-1",subblock_id="6ce4a464bd524e332477fad57c0875a5",subblock_name="tpu-block-0001-subblock-0002",tpu_accelerator="tpu7x",tpu_topology="4x4x4"} 1
+
+megamon_nodepool_job_scheduled{block_id="9a0e671424e45fd480ca172ad7a4e25d",block_name="tpu-block-0001",job_name="train-job-0",jobset_name="train-jobset",nodepool_name="tpu-pool-1",subblock_id="6ce4a464bd524e332477fad57c0875a5",subblock_name="tpu-block-0001-subblock-0002"} 1
+```

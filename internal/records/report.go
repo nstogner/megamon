@@ -68,6 +68,12 @@ type Attrs struct {
 	TPUChipCount   int32  `json:"tpuChipCount"`
 	Spot           bool   `json:"spot"`
 
+	// Topology & Reservation info
+	TopologyBlockID         string `json:"topologyBlockId"`
+	TopologySubBlockID      string `json:"topologySubBlockId"`
+	ReservationBlockName    string `json:"reservationBlockName"`
+	ReservationSubBlockName string `json:"reservationSubBlockName"`
+
 	NodePoolName string `json:"nodePoolName"`
 
 	SliceName           string `json:"sliceName"`
@@ -101,8 +107,12 @@ func (up Upness) Up(unknownThreshold float64) bool {
 }
 
 type ScheduledJob struct {
-	JobName    string `json:"jobName"`
-	JobSetName string `json:"jobsetName"`
+	JobName                 string `json:"jobName"`
+	JobSetName              string `json:"jobsetName"`
+	TopologyBlockID         string `json:"topologyBlockId"`
+	TopologySubBlockID      string `json:"topologySubBlockId"`
+	ReservationBlockName    string `json:"reservationBlockName"`
+	ReservationSubBlockName string `json:"reservationSubBlockName"`
 }
 
 type OwnerInfo struct {

@@ -106,6 +106,21 @@ func (p *NodePoller) PollResources(ctx context.Context) (map[string]records.Upne
 				} else if nodeStatus == corev1.ConditionUnknown {
 					up.UnknownCount++
 				}
+
+				nodeAttrs := utils.ExtractNodeAttrs(&node)
+				if up.Attrs.TopologyBlockID == "" && nodeAttrs.TopologyBlockID != "" {
+					up.Attrs.TopologyBlockID = nodeAttrs.TopologyBlockID
+				}
+				if up.Attrs.TopologySubBlockID == "" && nodeAttrs.TopologySubBlockID != "" {
+					up.Attrs.TopologySubBlockID = nodeAttrs.TopologySubBlockID
+				}
+				if up.Attrs.ReservationBlockName == "" && nodeAttrs.ReservationBlockName != "" {
+					up.Attrs.ReservationBlockName = nodeAttrs.ReservationBlockName
+				}
+				if up.Attrs.ReservationSubBlockName == "" && nodeAttrs.ReservationSubBlockName != "" {
+					up.Attrs.ReservationSubBlockName = nodeAttrs.ReservationSubBlockName
+				}
+
 				nodePoolsUp[npName] = up
 			}()
 		}
