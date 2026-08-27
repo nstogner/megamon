@@ -1,5 +1,11 @@
 resources:
 - ../default
+- slice_owner_map.yaml
+
+namespace: megamon-system
+
+generatorOptions:
+  disableNameSuffixHash: true
 
 patches:
 - patch: |-
