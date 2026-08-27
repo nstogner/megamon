@@ -44,6 +44,15 @@ func ExtractJobSetAttrs(js *jobset.JobSet) records.Attrs {
 	attrs.JobSetUID = string(js.UID)
 	attrs.TPUChipCount = chipCount
 
+	if js.Labels != nil {
+		if val, ok := js.Labels[k8sutils.NodeLabelGKETopologyBlock]; ok {
+			attrs.TopologyBlockID = val
+		}
+		if val, ok := js.Labels[k8sutils.NodeLabelGKEReservationBlocks]; ok {
+			attrs.ReservationBlockName = val
+		}
+	}
+
 	return attrs
 }
 
@@ -59,8 +68,12 @@ func ExtractLeaderWorkerSetAttrs(lwsObj *lws.LeaderWorkerSet) records.Attrs {
 			case k8sutils.NodeLabelGKETPUTopology:
 				attrs.TPUTopology = val
 				if topologyChipCount, err := k8sutils.GetTpuTopologyToChipCount(val); err == nil {
+					replicas := int32(1)
+					if lwsObj.Spec.Replicas != nil {
+						replicas = *lwsObj.Spec.Replicas
+					}
 					// #nosec G115
-					chipCount = *lwsObj.Spec.Replicas * int32(topologyChipCount)
+					chipCount = replicas * int32(topologyChipCount)
 				}
 			case k8sutils.NodeLabelGKESpot:
 				attrs.Spot = val == "true"
@@ -72,6 +85,15 @@ func ExtractLeaderWorkerSetAttrs(lwsObj *lws.LeaderWorkerSet) records.Attrs {
 	attrs.LWSNamespace = lwsObj.Namespace
 	attrs.LWSUID = string(lwsObj.UID)
 	attrs.TPUChipCount = chipCount
+
+	if lwsObj.Labels != nil {
+		if val, ok := lwsObj.Labels[k8sutils.NodeLabelGKETopologyBlock]; ok {
+			attrs.TopologyBlockID = val
+		}
+		if val, ok := lwsObj.Labels[k8sutils.NodeLabelGKEReservationBlocks]; ok {
+			attrs.ReservationBlockName = val
+		}
+	}
 
 	return attrs
 }
@@ -91,6 +113,18 @@ func ExtractNodeAttrs(node *corev1.Node) records.Attrs {
 		}
 		if val, ok := node.Labels[k8sutils.NodeLabelGKESpot]; ok {
 			attrs.Spot = val == "true"
+		}
+		if val, ok := node.Labels[k8sutils.NodeLabelGKETopologyBlock]; ok {
+			attrs.TopologyBlockID = val
+		}
+		if val, ok := node.Labels[k8sutils.NodeLabelGKETopologySubBlock]; ok {
+			attrs.TopologySubBlockID = val
+		}
+		if val, ok := node.Labels[k8sutils.NodeLabelGKEReservationBlocks]; ok {
+			attrs.ReservationBlockName = val
+		}
+		if val, ok := node.Labels[k8sutils.NodeLabelGKEReservationSubBlocks]; ok {
+			attrs.ReservationSubBlockName = val
 		}
 	}
 
@@ -165,6 +199,20 @@ func ExtractNodePoolAttrs(np *containerv1beta1.NodePool) records.Attrs {
 				attrs.TPUAccelerator = v
 			}
 		}
+		if np.Config.Labels != nil {
+			if v, ok := np.Config.Labels[k8sutils.NodeLabelGKETopologyBlock]; ok {
+				attrs.TopologyBlockID = v
+			}
+			if v, ok := np.Config.Labels[k8sutils.NodeLabelGKETopologySubBlock]; ok {
+				attrs.TopologySubBlockID = v
+			}
+			if v, ok := np.Config.Labels[k8sutils.NodeLabelGKEReservationBlocks]; ok {
+				attrs.ReservationBlockName = v
+			}
+			if v, ok := np.Config.Labels[k8sutils.NodeLabelGKEReservationSubBlocks]; ok {
+				attrs.ReservationSubBlockName = v
+			}
+		}
 	}
 	return attrs
 }
@@ -186,6 +234,12 @@ func ExtractSliceAttrs(s *slicev1beta1.Slice) records.Attrs {
 		}
 		if val, ok := s.Labels[k8sutils.LabelTPUProvisionerOwnerNamespace]; ok {
 			attrs.SliceOwnerNamespace = val
+		}
+		if val, ok := s.Labels[k8sutils.NodeLabelGKETopologyBlock]; ok {
+			attrs.TopologyBlockID = val
+		}
+		if val, ok := s.Labels[k8sutils.NodeLabelGKEReservationBlocks]; ok {
+			attrs.ReservationBlockName = val
 		}
 	}
 

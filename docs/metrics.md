@@ -64,3 +64,24 @@ megamon_alpha_jobset_provisioning_duration_seconds{jobset_name="tpu-jobset-valid
 ```
 megamon_alpha_jobset_provisioning_duration_seconds{jobset_name="tpu-jobset-failed-test", jobset_namespace="default", jobset_uid="c146a977-95b2-4cf4-bbb7-d10ad7ba9798", provisioning_state="failed", tpu_topology="2x2x1"} 70.287
 ```
+
+## Topology and Reservation Labels
+
+*   **Introduced in**: `v1.2.0`
+*   **Description**: Topology placement and reservation labels (where available) for monitored resources.
+*   **Labels**:
+    *   `block_id`: Physical topology block hash (`cloud.google.com/gce-topology-block`).
+    *   `subblock_id`: Physical topology sub-block hash (`cloud.google.com/gce-topology-subblock`).
+    *   `block_name`: Reservation block name (`cloud.google.com/reservation-blocks`).
+    *   `subblock_name`: Reservation sub-block name (`cloud.google.com/reservation-subblocks`).
+
+### Object & Metric Mapping
+
+| Object | Applicable Metrics | Labels | Notes |
+| :--- | :--- | :--- | :--- |
+| **GKE Nodepool** | `nodepool_up`, `nodepool_up_time_seconds`, `nodepool_interruption_count`, `nodepool_provisioning_duration_seconds`, etc. | `block_id`<br>`subblock_id`<br>`block_name`<br>`subblock_name` | |
+| **NodePool Scheduling (Node)** | `nodepool_job_scheduled` | `block_id`<br>`subblock_id`<br>`block_name`<br>`subblock_name` | Extracted from scheduled Node. |
+| **Slice** | `slice_up`, `slice_up_time_seconds`, `slice_interruption_count`, `slice_provisioning_duration_seconds`, etc. | `block_id`<br>`block_name` | Subblock labels omitted as a slice can span multiple subblocks and may change during a "repair". |
+| **JobSet** | `jobset_up`, `jobset_up_time_seconds`, `jobset_interruption_count`, `jobset_provisioning_duration_seconds`, etc. | `block_id`<br>`block_name` | |
+
+> **Note**: Labels are conditionally emitted only when present.

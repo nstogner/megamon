@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"example.com/megamon/internal/aggregator"
+	"example.com/megamon/internal/aggregator/utils"
 	"example.com/megamon/internal/k8sutils"
 	"example.com/megamon/internal/records"
 	batchv1 "k8s.io/api/batch/v1"
@@ -12,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -31,8 +33,8 @@ type PodReconciler struct {
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
 func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	//log := log.FromContext(ctx)
-	//log.Info("reconciling", "req", req.NamespacedName)
+	log := log.FromContext(ctx)
+	log.V(3).Info("reconciling", "req", req.NamespacedName)
 
 	var pod corev1.Pod
 	if err := r.Get(ctx, req.NamespacedName, &pod); err != nil {
@@ -70,6 +72,12 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if !ok {
 		return ctrl.Result{}, nil
 	}
+
+	nodeAttrs := utils.ExtractNodeAttrs(&node)
+	rec.TopologyBlockID = nodeAttrs.TopologyBlockID
+	rec.ReservationBlockName = nodeAttrs.ReservationBlockName
+	rec.TopologySubBlockID = nodeAttrs.TopologySubBlockID
+	rec.ReservationSubBlockName = nodeAttrs.ReservationSubBlockName
 
 	r.Aggregator.UpdateNodePoolScheduling(nodePool, rec)
 

@@ -24,6 +24,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -214,6 +215,12 @@ func createStubNodePool() *containerv1beta1.NodePool {
 			ResourceLabels: map[string]string{
 				k8sutils.NodePoolResourceLabelGKEAcceleratorType: tpuAccelerator,
 			},
+			Labels: map[string]string{
+				k8sutils.NodeLabelGKETopologyBlock:        "9a0e671424e45fd480ca172ad7a4e25d",
+				k8sutils.NodeLabelGKETopologySubBlock:     "6ce4a464bd524e332477fad57c0875a5",
+				k8sutils.NodeLabelGKEReservationBlocks:    "tpu7x-test-block-0001",
+				k8sutils.NodeLabelGKEReservationSubBlocks: "tpu7x-test-block-0001-subblock-0002",
+			},
 		},
 		Autoscaling: &containerv1beta1.NodePoolAutoscaling{
 			Enabled:      true,
@@ -235,19 +242,24 @@ func createStubGKEClient() *mockGKEClient {
 }
 
 type mockGCSClient struct {
+	mu      sync.RWMutex
 	records map[string]map[string]records.EventRecords
 }
 
 func (m *mockGCSClient) GetRecords(ctx context.Context, bucket, path string) (map[string]records.EventRecords, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	rec, ok := m.records[path]
 	if !ok {
 		return map[string]records.EventRecords{}, nil
 	}
-	return rec, nil
+	return records.CloneEventRecordsMap(rec), nil
 }
 
 func (m *mockGCSClient) PutRecords(ctx context.Context, bucket, path string,
 	recs map[string]records.EventRecords) error {
-	m.records[path] = recs
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.records[path] = records.CloneEventRecordsMap(recs)
 	return nil
 }

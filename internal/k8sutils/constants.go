@@ -8,6 +8,11 @@ const (
 	NodeLabelGKESpot             = "cloud.google.com/gke-spot"
 	NodeLabelGKENodepool         = "cloud.google.com/gke-nodepool"
 
+	NodeLabelGKETopologyBlock        = "cloud.google.com/gce-topology-block"
+	NodeLabelGKETopologySubBlock     = "cloud.google.com/gce-topology-subblock"
+	NodeLabelGKEReservationBlocks    = "cloud.google.com/reservation-blocks"
+	NodeLabelGKEReservationSubBlocks = "cloud.google.com/reservation-subblocks"
+
 	NodeLabelTPUProvisionerJobSetNamespace = "google.com/tpu-provisioner-jobset-namespace"
 	NodeLabelTPUProvisionerJobSetName      = "google.com/tpu-provisioner-jobset-name"
 

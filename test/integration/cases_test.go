@@ -105,6 +105,10 @@ var (
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "js-rj-8",
 			Namespace: "default",
+			Labels: map[string]string{
+				k8sutils.NodeLabelGKETopologyBlock:     "9a0e671424e45fd480ca172ad7a4e25d",
+				k8sutils.NodeLabelGKEReservationBlocks: "tpu7x-test-block-0001",
+			},
 		},
 		Spec: jobset.JobSetSpec{
 			ReplicatedJobs: []jobset.ReplicatedJob{
@@ -116,6 +120,10 @@ var (
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "js-rj2-24",
 			Namespace: "default",
+			Labels: map[string]string{
+				k8sutils.NodeLabelGKETopologyBlock:     "9a0e671424e45fd480ca172ad7a4e25d",
+				k8sutils.NodeLabelGKEReservationBlocks: "tpu7x-test-block-0001",
+			},
 		},
 		Spec: jobset.JobSetSpec{
 			ReplicatedJobs: []jobset.ReplicatedJob{
@@ -164,8 +172,12 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test-node",
 				Labels: map[string]string{
-					"cloud.google.com/gke-nodepool":     nodePoolName,
-					"cloud.google.com/gke-tpu-topology": "2x4",
+					"cloud.google.com/gke-nodepool":           nodePoolName,
+					"cloud.google.com/gke-tpu-topology":       "2x4",
+					k8sutils.NodeLabelGKETopologyBlock:        "9a0e671424e45fd480ca172ad7a4e25d",
+					k8sutils.NodeLabelGKETopologySubBlock:     "6ce4a464bd524e332477fad57c0875a5",
+					k8sutils.NodeLabelGKEReservationBlocks:    "tpu7x-test-block-0001",
+					k8sutils.NodeLabelGKEReservationSubBlocks: "tpu7x-test-block-0001-subblock-0002",
 				},
 			},
 		}
@@ -251,8 +263,12 @@ var _ = Describe("Nodepool metrics", Ordered, func() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: fmt.Sprintf("node-%d", i),
 						Labels: map[string]string{
-							"cloud.google.com/gke-nodepool":     nodePoolName,
-							"cloud.google.com/gke-tpu-topology": tpuTopology,
+							"cloud.google.com/gke-nodepool":           nodePoolName,
+							"cloud.google.com/gke-tpu-topology":       tpuTopology,
+							k8sutils.NodeLabelGKETopologyBlock:        "9a0e671424e45fd480ca172ad7a4e25d",
+							k8sutils.NodeLabelGKETopologySubBlock:     "6ce4a464bd524e332477fad57c0875a5",
+							k8sutils.NodeLabelGKEReservationBlocks:    "tpu7x-test-block-0001",
+							k8sutils.NodeLabelGKEReservationSubBlocks: "tpu7x-test-block-0001-subblock-0002",
 						},
 					},
 					Status: corev1.NodeStatus{
@@ -634,10 +650,38 @@ func expectedMetricsForNodePool(np *containerv1beta1.NodePool, jobSetName string
 	if sliceName != "" {
 		nodepoolLabels["slice_name"] = sliceName
 	}
+	if np.Config != nil && np.Config.Labels != nil {
+		if val, ok := np.Config.Labels[k8sutils.NodeLabelGKETopologyBlock]; ok && val != "" {
+			nodepoolLabels["block_id"] = val
+		}
+		if val, ok := np.Config.Labels[k8sutils.NodeLabelGKEReservationBlocks]; ok && val != "" {
+			nodepoolLabels["block_name"] = val
+		}
+		if val, ok := np.Config.Labels[k8sutils.NodeLabelGKETopologySubBlock]; ok && val != "" {
+			nodepoolLabels["subblock_id"] = val
+		}
+		if val, ok := np.Config.Labels[k8sutils.NodeLabelGKEReservationSubBlocks]; ok && val != "" {
+			nodepoolLabels["subblock_name"] = val
+		}
+	}
 	nodepoolJobLabels := map[string]interface{}{
 		"job_name":      jobName,
 		"jobset_name":   jobSetName,
 		"nodepool_name": np.Name,
+	}
+	if np.Config != nil && np.Config.Labels != nil {
+		if val, ok := np.Config.Labels[k8sutils.NodeLabelGKETopologyBlock]; ok && val != "" {
+			nodepoolJobLabels["block_id"] = val
+		}
+		if val, ok := np.Config.Labels[k8sutils.NodeLabelGKEReservationBlocks]; ok && val != "" {
+			nodepoolJobLabels["block_name"] = val
+		}
+		if val, ok := np.Config.Labels[k8sutils.NodeLabelGKETopologySubBlock]; ok && val != "" {
+			nodepoolJobLabels["subblock_id"] = val
+		}
+		if val, ok := np.Config.Labels[k8sutils.NodeLabelGKEReservationSubBlocks]; ok && val != "" {
+			nodepoolJobLabels["subblock_name"] = val
+		}
 	}
 	return utilizationMetrics{
 		job_scheduled: metric{
@@ -685,6 +729,12 @@ func expectedMetricsForJobSetWithSlice(js *jobset.JobSet, tpuTopology string, sl
 		"jobset_namespace": js.Namespace,
 		"jobset_uid":       js.UID,
 		"tpu_topology":     tpuTopology,
+	}
+	if val, ok := js.Labels[k8sutils.NodeLabelGKETopologyBlock]; ok && val != "" {
+		jsLabels["block_id"] = val
+	}
+	if val, ok := js.Labels[k8sutils.NodeLabelGKEReservationBlocks]; ok && val != "" {
+		jsLabels["block_name"] = val
 	}
 	if sl != nil {
 		if sl.Name != "" {
@@ -770,6 +820,12 @@ func expectedMetricsForSlice(s *slice.Slice) upnessMetrics {
 		"tpu_accelerator":       string(s.Spec.Type),
 		"tpu_topology":          s.Spec.Topology,
 	}
+	if val, ok := s.Labels[k8sutils.NodeLabelGKETopologyBlock]; ok && val != "" {
+		sLabels["block_id"] = val
+	}
+	if val, ok := s.Labels[k8sutils.NodeLabelGKEReservationBlocks]; ok && val != "" {
+		sLabels["block_name"] = val
+	}
 	chipCount, _ := k8sutils.GetTpuTopologyToChipCount(s.Spec.Topology)
 	return upnessMetrics{
 		up:                                   metric{name: "slice_up", labels: sLabels},
@@ -814,6 +870,8 @@ var _ = Describe("Slice deletion (planned)", Ordered, func() {
 					"tpu-provisioner.cloud.google.com/owner-name":      "test-owner",
 					"tpu-provisioner.cloud.google.com/owner-namespace": "default",
 					"tpu-provisioner.cloud.google.com/owner-kind":      "JobSet",
+					k8sutils.NodeLabelGKETopologyBlock:                 "9a0e671424e45fd480ca172ad7a4e25d",
+					k8sutils.NodeLabelGKEReservationBlocks:             "tpu7x-test-block-0001",
 				},
 			},
 			Spec: slice.SliceSpec{
@@ -896,6 +954,8 @@ var _ = Describe("Slice deletion (unplanned)", Ordered, func() {
 					"tpu-provisioner.cloud.google.com/owner-name":      "test-owner",
 					"tpu-provisioner.cloud.google.com/owner-namespace": "default",
 					"tpu-provisioner.cloud.google.com/owner-kind":      "JobSet",
+					k8sutils.NodeLabelGKETopologyBlock:                 "9a0e671424e45fd480ca172ad7a4e25d",
+					k8sutils.NodeLabelGKEReservationBlocks:             "tpu7x-test-block-0001",
 				},
 			},
 			Spec: slice.SliceSpec{
@@ -979,6 +1039,8 @@ var _ = Describe("Slice repair", Ordered, func() {
 					"tpu-provisioner.cloud.google.com/owner-name":      "test-owner",
 					"tpu-provisioner.cloud.google.com/owner-namespace": "default",
 					"tpu-provisioner.cloud.google.com/owner-kind":      "JobSet",
+					k8sutils.NodeLabelGKETopologyBlock:                 "9a0e671424e45fd480ca172ad7a4e25d",
+					k8sutils.NodeLabelGKEReservationBlocks:             "tpu7x-test-block-0001",
 				},
 			},
 			Spec: slice.SliceSpec{

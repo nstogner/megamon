@@ -233,3 +233,25 @@ func AppendStateChangeEvents(ctx context.Context, now time.Time, ups map[string]
 
 	return changed
 }
+
+func (r EventRecords) Clone() EventRecords {
+	if r.UpEvents == nil {
+		return EventRecords{}
+	}
+	upEventsCp := make([]UpEvent, len(r.UpEvents))
+	copy(upEventsCp, r.UpEvents)
+	return EventRecords{
+		UpEvents: upEventsCp,
+	}
+}
+
+func CloneEventRecordsMap(original map[string]EventRecords) map[string]EventRecords {
+	if original == nil {
+		return nil
+	}
+	cp := make(map[string]EventRecords, len(original))
+	for k, v := range original {
+		cp[k] = v.Clone()
+	}
+	return cp
+}
