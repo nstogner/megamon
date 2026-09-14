@@ -59,8 +59,12 @@ func ExtractLeaderWorkerSetAttrs(lwsObj *lws.LeaderWorkerSet) records.Attrs {
 			case k8sutils.NodeLabelGKETPUTopology:
 				attrs.TPUTopology = val
 				if topologyChipCount, err := k8sutils.GetTpuTopologyToChipCount(val); err == nil {
+					replicas := int32(1)
+					if lwsObj.Spec.Replicas != nil {
+						replicas = *lwsObj.Spec.Replicas
+					}
 					// #nosec G115
-					chipCount = *lwsObj.Spec.Replicas * int32(topologyChipCount)
+					chipCount = replicas * int32(topologyChipCount)
 				}
 			case k8sutils.NodeLabelGKESpot:
 				attrs.Spot = val == "true"
@@ -91,6 +95,18 @@ func ExtractNodeAttrs(node *corev1.Node) records.Attrs {
 		}
 		if val, ok := node.Labels[k8sutils.NodeLabelGKESpot]; ok {
 			attrs.Spot = val == "true"
+		}
+		if val, ok := node.Labels[k8sutils.NodeLabelGCETopologyBlock]; ok {
+			attrs.TopologyBlockID = val
+		}
+		if val, ok := node.Labels[k8sutils.NodeLabelGCETopologySubBlock]; ok {
+			attrs.TopologySubBlockID = val
+		}
+		if val, ok := node.Labels[k8sutils.NodeLabelReservationBlocks]; ok {
+			attrs.ReservationBlockName = val
+		}
+		if val, ok := node.Labels[k8sutils.NodeLabelReservationSubBlocks]; ok {
+			attrs.ReservationSubBlockName = val
 		}
 	}
 
@@ -163,6 +179,20 @@ func ExtractNodePoolAttrs(np *containerv1beta1.NodePool) records.Attrs {
 		if np.Config.ResourceLabels != nil {
 			if v, ok := np.Config.ResourceLabels[k8sutils.NodePoolResourceLabelGKEAcceleratorType]; ok && v != "" {
 				attrs.TPUAccelerator = v
+			}
+		}
+		if np.Config.Labels != nil {
+			if v, ok := np.Config.Labels[k8sutils.NodeLabelGCETopologyBlock]; ok {
+				attrs.TopologyBlockID = v
+			}
+			if v, ok := np.Config.Labels[k8sutils.NodeLabelGCETopologySubBlock]; ok {
+				attrs.TopologySubBlockID = v
+			}
+			if v, ok := np.Config.Labels[k8sutils.NodeLabelReservationBlocks]; ok {
+				attrs.ReservationBlockName = v
+			}
+			if v, ok := np.Config.Labels[k8sutils.NodeLabelReservationSubBlocks]; ok {
+				attrs.ReservationSubBlockName = v
 			}
 		}
 	}

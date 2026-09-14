@@ -233,3 +233,30 @@ func AppendStateChangeEvents(ctx context.Context, now time.Time, ups map[string]
 
 	return changed
 }
+
+// Clone returns a deep copy of EventRecords, allocating a new slice for UpEvents.
+// This is critical to prevent data races when event records are retrieved or stored
+// across concurrent goroutines in in-memory caches or mock clients.
+func (r EventRecords) Clone() EventRecords {
+	if r.UpEvents == nil {
+		return EventRecords{}
+	}
+	upEventsCp := make([]UpEvent, len(r.UpEvents))
+	copy(upEventsCp, r.UpEvents)
+	return EventRecords{
+		UpEvents: upEventsCp,
+	}
+}
+
+// CloneEventRecordsMap returns a deep copy of the map and each contained EventRecords.
+// Used to prevent concurrent map/slice read-write data races in mock GCS clients and stores.
+func CloneEventRecordsMap(original map[string]EventRecords) map[string]EventRecords {
+	if original == nil {
+		return nil
+	}
+	cp := make(map[string]EventRecords, len(original))
+	for k, v := range original {
+		cp[k] = v.Clone()
+	}
+	return cp
+}

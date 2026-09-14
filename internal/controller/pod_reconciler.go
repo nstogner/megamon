@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"example.com/megamon/internal/aggregator"
+	"example.com/megamon/internal/aggregator/utils"
 	"example.com/megamon/internal/k8sutils"
 	"example.com/megamon/internal/records"
 	batchv1 "k8s.io/api/batch/v1"
@@ -70,6 +71,12 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if !ok {
 		return ctrl.Result{}, nil
 	}
+
+	nodeAttrs := utils.ExtractNodeAttrs(&node)
+	rec.TopologyBlockID = nodeAttrs.TopologyBlockID
+	rec.ReservationBlockName = nodeAttrs.ReservationBlockName
+	rec.TopologySubBlockID = nodeAttrs.TopologySubBlockID
+	rec.ReservationSubBlockName = nodeAttrs.ReservationSubBlockName
 
 	r.Aggregator.UpdateNodePoolScheduling(nodePool, rec)
 
