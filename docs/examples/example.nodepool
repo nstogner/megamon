@@ -1,0 +1,79 @@
+config:
+  bootDisk:
+    diskType: hyperdisk-balanced
+    sizeGb: '100'
+  diskSizeGb: 100
+  diskType: hyperdisk-balanced
+  effectiveCgroupMode: EFFECTIVE_CGROUP_MODE_V2
+  imageType: COS_CONTAINERD
+  kubeletConfig:
+    insecureKubeletReadonlyPortEnabled: false
+    maxParallelImagePulls: 2
+    topologyManager:
+      policy: best-effort
+      scope: container
+  labels:
+    google.com/nodepool-manager: tpu-provisioner
+    google.com/tpu-provisioner-nodepool-hash: 6b95bc9479
+    provisioner-nodepool-id: tpu7x-test-block-0001-subblock-0001
+    tpu-provisioner-static-nodepool: 'true'
+  linuxNodeConfig:
+    transparentHugepageEnabled: TRANSPARENT_HUGEPAGE_ENABLED_ALWAYS
+  machineType: tpu7x-standard-4t
+  metadata:
+    disable-legacy-endpoints: 'true'
+  oauthScopes:
+  - https://www.googleapis.com/auth/userinfo.email
+  - https://www.googleapis.com/auth/cloud-platform
+  reservationAffinity:
+    consumeReservationType: SPECIFIC_RESERVATION
+    key: compute.googleapis.com/reservation-name
+    values:
+    - projects/myproject/reservations/tpu7x-test/reservationBlocks/tpu7x-test-block-0001/reservationSubBlocks/tpu7x-test-block-0001-subblock-0001
+  resourceLabels:
+    goog-gke-accelerator-type: tpu7x
+    goog-gke-node-pool-provisioning-model: reservation
+    goog-gke-tpu-node-pool-type: multi-host
+  serviceAccount: 5553532552555-compute@developer.gserviceaccount.com
+  shieldedInstanceConfig:
+    enableIntegrityMonitoring: true
+    enableSecureBoot: true
+  tags:
+  - allow-internet-egress
+  taints:
+  - effect: NO_SCHEDULE
+    key: google.com/tpu
+    value: present
+  windowsNodeConfig: {}
+  workloadMetadataConfig:
+    mode: GKE_METADATA
+etag: 83b06210-bb39-4d94-b211-ccd6f0a6f6f8
+initialNodeCount: 16
+instanceGroupUrls:
+- https://www.googleapis.com/compute/v1/projects/myproject/zones/us-central1-c/instanceGroupManagers/gke-test-ironwoo-tpu7x-test-block-23291a80-grp
+locations:
+- us-central1-c
+management:
+  autoRepair: true
+maxPodsConstraint:
+  maxPodsPerNode: '15'
+name: tpu7x-test-block-0001-subblock-0001
+networkConfig:
+  additionalNodeNetworkConfigs:
+  - network: ironwood-regional-mtu9k
+    subnetwork: ironwood-regional-mtu9k
+  networkTierConfig:
+    networkTier: NETWORK_TIER_DEFAULT
+  podIpv4CidrBlock: 10.16.0.0/14
+  podRange: gke-cluster-ironwood-regional-pods-b8f6430e
+  subnetwork: projects/myproject/regions/us-central1/subnetworks/ironwood-regional-mtu9k
+placementPolicy:
+  policyName: static-np-policy
+  tpuTopology: 4x4x4
+podIpv4CidrSize: 27
+selfLink: https://container.googleapis.com/v1/projects/myproject/locations/us-central1/clusters/ironwood-regional/nodePools/tpu7x-test-block-0001-subblock-0001
+status: RUNNING
+upgradeSettings:
+  maxSurge: 1
+  strategy: SURGE
+version: 1.35.0-gke.1340000

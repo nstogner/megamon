@@ -1,0 +1,293 @@
+apiVersion: v1
+kind: Node
+metadata:
+  annotations:
+    container.googleapis.com/instance_id: "155555555655164480"
+    csi.volume.kubernetes.io/nodeid: '{"pd.csi.storage.gke.io":"projects/myproject/zones/us-central1-c/instances/gke-tpu-48267ddb-9zfp","podcertificate.gke.io":"gke-tpu-48267ddb-9zfp"}'
+    node.alpha.kubernetes.io/ttl: "0"
+    node.gke.io/created-by-mig: projects/53532342555/zones/us-central1-c/instanceGroupManagers/gke-cluster-tpu-dev-pool0-48267ddb-grp
+    node.gke.io/last-applied-node-labels: addon.gke.io/node-local-dns-ds-ready=true,cloud.google.com/gke-accelerator-count=4,cloud.google.com/gke-accelerator-topology-mode=PROVISION_ONLY,cloud.google.com/gke-boot-disk=hyperdisk-balanced,cloud.google.com/gke-container-runtime=containerd,cloud.google.com/gke-cpu-scaling-level=224,cloud.google.com/gke-logging-variant=DEFAULT,cloud.google.com/gke-max-pods-per-node=110,cloud.google.com/gke-memory-gb-scaling-level=983,cloud.google.com/gke-netd-ready=true,cloud.google.com/gke-nodepool=pool0,cloud.google.com/gke-os-distribution=cos,cloud.google.com/gke-provisioning=standard,cloud.google.com/gke-stack-type=IPV4,cloud.google.com/gke-tpu-accelerator=tpu7x,cloud.google.com/machine-family=tpu7x,cloud.google.com/placement-policy-name=static-np-policy,cloud.google.com/private-node=false,cloud.google.com/reservation-blocks=tpu7x-test-block-0001,cloud.google.com/reservation-name=tpu7x-test,cloud.google.com/reservation-project=myproject,cloud.google.com/reservation-subblocks=tpu7x-test-block-0001-subblock-0002,disk-type.gke.io/hyperdisk-balanced=true,disk-type.gke.io/hyperdisk-extreme=true,disk-type.gke.io/hyperdisk-ml=true,disk-type.gke.io/hyperdisk-throughput=true,iam.gke.io/gke-metadata-server-enabled=true
+    node.gke.io/last-applied-node-taints: google.com/tpu=present:NoSchedule
+    node.gke.io/machine-termination-datetime: "2026-02-01T08:00:00Z"
+    volumes.kubernetes.io/controller-managed-attach-detach: "true"
+  creationTimestamp: "2026-01-23T21:16:54Z"
+  labels:
+    addon.gke.io/node-local-dns-ds-ready: "true"
+    beta.kubernetes.io/arch: amd64
+    beta.kubernetes.io/instance-type: tpu7x-standard-4t
+    beta.kubernetes.io/os: linux
+    cloud.google.com/gce-topology-block: 9a0e671424e45fd480ca172ad7a4e25d
+    cloud.google.com/gce-topology-host: e0c8ed8993c5c93cd3ba58800a46eef9
+    cloud.google.com/gce-topology-subblock: 6ce4a464bd524e332477fad57c0875a5
+    cloud.google.com/gke-accelerator-count: "4"
+    cloud.google.com/gke-accelerator-topology-mode: PROVISION_ONLY
+    cloud.google.com/gke-boot-disk: hyperdisk-balanced
+    cloud.google.com/gke-container-runtime: containerd
+    cloud.google.com/gke-cpu-scaling-level: "224"
+    cloud.google.com/gke-logging-variant: DEFAULT
+    cloud.google.com/gke-max-pods-per-node: "110"
+    cloud.google.com/gke-memory-gb-scaling-level: "983"
+    cloud.google.com/gke-netd-ready: "true"
+    cloud.google.com/gke-nodepool: pool0
+    cloud.google.com/gke-os-distribution: cos
+    cloud.google.com/gke-provisioning: standard
+    cloud.google.com/gke-stack-type: IPV4
+    cloud.google.com/gke-tpu-accelerator: tpu7x
+    cloud.google.com/gke-tpu-partition-2x2x1-id: 43b0caaaad2dee62e74fe892f83b0cad
+    cloud.google.com/gke-tpu-partition-2x2x2-id: 69baba47072efd8abce8572c50fa6489
+    cloud.google.com/gke-tpu-partition-2x2x4-id: a059cb709e805f7cf07ffcb2d2c0a3bb
+    cloud.google.com/gke-tpu-partition-2x4x4-id: 7cc5c54e1df82166412623587dc140fd
+    cloud.google.com/gke-tpu-partition-4x4x4-id: 6ce4a464bd524e332477fad57c0875a5
+    cloud.google.com/gke-tpu-partition-4x4x4-state: HEALTHY
+    cloud.google.com/machine-family: tpu7x
+    cloud.google.com/placement-policy-name: static-np-policy
+    cloud.google.com/private-node: "false"
+    cloud.google.com/reservation-blocks: tpu7x-test-block-0001
+    cloud.google.com/reservation-name: tpu7x-test
+    cloud.google.com/reservation-project: myproject
+    cloud.google.com/reservation-subblocks: tpu7x-test-block-0001-subblock-0002
+    disk-type.gke.io/hyperdisk-balanced: "true"
+    disk-type.gke.io/hyperdisk-extreme: "true"
+    disk-type.gke.io/hyperdisk-ml: "true"
+    disk-type.gke.io/hyperdisk-throughput: "true"
+    failure-domain.beta.kubernetes.io/region: us-central1
+    failure-domain.beta.kubernetes.io/zone: us-central1-c
+    iam.gke.io/gke-metadata-server-enabled: "true"
+    kubernetes.io/arch: amd64
+    kubernetes.io/hostname: gke-tpu-48267ddb-9zfp
+    kubernetes.io/os: linux
+    node.kubernetes.io/instance-type: tpu7x-standard-4t
+    topology.gke.io/zone: us-central1-c
+    topology.kubernetes.io/region: us-central1
+    topology.kubernetes.io/zone: us-central1-c
+  name: gke-tpu-48267ddb-9zfp
+  resourceVersion: "1769203045149567004"
+  uid: 7d666a82-1f94-4935-9f60-e23a8701cd6a
+spec:
+  podCIDR: 10.128.14.0/24
+  podCIDRs:
+  - 10.128.14.0/24
+  providerID: gce://myproject/us-central1-c/gke-tpu-48267ddb-9zfp
+  taints:
+  - effect: NoSchedule
+    key: google.com/tpu
+    value: present
+status:
+  addresses:
+  - address: 10.192.0.37
+    type: InternalIP
+  - address: 14.135.1.224
+    type: ExternalIP
+  - address: gke-tpu-48267ddb-9zfp
+    type: Hostname
+  allocatable:
+    cpu: 223370m
+    ephemeral-storage: "47060071478"
+    google.com/tpu: "4"
+    hugepages-1Gi: "0"
+    hugepages-2Mi: "0"
+    memory: 940985Mi
+    pods: "110"
+  capacity:
+    cpu: "224"
+    ephemeral-storage: 98831908Ki
+    google.com/tpu: "4"
+    hugepages-1Gi: "0"
+    hugepages-2Mi: "0"
+    memory: 967505Mi
+    pods: "110"
+  conditions:
+  - lastHeartbeatTime: "2026-01-23T21:16:55Z"
+    lastTransitionTime: "2026-01-23T21:16:54Z"
+    message: 'No deprecation risk: did not find any deprecated ''mirrors'' field in
+      containerd''s config'
+    reason: DeprecatedMirrorsFieldInContainerdConfigurationNotDetected
+    status: "False"
+    type: DeprecatedMirrorsFieldInContainerdConfiguration
+  - lastHeartbeatTime: "2026-01-23T21:16:55Z"
+    lastTransitionTime: "2026-01-23T21:16:54Z"
+    message: UEFI CPER has no fatal error
+    reason: CperHardwareHasNoFatalError
+    status: "False"
+    type: CperHardwareErrorFatal
+  - lastHeartbeatTime: "2026-01-23T21:16:55Z"
+    lastTransitionTime: "2026-01-23T21:16:54Z"
+    message: node is functioning properly
+    reason: NoFrequentUnregisterNetDevice
+    status: "False"
+    type: FrequentUnregisterNetDevice
+  - lastHeartbeatTime: "2026-01-23T21:16:55Z"
+    lastTransitionTime: "2026-01-23T21:16:54Z"
+    message: kubelet is functioning properly
+    reason: NoFrequentKubeletRestart
+    status: "False"
+    type: FrequentKubeletRestart
+  - lastHeartbeatTime: "2026-01-23T21:16:55Z"
+    lastTransitionTime: "2026-01-23T21:16:54Z"
+    message: 'No deprecation risk: did not find any deprecated ''configs'' field in
+      containerd''s config'
+    reason: DeprecatedConfigsFieldInContainerdConfigurationNotDetected
+    status: "False"
+    type: DeprecatedConfigsFieldInContainerdConfiguration
+  - lastHeartbeatTime: "2026-01-23T21:16:55Z"
+    lastTransitionTime: "2026-01-23T21:16:54Z"
+    message: Root filesystem has no storage pressure
+    reason: StoragePressureRootFileSystemNotDetected
+    status: "False"
+    type: StoragePressureRootFileSystem
+  - lastHeartbeatTime: "2026-01-23T21:16:55Z"
+    lastTransitionTime: "2026-01-23T21:16:54Z"
+    message: Default sysctls are in effect, no unexpected sysctl changes
+    reason: SysctlNotChanged
+    status: "False"
+    type: SysctlChanged
+  - lastHeartbeatTime: "2026-01-23T21:16:55Z"
+    lastTransitionTime: "2026-01-23T21:16:54Z"
+    message: containerd is functioning properly
+    reason: NoFrequentContainerdRestart
+    status: "False"
+    type: FrequentContainerdRestart
+  - lastHeartbeatTime: "2026-01-23T21:16:55Z"
+    lastTransitionTime: "2026-01-23T21:16:54Z"
+    message: docker is functioning properly
+    reason: NoFrequentDockerRestart
+    status: "False"
+    type: FrequentDockerRestart
+  - lastHeartbeatTime: "2026-01-23T21:16:55Z"
+    lastTransitionTime: "2026-01-23T21:16:54Z"
+    message: docker overlay2 is functioning properly
+    reason: NoCorruptDockerOverlay2
+    status: "False"
+    type: CorruptDockerOverlay2
+  - lastHeartbeatTime: "2026-01-23T21:16:55Z"
+    lastTransitionTime: "2026-01-23T21:16:54Z"
+    message: Root filesystem is not read only
+    reason: ReadOnlyRootFileSystemNotDetected
+    status: "False"
+    type: ReadOnlyRootFileSystem
+  - lastHeartbeatTime: "2026-01-23T21:16:55Z"
+    lastTransitionTime: "2026-01-23T21:16:54Z"
+    message: 'No deprecation risk: did not use v1alpha2 CRI'
+    reason: DeprecatedUsingV1Alpha2CriNotDetected
+    status: "False"
+    type: DeprecatedUsingV1Alpha2Cri
+  - lastHeartbeatTime: "2026-01-23T21:16:55Z"
+    lastTransitionTime: "2026-01-23T21:16:54Z"
+    message: 'No deprecation risk: did not pull any schema v1 images'
+    reason: DeprecatedPullingSchemaV1ImageDetected
+    status: "False"
+    type: DeprecatedPullingSchemaV1Image
+  - lastHeartbeatTime: "2026-01-23T21:16:55Z"
+    lastTransitionTime: "2026-01-23T21:16:54Z"
+    message: kernel has no deadlock
+    reason: KernelHasNoDeadlock
+    status: "False"
+    type: KernelDeadlock
+  - lastHeartbeatTime: "2026-01-23T21:16:55Z"
+    lastTransitionTime: "2026-01-23T21:16:54Z"
+    message: System resources are within normal range.
+    reason: ResourcesOK
+    status: "False"
+    type: ResourceExhausted
+  - lastHeartbeatTime: "2026-01-23T21:16:55Z"
+    lastTransitionTime: "2026-01-23T21:16:54Z"
+    message: '{"managed": {"shutdownGracePeriod": "30s", "shutdownGracePeriodCriticalPods":
+      "15s", "topologyManagerPolicy": "best-effort", "topologyManagerScope": "container"}}'
+    reason: KubeletConfigChangeDetected
+    status: "True"
+    type: KubeletConfigChanged
+  - lastHeartbeatTime: "2026-01-23T21:16:55Z"
+    lastTransitionTime: "2026-01-23T21:16:54Z"
+    message: 'No deprecation risk: did not find any deprecations other than 3 configs
+      fields (auths/configs/mirrors), pulling schema v1 images and using v1alpha2
+      CRI.'
+    reason: DeprecatedOtherContainerdFeaturesNotDetected
+    status: "False"
+    type: DeprecatedOtherContainerdFeatures
+  - lastHeartbeatTime: "2026-01-23T21:16:55Z"
+    lastTransitionTime: "2026-01-23T21:16:54Z"
+    message: Swap is not active
+    reason: SwapNotDetected
+    status: "False"
+    type: Swap
+  - lastHeartbeatTime: "2026-01-23T21:16:55Z"
+    lastTransitionTime: "2026-01-23T21:16:54Z"
+    message: 'No deprecation risk: did not find any deprecated ''auths'' field in
+      containerd''s config'
+    reason: DeprecatedAuthsFieldInContainerdConfigurationNotDetected
+    status: "False"
+    type: DeprecatedAuthsFieldInContainerdConfiguration
+  - lastHeartbeatTime: "2026-01-23T21:16:55Z"
+    lastTransitionTime: "2026-01-23T21:16:54Z"
+    message: XFS has not shutdown
+    reason: XfsHasNotShutDown
+    status: "False"
+    type: XfsShutdown
+  - lastHeartbeatTime: "2026-01-23T21:16:54Z"
+    lastTransitionTime: "2026-01-23T21:16:54Z"
+    message: NodeController create implicit route
+    reason: RouteCreated
+    status: "False"
+    type: NetworkUnavailable
+  - lastHeartbeatTime: "2026-01-23T21:17:25Z"
+    lastTransitionTime: "2026-01-23T21:16:54Z"
+    message: kubelet has sufficient memory available
+    reason: KubeletHasSufficientMemory
+    status: "False"
+    type: MemoryPressure
+  - lastHeartbeatTime: "2026-01-23T21:17:25Z"
+    lastTransitionTime: "2026-01-23T21:16:54Z"
+    message: kubelet has no disk pressure
+    reason: KubeletHasNoDiskPressure
+    status: "False"
+    type: DiskPressure
+  - lastHeartbeatTime: "2026-01-23T21:17:25Z"
+    lastTransitionTime: "2026-01-23T21:16:54Z"
+    message: kubelet has sufficient PID available
+    reason: KubeletHasSufficientPID
+    status: "False"
+    type: PIDPressure
+  - lastHeartbeatTime: "2026-01-23T21:17:25Z"
+    lastTransitionTime: "2026-01-23T21:16:56Z"
+    message: kubelet is posting ready status
+    reason: KubeletReady
+    status: "True"
+    type: Ready
+  daemonEndpoints:
+    kubeletEndpoint:
+      Port: 10250
+  features:
+    supplementalGroupsPolicy: true
+  images:
+  - names:
+    - gke.gcr.io/kube-proxy-amd64:v1.35.0-gke.1624000
+    - gke.gcr.io/kube-proxy-amd64:v1.35.0-gke.600
+    - k8s.gcr.io/kube-proxy-amd64:v1.35.0-gke.600
+    - us-central1-artifactregistry.gcr.io/gke-release/gke-release/kube-proxy-amd64:v1.35.0-gke.1624000
+    sizeBytes: 74051766
+  - names:
+    - us-central1-artifactregistry.gcr.io/gke-release/gke-release/gke-metrics-collector@sha256:291fad82987ff40be8fcfab105ba5fe10389aa49ee837beb9ada22dcd31a3327
+    sizeBytes: 26322979
+  - names:
+    - us-central1-artifactregistry.gcr.io/gke-release/gke-release/gke-metrics-collector@sha256:3cd3850dc5064041bf0d6e6f25e53b6f107bce3f3f809c377c3098cd1175ddbb
+    sizeBytes: 26252955
+  nodeInfo:
+    architecture: amd64
+    bootID: 32852b6f-14ab-4c69-9051-75c594f2aa95
+    containerRuntimeVersion: containerd://2.1.4
+    kernelVersion: 6.12.55+
+    kubeProxyVersion: ""
+    kubeletVersion: v1.35.0-gke.1624000
+    machineID: 42d1dfad234da747c1f259db8244ac3d
+    operatingSystem: linux
+    osImage: Container-Optimized OS from Google
+    systemUUID: 42d1dfad-234d-a747-c1f2-59db8244ac3d
+  runtimeHandlers:
+  - features:
+      recursiveReadOnlyMounts: true
+      userNamespaces: true
+    name: ""
+  - features:
+      recursiveReadOnlyMounts: true
+      userNamespaces: true
+    name: runc

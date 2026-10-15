@@ -1,0 +1,77 @@
+apiVersion: v1
+items:
+- apiVersion: accelerator.gke.io/v1beta1
+  kind: Slice
+  metadata:
+    annotations:
+      accelerator.gke.io/LastReadyConditionTransitionTime: "2026-08-27T20:31:50Z"
+    creationTimestamp: "2026-08-27T20:31:14Z"
+    finalizers:
+    - accelerator.gke.io/slice-finalizer
+    generation: 1
+    labels:
+      tpu-provisioner.cloud.google.com/owner-kind: jobset
+      tpu-provisioner.cloud.google.com/owner-name: myjobset-0111
+      tpu-provisioner.cloud.google.com/owner-namespace: default
+    name: js-myjobset-abcd-job-0
+    resourceVersion: "1787862710775023018"
+    uid: f1f59a10-916e-4b63-bac8-284e49336aa1
+  spec:
+    partitionIds:
+    - 4397fdb373e74bbd19d07df2bdceff1b
+    topology: 4x4x4
+    type: tpu7x
+  status:
+    conditions:
+    - lastTransitionTime: "2026-08-27T20:31:50Z"
+      message: ""
+      reason: ACTIVE
+      status: "True"
+      type: Ready
+    - lastTransitionTime: "2026-08-27T20:31:50Z"
+      message: NodeLabelingCompleted
+      reason: NodeLabelIsAdded
+      status: "True"
+      type: NodeLabeled
+    observedGeneration: 1
+- apiVersion: accelerator.gke.io/v1beta1
+  kind: Slice
+  metadata:
+    annotations:
+      accelerator.gke.io/LastReadyConditionTransitionTime: "2026-08-27T20:22:29Z"
+    creationTimestamp: "2026-08-27T20:21:37Z"
+    finalizers:
+    - accelerator.gke.io/slice-finalizer
+    generation: 1
+    labels:
+      tpu-provisioner.cloud.google.com/owner-kind: jobset
+      tpu-provisioner.cloud.google.com/owner-name: myjobset-2020
+      tpu-provisioner.cloud.google.com/owner-namespace: default
+    name: js-myjobset-2020-09a50603-job-0
+    resourceVersion: "1787862149997951015"
+    uid: e2cc696c-0269-4fc9-8c65-ef381247a234
+  spec:
+    partitionIds:
+    - 03826ae4e775f76d969a08da50a1a72e
+    - 06a53d17b51b9c45279c095d858debde
+    - 0b52d87647dc2bf12347633400731b3f
+    - 0d0c014c79c41a7ad9458d3e2246d33a
+    - 0ee090622b2ed83fe35c8068272c6f03
+    - 1656396b556f4e250c181d754b0e6ec2
+    - 182b213c904719f109bfd91598a2f1fe
+    - 8890f2b7565b96552c1af34420710618
+    topology: 8x8x8
+    type: tpu7x
+  status:
+    conditions:
+    - lastTransitionTime: "2026-08-27T20:22:29Z"
+      message: ""
+      reason: ACTIVE
+      status: "True"
+      type: Ready
+    - lastTransitionTime: "2026-08-27T20:22:29Z"
+      message: NodeLabelingCompleted
+      reason: NodeLabelIsAdded
+      status: "True"
+      type: NodeLabeled
+    observedGeneration: 1
