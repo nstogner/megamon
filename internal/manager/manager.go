@@ -15,6 +15,7 @@ import (
 
 	"cloud.google.com/go/compute/metadata"
 	containerv1beta1 "google.golang.org/api/container/v1beta1"
+	"google.golang.org/api/option"
 
 	"cloud.google.com/go/storage"
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -93,6 +94,9 @@ type Config struct {
 	// GKE client options
 	GKE GKEConfig
 
+	// GCS client options
+	GCS GCSConfig
+
 	// Controller runtime thresholds
 	UnknownCountThreshold float64
 
@@ -107,6 +111,13 @@ type GKEConfig struct {
 	ProjectID       string
 	ClusterLocation string
 	ClusterName     string
+	Endpoint        string
+	DisableAuth     bool
+}
+
+type GCSConfig struct {
+	Endpoint    string
+	DisableAuth bool
 }
 
 func (c GKEConfig) ClusterRef() string {
@@ -327,7 +338,16 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 	}
 
 	if gkeClient == nil {
-		containersService, err := containerv1beta1.NewService(context.Background())
+		var clientOpts []option.ClientOption
+		if cfg.GKE.Endpoint != "" {
+			log.Info("Overriding GKE API endpoint", "endpoint", cfg.GKE.Endpoint)
+			clientOpts = append(clientOpts, option.WithEndpoint(cfg.GKE.Endpoint))
+		}
+		if cfg.GKE.DisableAuth {
+			log.Info("Disabling GKE API authentication")
+			clientOpts = append(clientOpts, option.WithoutAuthentication())
+		}
+		containersService, err := containerv1beta1.NewService(context.Background(), clientOpts...)
 		if err != nil {
 			log.Error(err, "unable to create gke client")
 			os.Exit(1)
@@ -339,7 +359,16 @@ func MustRun(ctx context.Context, cfg Config, restConfig *rest.Config, gkeClient
 	}
 
 	if gcsClient == nil {
-		storageClient, err := storage.NewClient(ctx)
+		var clientOpts []option.ClientOption
+		if cfg.GCS.Endpoint != "" {
+			log.Info("Overriding GCS API endpoint", "endpoint", cfg.GCS.Endpoint)
+			clientOpts = append(clientOpts, option.WithEndpoint(cfg.GCS.Endpoint))
+		}
+		if cfg.GCS.DisableAuth {
+			log.Info("Disabling GCS API authentication")
+			clientOpts = append(clientOpts, option.WithoutAuthentication())
+		}
+		storageClient, err := storage.NewClient(ctx, clientOpts...)
 		if err != nil {
 			log.Error(err, "unable to create gcs client")
 			os.Exit(1)
